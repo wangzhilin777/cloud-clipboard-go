@@ -1,0 +1,299 @@
+name: Unified Release
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  # ====================================================================
+  # Job 1: Build Frontend Assets (只构建一次)
+  # ====================================================================
+  build-frontend:
+    name: Build Frontend Assets
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: client/package.json
+      - name: Build frontend static assets
+        run: |
+          cd client
+          npm install
+          npm run build
+      - name: Upload frontend artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: client/dist
+
+  # ====================================================================
+  # Job 2: Build Desktop Binaries using GoReleaser
+  # ====================================================================
+  build-desktop:
+    name: Build Desktop Binaries
+    runs-on: ubuntu-latest
+    needs: build-frontend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: client/package.json
+      # - name: Download frontend artifact
+      #   uses: actions/download-artifact@v4
+      #   with:
+      #     name: frontend-dist
+      #     path: client/dist
+      # - name: Prepare Go embed directory
+      #   run: |
+      #     mkdir -p cloud-clip/static
+      #     cp -r client/dist/* cloud-clip/static/
+      - name: Run GoReleaser (build only)
+        uses: goreleaser/goreleaser-action@v5
+        with:
+          distribution: goreleaser
+          version: '~> v2'
+          args: release --clean --skip=publish
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
+      - name: Upload GoReleaser artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: goreleaser-dist
+          # 1. 修正：只上传需要的发布文件，排除元数据文件
+          path: |
+            dist/*.zip
+            dist/*.tar.gz
+            dist/*.deb
+            dist/*.rpm
+            dist/checksums.txt
+            dist/CHANGELOG.md
+
+  # ====================================================================
+  # Job 3: Build Per-Architecture Android APKs
+  # ====================================================================
+  build-apk:
+    name: Build Android APK (${{ matrix.arch }})
+    runs-on: ubuntu-latest
+    needs: build-frontend
+    strategy:
+      matrix:
+        arch: [arm64-v8a, armeabi-v7a, x86_64]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Go, JDK
+        uses: actions/setup-go@v5
+        with: { go-version: '1.22' }
+      - uses: actions/setup-java@v4
+        with: { java-version: '17', distribution: 'temurin' }
+      - name: Download frontend artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-dist
+          path: client/dist
+      - name: Prepare Go embed directory
+        run: |
+          rm -rf cloud-clip/lib/static
+          mkdir -p cloud-clip/lib/static
+          cp -r client/dist/* cloud-clip/lib/static/
+      - name: Install gomobile and Build AAR
+        run: |
+          go install golang.org/x/mobile/cmd/gomobile@latest
+          export PATH=$PATH:$(go env GOPATH)/bin
+          gomobile init
+          # 2. 使用 case 语句支持多个架构
+          TARGET_ARCH=""
+          case "${{ matrix.arch }}" in
+            "arm64-v8a") TARGET_ARCH="android/arm64" ;;
+            "armeabi-v7a") TARGET_ARCH="android/arm" ;;
+            "x86_64") TARGET_ARCH="android/amd64" ;;
+          esac
+          cd cloud-clip/mobile
+          gomobile bind -v -tags embed -androidapi 24 -o cloudclipservice.aar -target=$TARGET_ARCH -ldflags="-s -w" github.com/jonnyan404/cloud-clipboard-go/cloud-clip/mobile
+          mkdir -p ../../android/app/libs
+          cp cloudclipservice.aar ../../android/app/libs/
+      - name: Decode Signing Key and Build APK
+        run: |
+          echo "${{ secrets.SIGNING_KEY_STORE_BASE64 }}" | base64 --decode > $GITHUB_WORKSPACE/android/app/my-release-key.keystore
+          chmod +x ./android/gradlew
+          cd android
+          ./gradlew assembleRelease \
+            -PabiFilters=${{ matrix.arch }} \
+            -Psigning.key.alias=${{ secrets.SIGNING_KEY_ALIAS }} \
+            -Psigning.key.password=${{ secrets.SIGNING_KEY_PASSWORD }} \
+            -Psigning.store.file=$GITHUB_WORKSPACE/android/app/my-release-key.keystore \
+            -Psigning.store.password=${{ secrets.SIGNING_KEY_STORE_PASSWORD }} \
+            --stacktrace
+
+      - name: List build outputs for debugging
+        run: |
+          echo "Listing contents of android/app/build/outputs/apk/ ..."
+          ls -R android/app/build/outputs/apk/
+
+      - name: Find and Rename APK
+        run: |
+          APK_PATH=$(find android/app/build/outputs/apk -type f -name "app-${{ matrix.arch }}-release.apk")
+          if [ -z "$APK_PATH" ]; then echo "::error::Per-arch APK file not found!" && exit 1; fi
+          echo "Found APK at: $APK_PATH"
+          # 重命名 APK 到根目录，避免嵌套目录
+          mv "$APK_PATH" "cloud-clipboard-go-${{ github.ref_name }}-${{ matrix.arch }}.apk"
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          # 使用矩阵变量使 artifact 名称唯一，避免冲突
+          name: apk-per-arch-artifacts-${{ matrix.arch }}
+          # 直接上传重命名后的 APK 文件
+          path: cloud-clipboard-go-${{ github.ref_name }}-${{ matrix.arch }}.apk
+
+  # ====================================================================
+  # Job 4: Build Universal Android APK (新添加的 Job)
+  # ====================================================================
+  build-universal-apk:
+    name: Build Universal Android APK
+    runs-on: ubuntu-latest
+    needs: build-frontend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Go, JDK
+        uses: actions/setup-go@v5
+        with: { go-version: '1.22' }
+      - uses: actions/setup-java@v4
+        with: { java-version: '17', distribution: 'temurin' }
+      - name: Download frontend artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-dist
+          path: client/dist
+      - name: Prepare Go embed directory
+        run: |
+          rm -rf cloud-clip/lib/static
+          mkdir -p cloud-clip/lib/static
+          cp -r client/dist/* cloud-clip/lib/static/
+      - name: Install gomobile and Build Universal AAR
+        run: |
+          go install golang.org/x/mobile/cmd/gomobile@latest
+          export PATH=$PATH:$(go env GOPATH)/bin
+          gomobile init
+          cd cloud-clip/mobile
+          # 3. 同时为所有目标平台构建和合并 AAR
+          gomobile bind -v -tags embed -androidapi 24 -o cloudclipservice.aar \
+            -target=android/arm,android/arm64,android/amd64 \
+            -ldflags="-s -w" github.com/jonnyan404/cloud-clipboard-go/cloud-clip/mobile
+          mkdir -p ../../android/app/libs
+          cp cloudclipservice.aar ../../android/app/libs/
+      - name: Decode Signing Key and Build Universal APK
+        run: |
+          echo "${{ secrets.SIGNING_KEY_STORE_BASE64 }}" | base64 --decode > $GITHUB_WORKSPACE/android/app/my-release-key.keystore
+          chmod +x ./android/gradlew
+          cd android
+          # 添加 -PbuildUniversal 参数来触发 Universal APK 的构建
+          ./gradlew assembleRelease \
+            -PbuildUniversal \
+            -Psigning.key.alias=${{ secrets.SIGNING_KEY_ALIAS }} \
+            -Psigning.key.password=${{ secrets.SIGNING_KEY_PASSWORD }} \
+            -Psigning.store.file=$GITHUB_WORKSPACE/android/app/my-release-key.keystore \
+            -Psigning.store.password=${{ secrets.SIGNING_KEY_STORE_PASSWORD }} \
+            --stacktrace
+      - name: Find and Rename Universal APK
+        run: |
+          APK_PATH=$(find android/app/build/outputs/apk -type f -name "app-universal-release.apk")
+          if [ -z "$APK_PATH" ]; then echo "::error::Universal APK file not found!" && exit 1; fi
+          echo "Found Universal APK at: $APK_PATH"
+          mv "$APK_PATH" "cloud-clipboard-go-${{ github.ref_name }}-universal.apk"
+      - name: Upload Universal APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: apk-universal-artifact
+          path: cloud-clipboard-go-${{ github.ref_name }}-universal.apk
+
+  # ====================================================================
+  # Job 5: Create Release and Upload All Assets
+  # ====================================================================
+  release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: [build-desktop, build-apk, build-universal-apk]
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - name: Display downloaded artifacts structure for debugging
+        run: ls -R artifacts
+      - name: Create Release and Upload Assets
+        uses: softprops/action-gh-release@v2
+        with:
+          # 2. 修正：使用更简单、更可靠的 glob 模式来匹配所有 APK
+          files: |
+            artifacts/goreleaser-dist/*
+            artifacts/apk-per-arch-artifacts-*/*.apk
+            artifacts/apk-universal-artifact/*.apk
+          # 注意：GoReleaser 在 --skip-publish 模式下可能不生成 release-notes.md
+          # 我们暂时使用 CHANGELOG.md 作为 body
+          body_path: "artifacts/goreleaser-dist/CHANGELOG.md"
+
+  # ====================================================================
+  # Job 6: Build and Push Docker Images
+  # ====================================================================
+  docker:
+    name: Build and Push Docker
+    runs-on: ubuntu-latest
+    needs: release
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: |
+            ghcr.io/${{ github.repository }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/${{ github.event.repository.name }}
+          tags: |
+            type=raw,value=${{ github.ref_name }}
+            type=raw,value=latest
+      - name: Set up QEMU and Docker Buildx
+        uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - name: Login to Registries
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: cloud-clip/Dockerfile
+          push: true
+          platforms: linux/amd64,linux/arm64,linux/arm/v7
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}

@@ -1,0 +1,110 @@
+version: 2
+before:
+  hooks:
+    - sh -c 'cd $GITHUB_WORKSPACE/client && npm install && npm run build && mkdir -p $GITHUB_WORKSPACE/cloud-clip/lib/static && cp -r $GITHUB_WORKSPACE/client/dist/* $GITHUB_WORKSPACE/cloud-clip/lib/static/ && ls -la $GITHUB_WORKSPACE/cloud-clip/lib/static/'
+    # Go 依赖管理
+    - sh -c 'cd $GITHUB_WORKSPACE/cloud-clip && go mod tidy'
+
+builds:
+  - dir: cloud-clip
+    env:
+      - CGO_ENABLED=0
+      - GOOS=darwin
+      - GOARCH=amd64
+      - GOAMD64=v1
+      - GOMACOSVERSION=10.13  # 支持较旧的 macOS 版本
+    goos:
+      - linux
+      - windows
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+      - arm
+      - "386"
+    goarm:
+      - "7"
+    ignore:
+      - goos: darwin
+        goarch: arm
+      - goos: windows
+        goarch: arm
+      - goos: darwin
+        goarch: "386"
+    mod_timestamp: '{{ .CommitTimestamp }}'
+    hooks:
+      post:
+        # 确保 macOS 文件有执行权限
+        - cmd: chmod +x {{ .Path }}
+          dir: ./dist
+    flags:
+      - -trimpath
+      - -tags=embed
+    ldflags:
+      - -s -w
+      # - -X main.version={{ .Version }}
+      # 增加一个标记告诉程序使用嵌入式静态资源
+      - -X lib.UseEmbeddedStr=true
+
+archives:
+  - formats: [ 'tar.gz' ]
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- title .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "386" }}i386
+      {{- else if eq .Arch "arm64" }}aarch64
+      {{- else if eq .Arch "arm" }}armv7
+      {{- else }}{{ .Arch }}{{ end }}
+    format_overrides:
+      - goos: windows
+        formats: [ 'zip' ]
+
+# 添加 Homebrew 支持配置
+brews:
+  - name: cloud-clipboard-go
+    repository:
+      owner: Jonnyan404
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    commit_author:
+      name: goreleaserbot
+      email: goreleaser@carlosbecker.com
+    homepage: "https://github.com/Jonnyan404/cloud-clipboard-go"
+    description: "云剪贴板：跨设备共享文本和文件"
+    license: "MIT"
+    install: |
+      bin.install "cloud-clipboard-go"
+    test: |
+      system "#{bin}/cloud-clipboard-go", "-v"
+    service: |
+      run [opt_bin/"cloud-clipboard-go", "-config", etc/"cloud-clipboard-go/config.json"]
+      working_dir var
+      keep_alive true
+      log_path var/"log/cloud-clipboard-go.log"
+      error_log_path var/"log/cloud-clipboard-go.error.log"
+    directory: Formula
+    post_install: |
+      (etc/"cloud-clipboard-go").mkpath
+      (var/"log").mkpath
+      # 如果配置文件不存在，创建一个默认配置
+      unless (etc/"cloud-clipboard-go/config.json").exist?
+        (etc/"cloud-clipboard-go/config.json").write <<~EOS
+          {
+            "server": {
+              "host": "0.0.0.0",
+              "port": 9501
+            }
+          }
+        EOS
+      end
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+      - '^chore:'
+      - Merge pull request
+      - Merge branch
