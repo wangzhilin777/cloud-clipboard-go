@@ -49,6 +49,8 @@ global EditDirectPasteHotkey := ""
 global EditAutoConnectEnabled := 0
 global EditStartupEnabled := 0
 global EditFileConfirmSeconds := 8
+global EditCopyConfirmEnabled := 1
+global EditPasteConfirmEnabled := 1
 global CaptureHotkeyValue := ""
 global CaptureHotkeyTarget := ""
 global PendingPayloadSignature := ""
@@ -62,6 +64,7 @@ global PendingReceivePayloadTitle := ""
 global PendingReceivePayloadExpiresAt := 0
 global PendingReceiveSourceDevice := ""
 global PendingReceiveKind := ""
+global PendingReceivePasteArmed := false
 
 EnsureConfig()
 RefreshRuntimePaths()
@@ -96,8 +99,12 @@ HandleClipboardChange(Type) {
     }
     if (ClipboardContainsFiles()) {
         paths := GetClipboardFileList()
-        if (paths != "")
-            RequestPayloadConfirmation(paths, "upload", "已复制文件到剪贴板")
+        if (paths != "") {
+            if (IsCopyConfirmationEnabled())
+                RequestPayloadConfirmation(paths, "upload", "已复制文件到剪贴板")
+            else
+                ExecutePayloadAction("upload", paths)
+        }
     }
 }
 
@@ -180,11 +187,13 @@ return
 
 SaveConfig:
     global ConfigPath, EditServerBase, EditRoom, EditRoomPassword, EditDeviceName, EditDeviceId, EditRuntimeDir
-    global EditPanelHotkey, EditSyncToggleHotkey, EditTrayIconHotkey, EditDirectSendHotkey, EditDirectPasteHotkey, EditAutoConnectEnabled, EditStartupEnabled, EditFileConfirmSeconds, LastSyncResult, HelperActive
+    global EditPanelHotkey, EditSyncToggleHotkey, EditTrayIconHotkey, EditDirectSendHotkey, EditDirectPasteHotkey, EditAutoConnectEnabled, EditStartupEnabled, EditFileConfirmSeconds, EditCopyConfirmEnabled, EditPasteConfirmEnabled, LastSyncResult, HelperActive
     Gui, Status:Submit, NoHide
     Gui, Advanced:Submit, NoHide
     autoConnectValue := EditAutoConnectEnabled ? 1 : 0
     startupValue := EditStartupEnabled ? 1 : 0
+    copyConfirmValue := EditCopyConfirmEnabled ? 1 : 0
+    pasteConfirmValue := EditPasteConfirmEnabled ? 1 : 0
     normalizedHotkey := NormalizeHotkey(EditPanelHotkey)
     normalizedSyncToggleHotkey := NormalizeHotkey(EditSyncToggleHotkey)
     normalizedTrayIconHotkey := NormalizeHotkey(EditTrayIconHotkey)
@@ -210,6 +219,8 @@ SaveConfig:
     IniWrite, %autoConnectValue%, %ConfigPath%, sync, autoConnectEnabled
     IniWrite, %startupValue%, %ConfigPath%, sync, startupEnabled
     IniWrite, %normalizedFileConfirmSeconds%, %ConfigPath%, sync, fileConfirmSeconds
+    IniWrite, %copyConfirmValue%, %ConfigPath%, sync, copyConfirmEnabled
+    IniWrite, %pasteConfirmValue%, %ConfigPath%, sync, pasteConfirmEnabled
     RefreshRuntimePaths()
     RegisterPanelHotkey()
     RegisterSyncToggleHotkey()
@@ -378,7 +389,10 @@ SendFilesToAndroid:
     paths := SelectFilesForAndroid()
     if (paths = "")
         return
-    RequestPayloadConfirmation(paths, "upload", "已选择文件待发送")
+    if (IsCopyConfirmationEnabled())
+        RequestPayloadConfirmation(paths, "upload", "已选择文件待发送")
+    else
+        ExecutePayloadAction("upload", paths)
 return
 
 ClearRuntimeCache:
@@ -516,6 +530,17 @@ DirectPasteLatestPayload:
     }
 return
 
+StatusGuiDropFiles:
+    paths := FilterDroppedFiles(A_GuiEvent)
+    if (paths = "") {
+        LastSyncResult := "拖入的内容里没有可发送的文件"
+        UpdateGui()
+        return
+    }
+    ExecutePayloadAction("upload", paths)
+    ClearPendingPayloadState()
+return
+
 ExitClient:
     if (HelperActive)
         AppendCommand("shutdown", "")
@@ -545,6 +570,9 @@ EnsureConfig() {
     IniWrite, ^!+v, %ConfigPath%, sync, directPasteHotkey
     IniWrite, 1, %ConfigPath%, sync, autoConnectEnabled
     IniWrite, 0, %ConfigPath%, sync, startupEnabled
+    IniWrite, 8, %ConfigPath%, sync, fileConfirmSeconds
+    IniWrite, 1, %ConfigPath%, sync, copyConfirmEnabled
+    IniWrite, 1, %ConfigPath%, sync, pasteConfirmEnabled
     IniWrite, stopped, %ConfigPath%, sync, lastDesiredRunningState
     IniWrite, 0, %ConfigPath%, sync, hasConnectedOnce
 }
@@ -580,6 +608,15 @@ MigrateConfig() {
     IniRead, StartupEnabled, %ConfigPath%, sync, startupEnabled, %missingValue%
     if (StartupEnabled = missingValue || StartupEnabled = "")
         IniWrite, 0, %ConfigPath%, sync, startupEnabled
+    IniRead, FileConfirmSeconds, %ConfigPath%, sync, fileConfirmSeconds, %missingValue%
+    if (FileConfirmSeconds = missingValue || FileConfirmSeconds = "")
+        IniWrite, 8, %ConfigPath%, sync, fileConfirmSeconds
+    IniRead, CopyConfirmEnabled, %ConfigPath%, sync, copyConfirmEnabled, %missingValue%
+    if (CopyConfirmEnabled = missingValue || CopyConfirmEnabled = "")
+        IniWrite, 1, %ConfigPath%, sync, copyConfirmEnabled
+    IniRead, PasteConfirmEnabled, %ConfigPath%, sync, pasteConfirmEnabled, %missingValue%
+    if (PasteConfirmEnabled = missingValue || PasteConfirmEnabled = "")
+        IniWrite, 1, %ConfigPath%, sync, pasteConfirmEnabled
     IniRead, LastDesiredRunningState, %ConfigPath%, sync, lastDesiredRunningState, %missingValue%
     if (LastDesiredRunningState = missingValue || LastDesiredRunningState = "")
         IniWrite, stopped, %ConfigPath%, sync, lastDesiredRunningState
@@ -645,11 +682,13 @@ InitGui() {
     Gui, Status:Add, Button, xm y+10 w120 h30 gOpenConfig, 打开 ini
     Gui, Status:Add, Button, x+8 w120 h30 gClearRuntimeCache, 清理本地缓存
     Gui, Status:Add, Button, x+8 w244 h34 gSendFilesToAndroid, 发送文件或图片到安卓确认接收
+    Gui, Status:Font, s9 Norm c667085, Segoe UI
+    Gui, Status:Add, Text, xm y+12 w500 Center Border vDropSendHintText, 把文件拖到这里可直接发送到安卓，不走二次复制确认
 }
 
 InitAdvancedGui() {
     global EditDeviceId, EditRuntimeDir, EditPanelHotkey, EditSyncToggleHotkey, EditTrayIconHotkey, EditDirectSendHotkey, EditDirectPasteHotkey
-    global EditAutoConnectEnabled, EditStartupEnabled, EditFileConfirmSeconds
+    global EditAutoConnectEnabled, EditStartupEnabled, EditFileConfirmSeconds, EditCopyConfirmEnabled, EditPasteConfirmEnabled
     Gui, Advanced:New, +OwnerStatus +ToolWindow +OwnDialogs, Cloud Clipboard 高级设置
     Gui, Advanced:Margin, 18, 18
     Gui, Advanced:Color, F6F8FC
@@ -695,7 +734,9 @@ InitAdvancedGui() {
     Gui, Advanced:Add, Text, xm y+14 w92, 确认秒数
     Gui, Advanced:Add, Edit, x+10 yp-3 w120 h24 vEditFileConfirmSeconds,
     Gui, Advanced:Add, Text, x+12 yp+4 w246, 普通复制文件后会先提示，在这个时间内再次复制同一批文件才发送；收到远端文件后，再次粘贴可确认下载。
-    Gui, Advanced:Add, CheckBox, xm y+14 w470 vEditAutoConnectEnabled, 启动客户端后按上次状态自动恢复同步
+    Gui, Advanced:Add, CheckBox, xm y+14 w470 vEditCopyConfirmEnabled, 普通复制文件时启用二次确认
+    Gui, Advanced:Add, CheckBox, xm y+8 w470 vEditPasteConfirmEnabled, 收到远端文件后启用二次粘贴确认下载
+    Gui, Advanced:Add, CheckBox, xm y+8 w470 vEditAutoConnectEnabled, 启动客户端后按上次状态自动恢复同步
     Gui, Advanced:Add, CheckBox, xm y+8 w470 vEditStartupEnabled, 跟随 Windows 开机启动本客户端
     Gui, Advanced:Add, Button, xm y+18 w104 h30 gSaveConfig Default, 保存配置
     Gui, Advanced:Add, Button, x+8 w104 h30 gAdvancedGuiClose, 关闭
@@ -717,6 +758,8 @@ UpdateGui() {
     IniRead, AutoConnectEnabled, %ConfigPath%, sync, autoConnectEnabled, 1
     IniRead, StartupEnabled, %ConfigPath%, sync, startupEnabled, 0
     IniRead, FileConfirmSeconds, %ConfigPath%, sync, fileConfirmSeconds, 8
+    IniRead, CopyConfirmEnabled, %ConfigPath%, sync, copyConfirmEnabled, 1
+    IniRead, PasteConfirmEnabled, %ConfigPath%, sync, pasteConfirmEnabled, 1
     masked := RoomPassword = "" ? "未设置" : "已设置"
     autoResumeText := AutoConnectEnabled = 1 ? "开启" : "关闭"
     displayHotkey := FormatHotkeyForDisplay(PanelHotkey)
@@ -739,6 +782,8 @@ UpdateGui() {
     GuiControl, Advanced:, EditAutoConnectEnabled, % AutoConnectEnabled = 1 ? 1 : 0
     GuiControl, Advanced:, EditStartupEnabled, % StartupEnabled = 1 ? 1 : 0
     GuiControl, Advanced:, EditFileConfirmSeconds, %FileConfirmSeconds%
+    GuiControl, Advanced:, EditCopyConfirmEnabled, % CopyConfirmEnabled = 1 ? 1 : 0
+    GuiControl, Advanced:, EditPasteConfirmEnabled, % PasteConfirmEnabled = 1 ? 1 : 0
     GuiControl, Status:, StatusText, 状态：%ClientStatus%
     GuiControl, Status:, RoomText, 房间：%RoomName%
     GuiControl, Status:, DeviceText, 设备：%DeviceName%（%DeviceId%） 面板热键：%displayHotkey%
@@ -1204,7 +1249,7 @@ RequestPayloadConfirmation(paths, action := "upload", reason := "已记录文件
 }
 
 TriggerPendingReceiveDownload(pasteAfterCopy := true, force := false) {
-    global PendingReceivePayloadId, PendingReceivePayloadExpiresAt, PendingReceivePayloadTitle, LastSyncResult
+    global PendingReceivePayloadId, PendingReceivePayloadExpiresAt, PendingReceivePayloadTitle, LastSyncResult, PendingReceivePasteArmed
     if (PendingReceivePayloadId = "")
         return false
     if (!force && A_TickCount > PendingReceivePayloadExpiresAt) {
@@ -1212,6 +1257,13 @@ TriggerPendingReceiveDownload(pasteAfterCopy := true, force := false) {
         ClearPendingReceiveState()
         UpdateGui()
         return false
+    }
+    if (!force && IsPasteConfirmationEnabled() && !PendingReceivePasteArmed) {
+        PendingReceivePasteArmed := true
+        LastSyncResult := "已准备接收远端文件：" . PendingReceivePayloadTitle . "；请在确认秒数内再次粘贴以开始下载"
+        UpdateGui()
+        ShowActionTip("Cloud Clipboard", "再次按 Ctrl+V 可确认下载远端文件：" . PendingReceivePayloadTitle)
+        return true
     }
     payload := "{""payloadId"":""" . EscapeJsonString(PendingReceivePayloadId) . """,""mode"":""clipboardPaste"",""paste"":" . (pasteAfterCopy ? "true" : "false") . "}"
     AppendCommand("payloadReceive", payload)
@@ -1267,12 +1319,13 @@ ClearPendingPayloadState() {
 }
 
 ClearPendingReceiveState() {
-    global PendingReceivePayloadId, PendingReceivePayloadTitle, PendingReceivePayloadExpiresAt, PendingReceiveSourceDevice, PendingReceiveKind
+    global PendingReceivePayloadId, PendingReceivePayloadTitle, PendingReceivePayloadExpiresAt, PendingReceiveSourceDevice, PendingReceiveKind, PendingReceivePasteArmed
     PendingReceivePayloadId := ""
     PendingReceivePayloadTitle := ""
     PendingReceivePayloadExpiresAt := 0
     PendingReceiveSourceDevice := ""
     PendingReceiveKind := ""
+    PendingReceivePasteArmed := false
 }
 
 ClearPendingPayloadTimer:
@@ -1320,8 +1373,36 @@ CountPayloadPaths(paths) {
     return count
 }
 
+FilterDroppedFiles(paths) {
+    output := ""
+    lines := StrSplit(paths, "`n", "`r")
+    for index, item in lines {
+        item := Trim(item)
+        if (item = "")
+            continue
+        if InStr(FileExist(item), "D")
+            continue
+        if !FileExist(item)
+            continue
+        output .= (output = "" ? "" : "`n") . item
+    }
+    return output
+}
+
+IsCopyConfirmationEnabled() {
+    global ConfigPath
+    IniRead, value, %ConfigPath%, sync, copyConfirmEnabled, 1
+    return value = 1
+}
+
+IsPasteConfirmationEnabled() {
+    global ConfigPath
+    IniRead, value, %ConfigPath%, sync, pasteConfirmEnabled, 1
+    return value = 1
+}
+
 HandleIncomingPayloadNotice(jsonText) {
-    global PendingReceivePayloadId, PendingReceivePayloadTitle, PendingReceivePayloadExpiresAt, PendingReceiveSourceDevice, PendingReceiveKind
+    global PendingReceivePayloadId, PendingReceivePayloadTitle, PendingReceivePayloadExpiresAt, PendingReceiveSourceDevice, PendingReceiveKind, PendingReceivePasteArmed
     global LastSyncResult
     payloadId := ReadJsonValue(jsonText, "payloadId")
     title := ReadJsonValue(jsonText, "title")
@@ -1334,10 +1415,11 @@ HandleIncomingPayloadNotice(jsonText) {
     PendingReceivePayloadTitle := title = "" ? "远端文件" : title
     PendingReceiveSourceDevice := sourceDevice
     PendingReceiveKind := kind
+    PendingReceivePasteArmed := false
     PendingReceivePayloadExpiresAt := A_TickCount + seconds * 1000
-    LastSyncResult := "收到远端" . DescribePayloadKind(kind) . "：" . PendingReceivePayloadTitle . "；请在 " . seconds . " 秒内再次粘贴确认下载"
+    LastSyncResult := "收到远端" . DescribePayloadKind(kind) . "：" . PendingReceivePayloadTitle . "；可用拖拽、直贴热键，或按 Ctrl+V 进入下载确认"
     UpdateGui()
-    ShowActionTip("Cloud Clipboard", "收到远端" . DescribePayloadKind(kind) . "“" . PendingReceivePayloadTitle . "”，" . seconds . " 秒内再次按 Ctrl+V 可确认下载")
+    ShowActionTip("Cloud Clipboard", "收到远端" . DescribePayloadKind(kind) . "“" . PendingReceivePayloadTitle . "”，按 Ctrl+V 可进入下载确认，直贴热键可直接下载并粘贴")
     SetTimer, ClearPendingReceiveTimer, Off
     delayMs := seconds * 1000
     SetTimer, ClearPendingReceiveTimer, % -delayMs
