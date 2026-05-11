@@ -23,7 +23,10 @@ global HelperStartAttempts := 0
 global NextHelperRestartAt := 0
 global RegisteredPanelHotkey := ""
 global RegisteredSyncToggleHotkey := ""
+global RegisteredTrayIconHotkey := ""
 global HotkeyCaptureSuspended := false
+global TrayIconVisible := true
+global AdvancedPanelVisible := false
 global StatusText := ""
 global RoomText := ""
 global DeviceText := ""
@@ -37,6 +40,7 @@ global EditDeviceId := ""
 global EditRuntimeDir := ""
 global EditPanelHotkey := ""
 global EditSyncToggleHotkey := ""
+global EditTrayIconHotkey := ""
 global EditAutoConnectEnabled := 0
 global EditStartupEnabled := 0
 global CaptureHotkeyValue := ""
@@ -45,9 +49,11 @@ global CaptureHotkeyTarget := ""
 EnsureConfig()
 RefreshRuntimePaths()
 InitGui()
+InitAdvancedGui()
 InitTray()
 RegisterPanelHotkey()
 RegisterSyncToggleHotkey()
+RegisterTrayIconHotkey()
 if (ShouldShowInitialPanel())
     ShowStatusPanel()
 OnClipboardChange("HandleClipboardChange")
@@ -140,12 +146,14 @@ return
 
 SaveConfig:
     global ConfigPath, EditServerBase, EditRoom, EditRoomPassword, EditDeviceName, EditDeviceId, EditRuntimeDir
-    global EditPanelHotkey, EditSyncToggleHotkey, EditAutoConnectEnabled, EditStartupEnabled, LastSyncResult, HelperActive
+    global EditPanelHotkey, EditSyncToggleHotkey, EditTrayIconHotkey, EditAutoConnectEnabled, EditStartupEnabled, LastSyncResult, HelperActive
     Gui, Status:Submit, NoHide
+    Gui, Advanced:Submit, NoHide
     autoConnectValue := EditAutoConnectEnabled ? 1 : 0
     startupValue := EditStartupEnabled ? 1 : 0
     normalizedHotkey := NormalizeHotkey(EditPanelHotkey)
     normalizedSyncToggleHotkey := NormalizeHotkey(EditSyncToggleHotkey)
+    normalizedTrayIconHotkey := NormalizeHotkey(EditTrayIconHotkey)
     normalizedRuntimeDir := NormalizeRuntimeDirForSave(EditRuntimeDir)
     IniWrite, %EditServerBase%, %ConfigPath%, sync, serverBase
     IniWrite, %EditRoom%, %ConfigPath%, sync, room
@@ -155,11 +163,13 @@ SaveConfig:
     IniWrite, %normalizedRuntimeDir%, %ConfigPath%, sync, runtimeDir
     IniWrite, %normalizedHotkey%, %ConfigPath%, sync, panelHotkey
     IniWrite, %normalizedSyncToggleHotkey%, %ConfigPath%, sync, syncToggleHotkey
+    IniWrite, %normalizedTrayIconHotkey%, %ConfigPath%, sync, trayIconHotkey
     IniWrite, %autoConnectValue%, %ConfigPath%, sync, autoConnectEnabled
     IniWrite, %startupValue%, %ConfigPath%, sync, startupEnabled
     RefreshRuntimePaths()
     RegisterPanelHotkey()
     RegisterSyncToggleHotkey()
+    RegisterTrayIconHotkey()
     SyncStartupShortcut()
     LastSyncResult := "配置已保存"
     if (HelperActive) {
@@ -174,11 +184,12 @@ BrowseRuntimeDir:
     FileSelectFolder, selectedDir, %EditRuntimeDir%, 3, 选择运行态缓存目录
     if (ErrorLevel)
         return
-    GuiControl, Status:, EditRuntimeDir, %selectedDir%
+    GuiControl, Advanced:, EditRuntimeDir, %selectedDir%
 return
 
 OpenHotkeyCapture:
     global CaptureHotkeyValue, CaptureHotkeyTarget, EditPanelHotkey
+    Gui, Advanced:Submit, NoHide
     SuspendRegisteredHotkeys()
     CaptureHotkeyTarget := "panel"
     CaptureHotkeyValue := NormalizeHotkey(EditPanelHotkey)
@@ -195,6 +206,7 @@ return
 
 OpenSyncToggleHotkeyCapture:
     global CaptureHotkeyValue, CaptureHotkeyTarget, EditSyncToggleHotkey
+    Gui, Advanced:Submit, NoHide
     SuspendRegisteredHotkeys()
     CaptureHotkeyTarget := "syncToggle"
     CaptureHotkeyValue := NormalizeHotkey(EditSyncToggleHotkey)
@@ -209,14 +221,33 @@ OpenSyncToggleHotkeyCapture:
     Gui, HotkeyCapture:Show, AutoSize, 录制同步开关热键
 return
 
+OpenTrayIconHotkeyCapture:
+    global CaptureHotkeyValue, CaptureHotkeyTarget, EditTrayIconHotkey
+    Gui, Advanced:Submit, NoHide
+    SuspendRegisteredHotkeys()
+    CaptureHotkeyTarget := "trayIcon"
+    CaptureHotkeyValue := NormalizeHotkey(EditTrayIconHotkey)
+    Gui, HotkeyCapture:Destroy
+    Gui, HotkeyCapture:New, +OwnerStatus +AlwaysOnTop +ToolWindow, 录制托盘图标热键
+    Gui, HotkeyCapture:Margin, 16, 16
+    Gui, HotkeyCapture:Add, Text, w280, 按下要用于隐藏/恢复托盘图标的快捷键；也可以清空为不设置。
+    Gui, HotkeyCapture:Add, Hotkey, xm y+12 w280 vCaptureHotkeyValue, %CaptureHotkeyValue%
+    Gui, HotkeyCapture:Add, Button, xm y+14 w84 gSaveCapturedHotkey Default, 确认
+    Gui, HotkeyCapture:Add, Button, x+8 w84 gClearCapturedHotkey, 清空
+    Gui, HotkeyCapture:Add, Button, x+8 w84 gCancelCapturedHotkey, 取消
+    Gui, HotkeyCapture:Show, AutoSize, 录制托盘图标热键
+return
+
 SaveCapturedHotkey:
     global CaptureHotkeyValue, CaptureHotkeyTarget
     Gui, HotkeyCapture:Submit, NoHide
     displayHotkey := FormatHotkeyForDisplay(CaptureHotkeyValue)
     if (CaptureHotkeyTarget = "syncToggle")
-        GuiControl, Status:, EditSyncToggleHotkey, %displayHotkey%
+        GuiControl, Advanced:, EditSyncToggleHotkey, %displayHotkey%
+    else if (CaptureHotkeyTarget = "trayIcon")
+        GuiControl, Advanced:, EditTrayIconHotkey, %displayHotkey%
     else
-        GuiControl, Status:, EditPanelHotkey, %displayHotkey%
+        GuiControl, Advanced:, EditPanelHotkey, %displayHotkey%
     CloseHotkeyCapture()
 return
 
@@ -237,6 +268,20 @@ OpenWebConsole:
     ServerBase := RTrim(ServerBase, "/")
     url := ServerBase . "/#/device"
     Run, %url%
+return
+
+OpenAdvancedPanel:
+    global AdvancedPanelVisible
+    UpdateGui()
+    Gui, Advanced:Show, AutoSize, Cloud Clipboard 高级设置
+    AdvancedPanelVisible := true
+return
+
+AdvancedGuiClose:
+AdvancedGuiEscape:
+    global AdvancedPanelVisible
+    Gui, Advanced:Hide
+    AdvancedPanelVisible := false
 return
 
 SendFilesToAndroid:
@@ -334,6 +379,20 @@ TogglePause:
     UpdateGui()
 return
 
+ToggleTrayIconVisibility:
+    global TrayIconVisible, LastSyncResult
+    if (TrayIconVisible) {
+        Menu, Tray, NoIcon
+        TrayIconVisible := false
+        LastSyncResult := "已隐藏托盘图标，可用托盘图标热键再次恢复"
+    } else {
+        Menu, Tray, Icon
+        TrayIconVisible := true
+        LastSyncResult := "已恢复托盘图标显示"
+    }
+    UpdateGui()
+return
+
 ToggleStartup:
     IniRead, StartupEnabled, %ConfigPath%, sync, startupEnabled, 0
     nextValue := StartupEnabled = 1 ? 0 : 1
@@ -366,6 +425,7 @@ EnsureConfig() {
     IniWrite, %emptyValue%, %ConfigPath%, sync, runtimeDir
     IniWrite, ^!v, %ConfigPath%, sync, panelHotkey
     IniWrite, %emptyValue%, %ConfigPath%, sync, syncToggleHotkey
+    IniWrite, %emptyValue%, %ConfigPath%, sync, trayIconHotkey
     IniWrite, 1, %ConfigPath%, sync, autoConnectEnabled
     IniWrite, 0, %ConfigPath%, sync, startupEnabled
     IniWrite, stopped, %ConfigPath%, sync, lastDesiredRunningState
@@ -388,6 +448,9 @@ MigrateConfig() {
     IniRead, SyncToggleHotkey, %ConfigPath%, sync, syncToggleHotkey, %missingValue%
     if (SyncToggleHotkey = missingValue)
         IniWrite, %emptyValue%, %ConfigPath%, sync, syncToggleHotkey
+    IniRead, TrayIconHotkey, %ConfigPath%, sync, trayIconHotkey, %missingValue%
+    if (TrayIconHotkey = missingValue)
+        IniWrite, %emptyValue%, %ConfigPath%, sync, trayIconHotkey
     IniRead, AutoConnectEnabled, %ConfigPath%, sync, autoConnectEnabled, %missingValue%
     if (AutoConnectEnabled = missingValue || AutoConnectEnabled = "")
         IniWrite, 1, %ConfigPath%, sync, autoConnectEnabled
@@ -405,8 +468,7 @@ MigrateConfig() {
 
 InitGui() {
     global StatusText, RoomText, DeviceText, PasswordText, ResultText
-    global EditServerBase, EditRoom, EditRoomPassword, EditDeviceName, EditDeviceId, EditRuntimeDir
-    global EditPanelHotkey, EditAutoConnectEnabled, EditStartupEnabled
+    global EditServerBase, EditRoom, EditRoomPassword, EditDeviceName
     Gui, Status:New, +ToolWindow +OwnDialogs, Cloud Clipboard 同步面板
     Gui, Status:Margin, 18, 18
     Gui, Status:Color, F6F8FC
@@ -430,24 +492,13 @@ InitGui() {
     Gui, Status:Add, Edit, x+10 yp-3 w398 h24 vEditRoomPassword Password,
     Gui, Status:Add, Text, xm y+12 w92, 设备名称
     Gui, Status:Add, Edit, x+10 yp-3 w398 h24 vEditDeviceName,
-    Gui, Status:Add, Text, xm y+12 w92, 设备 ID
-    Gui, Status:Add, Edit, x+10 yp-3 w398 h24 vEditDeviceId,
-    Gui, Status:Add, Text, xm y+12 w92, 缓存目录
-    Gui, Status:Add, Edit, x+10 yp-3 w286 h24 vEditRuntimeDir,
-    Gui, Status:Add, Button, x+8 yp-1 w104 h28 gBrowseRuntimeDir, 浏览目录
 
     Gui, Status:Add, Progress, xm y+18 w500 h1 Disabled cE1E7F0 BackgroundE1E7F0, 100
     Gui, Status:Font, s10 Bold c24476B, Segoe UI
-    Gui, Status:Add, Text, xm y+12 w500, 快捷键与启动规则
-    Gui, Status:Font, s9 Norm c344054, Segoe UI
-    Gui, Status:Add, Text, xm y+14 w92, 面板热键
-    Gui, Status:Add, Edit, x+10 yp-3 w286 h24 vEditPanelHotkey,
-    Gui, Status:Add, Button, x+8 yp-1 w104 h28 gOpenHotkeyCapture, 录制快捷键
-    Gui, Status:Add, Text, xm y+12 w92, 同步开关键
-    Gui, Status:Add, Edit, x+10 yp-3 w286 h24 vEditSyncToggleHotkey,
-    Gui, Status:Add, Button, x+8 yp-1 w104 h28 gOpenSyncToggleHotkeyCapture, 录制快捷键
-    Gui, Status:Add, CheckBox, xm y+16 w500 vEditAutoConnectEnabled, 启动客户端后按上次状态自动恢复同步
-    Gui, Status:Add, CheckBox, xm y+8 w500 vEditStartupEnabled, 跟随 Windows 开机启动本客户端
+    Gui, Status:Add, Text, xm y+12 w500, 高级设置
+    Gui, Status:Font, s9 Norm c667085, Segoe UI
+    Gui, Status:Add, Text, xm y+2 w500, 设备 ID、缓存目录、三个快捷键和启动规则已收进单独弹窗，默认不占主面板高度。
+    Gui, Status:Add, Button, xm y+12 w120 h30 gOpenAdvancedPanel, 高级设置...
 
     Gui, Status:Add, Progress, xm y+18 w500 h1 Disabled cE1E7F0 BackgroundE1E7F0, 100
     Gui, Status:Font, s10 Bold c24476B, Segoe UI
@@ -473,6 +524,51 @@ InitGui() {
     Gui, Status:Add, Button, x+8 w244 h34 gSendFilesToAndroid, 发送文件或图片到安卓确认接收
 }
 
+InitAdvancedGui() {
+    global EditDeviceId, EditRuntimeDir, EditPanelHotkey, EditSyncToggleHotkey, EditTrayIconHotkey
+    global EditAutoConnectEnabled, EditStartupEnabled
+    Gui, Advanced:New, +OwnerStatus +ToolWindow +OwnDialogs, Cloud Clipboard 高级设置
+    Gui, Advanced:Margin, 18, 18
+    Gui, Advanced:Color, F6F8FC
+    Gui, Advanced:Font, s13 Bold c1F3A5F, Segoe UI
+    Gui, Advanced:Add, Text, xm w470, 高级设置
+    Gui, Advanced:Font, s9 Norm c667085, Segoe UI
+    Gui, Advanced:Add, Text, xm y+4 w470, 这里放不常改但很有用的配置，默认收起，后续打包单文件 exe 时也会一起保留。
+    Gui, Advanced:Add, Progress, xm y+12 w470 h2 Disabled cD7E2F1 BackgroundD7E2F1, 100
+
+    Gui, Advanced:Font, s10 Bold c24476B, Segoe UI
+    Gui, Advanced:Add, Text, xm y+16 w470, 标识与缓存
+    Gui, Advanced:Font, s9 Norm c344054, Segoe UI
+    Gui, Advanced:Add, Text, xm y+14 w92, 设备 ID
+    Gui, Advanced:Add, Edit, x+10 yp-3 w368 h24 vEditDeviceId,
+    Gui, Advanced:Add, Text, xm y+12 w92, 缓存目录
+    Gui, Advanced:Add, Edit, x+10 yp-3 w256 h24 vEditRuntimeDir,
+    Gui, Advanced:Add, Button, x+8 yp-1 w104 h28 gBrowseRuntimeDir, 浏览目录
+
+    Gui, Advanced:Add, Progress, xm y+18 w470 h1 Disabled cE1E7F0 BackgroundE1E7F0, 100
+    Gui, Advanced:Font, s10 Bold c24476B, Segoe UI
+    Gui, Advanced:Add, Text, xm y+12 w470, 快捷键
+    Gui, Advanced:Font, s9 Norm c344054, Segoe UI
+    Gui, Advanced:Add, Text, xm y+14 w92, 面板热键
+    Gui, Advanced:Add, Edit, x+10 yp-3 w256 h24 vEditPanelHotkey,
+    Gui, Advanced:Add, Button, x+8 yp-1 w104 h28 gOpenHotkeyCapture, 录制快捷键
+    Gui, Advanced:Add, Text, xm y+12 w92, 同步开关键
+    Gui, Advanced:Add, Edit, x+10 yp-3 w256 h24 vEditSyncToggleHotkey,
+    Gui, Advanced:Add, Button, x+8 yp-1 w104 h28 gOpenSyncToggleHotkeyCapture, 录制快捷键
+    Gui, Advanced:Add, Text, xm y+12 w92, 托盘图标键
+    Gui, Advanced:Add, Edit, x+10 yp-3 w256 h24 vEditTrayIconHotkey,
+    Gui, Advanced:Add, Button, x+8 yp-1 w104 h28 gOpenTrayIconHotkeyCapture, 录制快捷键
+
+    Gui, Advanced:Add, Progress, xm y+18 w470 h1 Disabled cE1E7F0 BackgroundE1E7F0, 100
+    Gui, Advanced:Font, s10 Bold c24476B, Segoe UI
+    Gui, Advanced:Add, Text, xm y+12 w470, 启动规则
+    Gui, Advanced:Font, s9 Norm c344054, Segoe UI
+    Gui, Advanced:Add, CheckBox, xm y+14 w470 vEditAutoConnectEnabled, 启动客户端后按上次状态自动恢复同步
+    Gui, Advanced:Add, CheckBox, xm y+8 w470 vEditStartupEnabled, 跟随 Windows 开机启动本客户端
+    Gui, Advanced:Add, Button, xm y+18 w104 h30 gSaveConfig Default, 保存配置
+    Gui, Advanced:Add, Button, x+8 w104 h30 gAdvancedGuiClose, 关闭
+}
+
 UpdateGui() {
     global ConfigPath, ClientStatus, LastSyncResult
     IniRead, RoomName, %ConfigPath%, sync, room,
@@ -483,34 +579,40 @@ UpdateGui() {
     IniRead, RoomPassword, %ConfigPath%, sync, roomPassword,
     IniRead, PanelHotkey, %ConfigPath%, sync, panelHotkey,
     IniRead, SyncToggleHotkey, %ConfigPath%, sync, syncToggleHotkey,
+    IniRead, TrayIconHotkey, %ConfigPath%, sync, trayIconHotkey,
     IniRead, AutoConnectEnabled, %ConfigPath%, sync, autoConnectEnabled, 1
     IniRead, StartupEnabled, %ConfigPath%, sync, startupEnabled, 0
     masked := RoomPassword = "" ? "未设置" : "已设置"
     autoResumeText := AutoConnectEnabled = 1 ? "开启" : "关闭"
     displayHotkey := FormatHotkeyForDisplay(PanelHotkey)
     displaySyncToggleHotkey := FormatHotkeyForDisplay(SyncToggleHotkey)
+    displayTrayIconHotkey := FormatHotkeyForDisplay(TrayIconHotkey)
     runtimeDirText := ResolveRuntimeDir(RuntimeDirValue)
     GuiControl, Status:, EditServerBase, %ServerBase%
     GuiControl, Status:, EditRoom, %RoomName%
     GuiControl, Status:, EditRoomPassword, %RoomPassword%
     GuiControl, Status:, EditDeviceName, %DeviceName%
-    GuiControl, Status:, EditDeviceId, %DeviceId%
-    GuiControl, Status:, EditRuntimeDir, %runtimeDirText%
-    GuiControl, Status:, EditPanelHotkey, %displayHotkey%
-    GuiControl, Status:, EditSyncToggleHotkey, %displaySyncToggleHotkey%
-    GuiControl, Status:, EditAutoConnectEnabled, % AutoConnectEnabled = 1 ? 1 : 0
-    GuiControl, Status:, EditStartupEnabled, % StartupEnabled = 1 ? 1 : 0
+    GuiControl, Advanced:, EditDeviceId, %DeviceId%
+    GuiControl, Advanced:, EditRuntimeDir, %runtimeDirText%
+    GuiControl, Advanced:, EditPanelHotkey, %displayHotkey%
+    GuiControl, Advanced:, EditSyncToggleHotkey, %displaySyncToggleHotkey%
+    GuiControl, Advanced:, EditTrayIconHotkey, %displayTrayIconHotkey%
+    GuiControl, Advanced:, EditAutoConnectEnabled, % AutoConnectEnabled = 1 ? 1 : 0
+    GuiControl, Advanced:, EditStartupEnabled, % StartupEnabled = 1 ? 1 : 0
     GuiControl, Status:, StatusText, 状态：%ClientStatus%
     GuiControl, Status:, RoomText, 房间：%RoomName%
     GuiControl, Status:, DeviceText, 设备：%DeviceName%（%DeviceId%） 面板热键：%displayHotkey%
-    GuiControl, Status:, PasswordText, 房间密码：%masked% 自动恢复：%autoResumeText% 运行目录：%runtimeDirText%
-    GuiControl, Status:, ResultText, 最近结果：%LastSyncResult% 同步开关键：%displaySyncToggleHotkey%
+    GuiControl, Status:, PasswordText, 房间密码：%masked% 自动恢复：%autoResumeText% 托盘图标键：%displayTrayIconHotkey%
+    GuiControl, Status:, ResultText, 最近结果：%LastSyncResult% 同步开关键：%displaySyncToggleHotkey% 运行目录：%runtimeDirText%
 }
 
 InitTray() {
+    global TrayIconVisible
+    TrayIconVisible := true
     Menu, Tray, NoStandard
     Menu, Tray, Tip, Cloud Clipboard 同步客户端
     Menu, Tray, Add, 显示/隐藏同步面板, ToggleStatusPanel
+    Menu, Tray, Add, 显示/隐藏托盘图标, ToggleTrayIconVisibility
     Menu, Tray, Add, 启动同步, StartSync
     Menu, Tray, Add, 停止同步, StopSync
     Menu, Tray, Add, 暂停/恢复同步, TogglePause
@@ -662,14 +764,32 @@ RegisterSyncToggleHotkey() {
     RegisteredSyncToggleHotkey := NextHotkey
 }
 
+RegisterTrayIconHotkey() {
+    global RegisteredTrayIconHotkey, ConfigPath, LastSyncResult
+    IniRead, NextHotkey, %ConfigPath%, sync, trayIconHotkey,
+    NextHotkey := NormalizeHotkey(NextHotkey)
+    if (RegisteredTrayIconHotkey != "")
+        Hotkey, %RegisteredTrayIconHotkey%, ToggleTrayIconVisibility, Off UseErrorLevel
+    if (NextHotkey != "") {
+        Hotkey, %NextHotkey%, ToggleTrayIconVisibility, On UseErrorLevel
+        if (ErrorLevel) {
+            LastSyncResult := "托盘图标热键无效，已忽略当前设置"
+            NextHotkey := ""
+        }
+    }
+    RegisteredTrayIconHotkey := NextHotkey
+}
+
 SuspendRegisteredHotkeys() {
-    global RegisteredPanelHotkey, RegisteredSyncToggleHotkey, HotkeyCaptureSuspended
+    global RegisteredPanelHotkey, RegisteredSyncToggleHotkey, RegisteredTrayIconHotkey, HotkeyCaptureSuspended
     if (HotkeyCaptureSuspended)
         return
     if (RegisteredPanelHotkey != "")
         Hotkey, %RegisteredPanelHotkey%, ToggleStatusPanel, Off UseErrorLevel
     if (RegisteredSyncToggleHotkey != "")
         Hotkey, %RegisteredSyncToggleHotkey%, ToggleSyncSession, Off UseErrorLevel
+    if (RegisteredTrayIconHotkey != "")
+        Hotkey, %RegisteredTrayIconHotkey%, ToggleTrayIconVisibility, Off UseErrorLevel
     HotkeyCaptureSuspended := true
 }
 
@@ -680,6 +800,7 @@ ResumeRegisteredHotkeys() {
     HotkeyCaptureSuspended := false
     RegisterPanelHotkey()
     RegisterSyncToggleHotkey()
+    RegisterTrayIconHotkey()
 }
 
 CloseHotkeyCapture() {
