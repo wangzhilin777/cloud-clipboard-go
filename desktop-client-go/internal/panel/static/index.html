@@ -225,6 +225,18 @@
           <span class="label">下载目录</span>
           <input id="downloadDir" placeholder="C:\\Users\\用户名\\Downloads\\CloudClipboard">
         </label>
+        <label class="field">
+          <span class="label">发送剪贴板文本热键</span>
+          <input id="sendClipboardHotkey" placeholder="Ctrl+Alt+C">
+        </label>
+        <label class="field">
+          <span class="label">拉取最新文本热键</span>
+          <input id="fetchLatestHotkey" placeholder="Ctrl+Alt+V">
+        </label>
+        <label class="field">
+          <span class="label">下载最新文件热键</span>
+          <input id="downloadLatestHotkey" placeholder="Ctrl+Alt+B">
+        </label>
       </div>
       <div class="actions">
         <button class="primary" id="saveButton" type="button">保存并重连</button>
@@ -268,6 +280,9 @@
       openPanelOnLaunch: document.getElementById('openPanelOnLaunch'),
       panelAddress: document.getElementById('panelAddress'),
       downloadDir: document.getElementById('downloadDir'),
+      sendClipboardHotkey: document.getElementById('sendClipboardHotkey'),
+      fetchLatestHotkey: document.getElementById('fetchLatestHotkey'),
+      downloadLatestHotkey: document.getElementById('downloadLatestHotkey'),
     };
     const manualText = document.getElementById('manualText');
     const statusText = document.getElementById('statusText');
@@ -333,6 +348,9 @@
         openPanelOnLaunch: fields.openPanelOnLaunch.value === 'true',
         panelAddress: fields.panelAddress.value,
         downloadDir: fields.downloadDir.value,
+        sendClipboardHotkey: fields.sendClipboardHotkey.value,
+        fetchLatestHotkey: fields.fetchLatestHotkey.value,
+        downloadLatestHotkey: fields.downloadLatestHotkey.value,
       };
       try {
         const resp = await fetch('/api/config', {

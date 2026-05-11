@@ -22,6 +22,9 @@ type Config struct {
 	PanelAddress         string        `json:"panelAddress"`
 	OpenPanelOnLaunch    bool          `json:"openPanelOnLaunch"`
 	DownloadDir          string        `json:"downloadDir"`
+	SendClipboardHotkey  string        `json:"sendClipboardHotkey"`
+	FetchLatestHotkey    string        `json:"fetchLatestHotkey"`
+	DownloadLatestHotkey string        `json:"downloadLatestHotkey"`
 	ReconnectDelay       time.Duration `json:"reconnectDelay"`
 	MaxReconnectAttempts int           `json:"maxReconnectAttempts"`
 }
@@ -42,6 +45,9 @@ func Default() Config {
 		PanelAddress:         "127.0.0.1:9530",
 		OpenPanelOnLaunch:    true,
 		DownloadDir:          defaultDownloadDir(),
+		SendClipboardHotkey:  "",
+		FetchLatestHotkey:    "",
+		DownloadLatestHotkey: "",
 		ReconnectDelay:       2 * time.Second,
 		MaxReconnectAttempts: 3,
 	}
@@ -112,6 +118,9 @@ func (c *Config) normalize() {
 	if c.DownloadDir == "" {
 		c.DownloadDir = def.DownloadDir
 	}
+	c.SendClipboardHotkey = normalizeHotkey(c.SendClipboardHotkey)
+	c.FetchLatestHotkey = normalizeHotkey(c.FetchLatestHotkey)
+	c.DownloadLatestHotkey = normalizeHotkey(c.DownloadLatestHotkey)
 	if c.ReconnectDelay <= 0 {
 		c.ReconnectDelay = def.ReconnectDelay
 	}
@@ -150,4 +159,47 @@ func defaultDownloadDir() string {
 		return ".\\downloads"
 	}
 	return filepath.Join(home, "Downloads", "CloudClipboard")
+}
+
+func normalizeHotkey(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return ""
+	}
+	value = strings.ReplaceAll(value, " ", "")
+	parts := strings.Split(value, "+")
+	canonical := make([]string, 0, len(parts))
+	seen := map[string]bool{}
+	for _, part := range parts {
+		token := strings.TrimSpace(part)
+		if token == "" {
+			continue
+		}
+		upper := strings.ToUpper(token)
+		switch upper {
+		case "CTRL", "CONTROL":
+			if !seen["Ctrl"] {
+				canonical = append(canonical, "Ctrl")
+				seen["Ctrl"] = true
+			}
+		case "ALT", "OPTION":
+			if !seen["Alt"] {
+				canonical = append(canonical, "Alt")
+				seen["Alt"] = true
+			}
+		case "SHIFT":
+			if !seen["Shift"] {
+				canonical = append(canonical, "Shift")
+				seen["Shift"] = true
+			}
+		case "WIN", "CMD", "META":
+			if !seen["Win"] {
+				canonical = append(canonical, "Win")
+				seen["Win"] = true
+			}
+		default:
+			canonical = append(canonical, upper)
+		}
+	}
+	return strings.Join(canonical, "+")
 }

@@ -71,6 +71,9 @@ type configView struct {
 	PanelAddress         string `json:"panelAddress"`
 	OpenPanelOnLaunch    bool   `json:"openPanelOnLaunch"`
 	DownloadDir          string `json:"downloadDir"`
+	SendClipboardHotkey  string `json:"sendClipboardHotkey"`
+	FetchLatestHotkey    string `json:"fetchLatestHotkey"`
+	DownloadLatestHotkey string `json:"downloadLatestHotkey"`
 	ReconnectDelayMs     int64  `json:"reconnectDelayMs"`
 	MaxReconnectAttempts int    `json:"maxReconnectAttempts"`
 }
@@ -156,6 +159,9 @@ func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
 		PanelAddress:         payload.PanelAddress,
 		OpenPanelOnLaunch:    payload.OpenPanelOnLaunch,
 		DownloadDir:          payload.DownloadDir,
+		SendClipboardHotkey:  payload.SendClipboardHotkey,
+		FetchLatestHotkey:    payload.FetchLatestHotkey,
+		DownloadLatestHotkey: payload.DownloadLatestHotkey,
 		ReconnectDelay:       time.Duration(payload.ReconnectDelayMs) * time.Millisecond,
 		MaxReconnectAttempts: payload.MaxReconnectAttempts,
 	}
@@ -294,6 +300,9 @@ func toConfigView(cfg config.Config) configView {
 		PanelAddress:         cfg.PanelAddress,
 		OpenPanelOnLaunch:    cfg.OpenPanelOnLaunch,
 		DownloadDir:          cfg.DownloadDir,
+		SendClipboardHotkey:  cfg.SendClipboardHotkey,
+		FetchLatestHotkey:    cfg.FetchLatestHotkey,
+		DownloadLatestHotkey: cfg.DownloadLatestHotkey,
 		ReconnectDelayMs:     cfg.ReconnectDelay.Milliseconds(),
 		MaxReconnectAttempts: cfg.MaxReconnectAttempts,
 	}

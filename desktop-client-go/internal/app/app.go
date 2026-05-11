@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/jonnyan404/cloud-clipboard-go/desktop-client-go/internal/config"
+	"github.com/jonnyan404/cloud-clipboard-go/desktop-client-go/internal/hotkey"
 	"github.com/jonnyan404/cloud-clipboard-go/desktop-client-go/internal/panel"
 	"github.com/jonnyan404/cloud-clipboard-go/desktop-client-go/internal/picker"
 	"github.com/jonnyan404/cloud-clipboard-go/desktop-client-go/internal/syncclient"
@@ -28,6 +29,7 @@ type App struct {
 	state      *StateStore
 	notifier   Notifier
 	panel      *panel.Server
+	hotkeys    hotkey.Manager
 	reloadCh   chan struct{}
 	mu         sync.Mutex
 }
@@ -51,6 +53,7 @@ func New(logger *log.Logger, cfg config.Config, configPath string) *App {
 func (a *App) Run(ctx context.Context) error {
 	a.logger.Printf("桌面同步客户端启动，服务端: %s 房间: %s 设备: %s", a.cfg.ServerBase, a.cfg.Room, a.cfg.DeviceName)
 	_ = a.state.Save(StateSnapshot{Status: "starting"})
+	a.hotkeys = hotkey.Start(ctx, a.logger, a.currentConfig(), a)
 
 	panelServer := panel.New(a.cfg.PanelAddress, a)
 	a.panel = panelServer
@@ -224,6 +227,9 @@ func (a *App) UpdateConfig(cfg config.Config) error {
 	}
 	a.cfg = cfg
 	a.notifier = buildNotifier(cfg, a.logger)
+	if a.hotkeys != nil {
+		a.hotkeys.Update(cfg)
+	}
 	select {
 	case a.reloadCh <- struct{}{}:
 	default:
