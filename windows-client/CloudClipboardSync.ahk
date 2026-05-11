@@ -408,45 +408,69 @@ InitGui() {
     global EditServerBase, EditRoom, EditRoomPassword, EditDeviceName, EditDeviceId, EditRuntimeDir
     global EditPanelHotkey, EditAutoConnectEnabled, EditStartupEnabled
     Gui, Status:New, +ToolWindow +OwnDialogs, Cloud Clipboard 同步面板
-    Gui, Status:Margin, 16, 16
-    Gui, Status:Add, GroupBox, w460 h362, 同步配置
-    Gui, Status:Add, Text, xm+14 yp+28 w90, 服务端地址
-    Gui, Status:Add, Edit, x+8 yp-3 w330 vEditServerBase, http://127.0.0.1:9501
-    Gui, Status:Add, Text, xm+14 y+14 w90, 房间名
-    Gui, Status:Add, Edit, x+8 yp-3 w330 vEditRoom,
-    Gui, Status:Add, Text, xm+14 y+14 w90, 房间密码
-    Gui, Status:Add, Edit, x+8 yp-3 w330 vEditRoomPassword Password,
-    Gui, Status:Add, Text, xm+14 y+14 w90, 设备名称
-    Gui, Status:Add, Edit, x+8 yp-3 w330 vEditDeviceName,
-    Gui, Status:Add, Text, xm+14 y+14 w90, 设备 ID
-    Gui, Status:Add, Edit, x+8 yp-3 w330 vEditDeviceId,
-    Gui, Status:Add, Text, xm+14 y+14 w90, 缓存目录
-    Gui, Status:Add, Edit, x+8 yp-3 w220 vEditRuntimeDir,
-    Gui, Status:Add, Button, x+8 yp-1 w102 h28 gBrowseRuntimeDir, 浏览目录
-    Gui, Status:Add, Text, xm+14 y+14 w90, 面板热键
-    Gui, Status:Add, Edit, x+8 yp-3 w220 vEditPanelHotkey,
-    Gui, Status:Add, Button, x+8 yp-1 w102 h28 gOpenHotkeyCapture, 录制快捷键
-    Gui, Status:Add, Text, xm+14 y+14 w90, 同步开关键
-    Gui, Status:Add, Edit, x+8 yp-3 w220 vEditSyncToggleHotkey,
-    Gui, Status:Add, Button, x+8 yp-1 w102 h28 gOpenSyncToggleHotkeyCapture, 录制快捷键
-    Gui, Status:Add, CheckBox, xm+14 y+16 vEditAutoConnectEnabled, 启动客户端后按上次状态自动恢复同步
-    Gui, Status:Add, CheckBox, xm+14 y+8 vEditStartupEnabled, 跟随 Windows 开机启动本客户端
+    Gui, Status:Margin, 18, 18
+    Gui, Status:Color, F6F8FC
+    Gui, Status:Font, s15 Bold c1F3A5F, Segoe UI
+    Gui, Status:Add, Text, xm w500, Cloud Clipboard 同步面板
+    Gui, Status:Font, s9 Norm c667085, Segoe UI
+    Gui, Status:Add, Text, xm y+4 w500, 托盘常驻、文本同步、安卓文件通知都集中在这里，适合单文件 exe 直接使用。
+    Gui, Status:Add, Progress, xm y+12 w500 h2 Disabled cD7E2F1 BackgroundD7E2F1, 100
 
-    Gui, Status:Add, GroupBox, xm y+22 w460 h132, 同步状态
-    Gui, Status:Add, Text, xm+14 yp+28 w432 vStatusText, 状态：未启动
-    Gui, Status:Add, Text, xm+14 y+10 w432 vRoomText, 房间：-
-    Gui, Status:Add, Text, xm+14 y+10 w432 vDeviceText, 设备：-
-    Gui, Status:Add, Text, xm+14 y+10 w432 vPasswordText, 房间密码：-
-    Gui, Status:Add, Text, xm+14 y+10 w432 vResultText, 最近结果：暂无
+    Gui, Status:Font, s10 Bold c24476B, Segoe UI
+    Gui, Status:Add, Text, xm y+16 w500, 连接与身份
+    Gui, Status:Font, s9 Norm c667085, Segoe UI
+    Gui, Status:Add, Text, xm y+2 w500, 先填服务端、房间和设备信息，再决定缓存目录和快捷键。
 
-    Gui, Status:Add, Button, xm y+18 w84 gSaveConfig Default, 保存配置
-    Gui, Status:Add, Button, x+8 w84 gStartSync, 启动同步
-    Gui, Status:Add, Button, x+8 w84 gStopSync, 停止同步
-    Gui, Status:Add, Button, x+8 w84 gReconnectHelper, 重新连接
-    Gui, Status:Add, Button, x+8 w84 gOpenWebConsole, 网页管理台
-    Gui, Status:Add, Button, xm y+10 w112 gOpenConfig, 打开 ini
-    Gui, Status:Add, Button, x+8 w112 gClearRuntimeCache, 清理本地缓存
-    Gui, Status:Add, Button, x+8 w220 h32 gSendFilesToAndroid, 发送文件或图片到安卓确认接收
+    Gui, Status:Font, s9 Norm c344054, Segoe UI
+    Gui, Status:Add, Text, xm y+14 w92, 服务端地址
+    Gui, Status:Add, Edit, x+10 yp-3 w398 h24 vEditServerBase, http://127.0.0.1:9501
+    Gui, Status:Add, Text, xm y+12 w92, 房间名
+    Gui, Status:Add, Edit, x+10 yp-3 w398 h24 vEditRoom,
+    Gui, Status:Add, Text, xm y+12 w92, 房间密码
+    Gui, Status:Add, Edit, x+10 yp-3 w398 h24 vEditRoomPassword Password,
+    Gui, Status:Add, Text, xm y+12 w92, 设备名称
+    Gui, Status:Add, Edit, x+10 yp-3 w398 h24 vEditDeviceName,
+    Gui, Status:Add, Text, xm y+12 w92, 设备 ID
+    Gui, Status:Add, Edit, x+10 yp-3 w398 h24 vEditDeviceId,
+    Gui, Status:Add, Text, xm y+12 w92, 缓存目录
+    Gui, Status:Add, Edit, x+10 yp-3 w286 h24 vEditRuntimeDir,
+    Gui, Status:Add, Button, x+8 yp-1 w104 h28 gBrowseRuntimeDir, 浏览目录
+
+    Gui, Status:Add, Progress, xm y+18 w500 h1 Disabled cE1E7F0 BackgroundE1E7F0, 100
+    Gui, Status:Font, s10 Bold c24476B, Segoe UI
+    Gui, Status:Add, Text, xm y+12 w500, 快捷键与启动规则
+    Gui, Status:Font, s9 Norm c344054, Segoe UI
+    Gui, Status:Add, Text, xm y+14 w92, 面板热键
+    Gui, Status:Add, Edit, x+10 yp-3 w286 h24 vEditPanelHotkey,
+    Gui, Status:Add, Button, x+8 yp-1 w104 h28 gOpenHotkeyCapture, 录制快捷键
+    Gui, Status:Add, Text, xm y+12 w92, 同步开关键
+    Gui, Status:Add, Edit, x+10 yp-3 w286 h24 vEditSyncToggleHotkey,
+    Gui, Status:Add, Button, x+8 yp-1 w104 h28 gOpenSyncToggleHotkeyCapture, 录制快捷键
+    Gui, Status:Add, CheckBox, xm y+16 w500 vEditAutoConnectEnabled, 启动客户端后按上次状态自动恢复同步
+    Gui, Status:Add, CheckBox, xm y+8 w500 vEditStartupEnabled, 跟随 Windows 开机启动本客户端
+
+    Gui, Status:Add, Progress, xm y+18 w500 h1 Disabled cE1E7F0 BackgroundE1E7F0, 100
+    Gui, Status:Font, s10 Bold c24476B, Segoe UI
+    Gui, Status:Add, Text, xm y+12 w500, 当前同步状态
+    Gui, Status:Font, s9 Norm c344054, Segoe UI
+    Gui, Status:Add, Text, xm y+12 w500 vStatusText, 状态：未启动
+    Gui, Status:Add, Text, xm y+7 w500 vRoomText, 房间：-
+    Gui, Status:Add, Text, xm y+7 w500 vDeviceText, 设备：-
+    Gui, Status:Add, Text, xm y+7 w500 vPasswordText, 房间密码：-
+    Gui, Status:Add, Text, xm y+7 w500 vResultText, 最近结果：暂无
+
+    Gui, Status:Add, Progress, xm y+18 w500 h1 Disabled cE1E7F0 BackgroundE1E7F0, 100
+    Gui, Status:Font, s10 Bold c24476B, Segoe UI
+    Gui, Status:Add, Text, xm y+12 w500, 常用操作
+    Gui, Status:Font, s9 Norm c344054, Segoe UI
+    Gui, Status:Add, Button, xm y+14 w94 h30 gSaveConfig Default, 保存配置
+    Gui, Status:Add, Button, x+8 w94 h30 gStartSync, 启动同步
+    Gui, Status:Add, Button, x+8 w94 h30 gStopSync, 停止同步
+    Gui, Status:Add, Button, x+8 w94 h30 gReconnectHelper, 重新连接
+    Gui, Status:Add, Button, x+8 w94 h30 gOpenWebConsole, 网页管理台
+    Gui, Status:Add, Button, xm y+10 w120 h30 gOpenConfig, 打开 ini
+    Gui, Status:Add, Button, x+8 w120 h30 gClearRuntimeCache, 清理本地缓存
+    Gui, Status:Add, Button, x+8 w244 h34 gSendFilesToAndroid, 发送文件或图片到安卓确认接收
 }
 
 UpdateGui() {
