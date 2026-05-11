@@ -407,7 +407,7 @@ InitGui() {
     global StatusText, RoomText, DeviceText, PasswordText, ResultText
     global EditServerBase, EditRoom, EditRoomPassword, EditDeviceName, EditDeviceId, EditRuntimeDir
     global EditPanelHotkey, EditAutoConnectEnabled, EditStartupEnabled
-    Gui, Status:New, +AlwaysOnTop +ToolWindow, Cloud Clipboard 同步面板
+    Gui, Status:New, +ToolWindow +OwnDialogs, Cloud Clipboard 同步面板
     Gui, Status:Margin, 16, 16
     Gui, Status:Add, GroupBox, w460 h362, 同步配置
     Gui, Status:Add, Text, xm+14 yp+28 w90, 服务端地址
