@@ -355,7 +355,8 @@ function Receive-PayloadFile {
         [string]$PayloadId,
         [string]$Mode,
         [bool]$PasteAfterCopy,
-        [string]$EventLogPath
+        [string]$EventLogPath,
+        [string]$TargetDirectory = ''
     )
     if (-not $ReceivedPayloads.ContainsKey($PayloadId)) {
         throw "未找到待接收内容：$PayloadId"
@@ -365,7 +366,7 @@ function Receive-PayloadFile {
     if (-not $downloadUrl) {
         throw '当前内容没有可下载地址'
     }
-    $downloadDir = Get-DownloadDirectory -EventLogPath $EventLogPath
+    $downloadDir = if ($TargetDirectory) { $TargetDirectory } else { Get-DownloadDirectory -EventLogPath $EventLogPath }
     New-Item -ItemType Directory -Path $downloadDir -Force | Out-Null
     $filePath = Join-Path $downloadDir (Get-SafePayloadFileName -PayloadId $PayloadId -Title $notice.title)
     $response = Send-HttpRequest -Client $HttpClient -Method ([System.Net.Http.HttpMethod]::Get) -Uri $downloadUrl -Config $Config -Accept '*/*'
@@ -519,7 +520,7 @@ try {
                         }
                         try {
                             $request = $payload | ConvertFrom-Json
-                            Receive-PayloadFile -HttpClient $httpClient -Config $Config -ReceivedPayloads $receivedPayloads -PayloadId $request.payloadId -Mode $request.mode -PasteAfterCopy ([bool]$request.paste) -EventLogPath $EventPath
+                            Receive-PayloadFile -HttpClient $httpClient -Config $Config -ReceivedPayloads $receivedPayloads -PayloadId $request.payloadId -Mode $request.mode -PasteAfterCopy ([bool]$request.paste) -EventLogPath $EventPath -TargetDirectory ([string](Get-OptionalProperty -Object $request -Name 'targetDir' -Default ''))
                             Write-Log "已接收远端文件：$($request.payloadId)"
                         } catch {
                             Write-Log "接收远端文件失败：$($_.Exception.Message)"

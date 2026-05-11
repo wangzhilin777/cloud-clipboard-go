@@ -12,6 +12,7 @@ global RuntimeDir := A_ScriptDir
 global CommandPath := RuntimeDir . "\commands.log"
 global EventPath := RuntimeDir . "\events.log"
 global HelperPath := A_ScriptDir . "\sync-helper.ps1"
+global ShellMenuScriptPath := A_ScriptDir . "\shell-menu.ps1"
 global HelperPid := ""
 global LastEventLine := 0
 global ApplyingRemoteClipboard := false
@@ -27,6 +28,7 @@ global RegisteredSyncToggleHotkey := ""
 global RegisteredTrayIconHotkey := ""
 global RegisteredDirectSendHotkey := ""
 global RegisteredDirectPasteHotkey := ""
+global ShellMenuRegistered := false
 global HotkeyCaptureSuspended := false
 global TrayIconVisible := true
 global AdvancedPanelVisible := false
@@ -51,6 +53,8 @@ global EditStartupEnabled := 0
 global EditFileConfirmSeconds := 8
 global EditCopyConfirmEnabled := 1
 global EditPasteConfirmEnabled := 1
+global EditShellMenuEnabled := 1
+global EditShellMenuPersistent := 0
 global CaptureHotkeyValue := ""
 global CaptureHotkeyTarget := ""
 global PendingPayloadSignature := ""
@@ -187,13 +191,15 @@ return
 
 SaveConfig:
     global ConfigPath, EditServerBase, EditRoom, EditRoomPassword, EditDeviceName, EditDeviceId, EditRuntimeDir
-    global EditPanelHotkey, EditSyncToggleHotkey, EditTrayIconHotkey, EditDirectSendHotkey, EditDirectPasteHotkey, EditAutoConnectEnabled, EditStartupEnabled, EditFileConfirmSeconds, EditCopyConfirmEnabled, EditPasteConfirmEnabled, LastSyncResult, HelperActive
+    global EditPanelHotkey, EditSyncToggleHotkey, EditTrayIconHotkey, EditDirectSendHotkey, EditDirectPasteHotkey, EditAutoConnectEnabled, EditStartupEnabled, EditFileConfirmSeconds, EditCopyConfirmEnabled, EditPasteConfirmEnabled, EditShellMenuEnabled, EditShellMenuPersistent, LastSyncResult, HelperActive
     Gui, Status:Submit, NoHide
     Gui, Advanced:Submit, NoHide
     autoConnectValue := EditAutoConnectEnabled ? 1 : 0
     startupValue := EditStartupEnabled ? 1 : 0
     copyConfirmValue := EditCopyConfirmEnabled ? 1 : 0
     pasteConfirmValue := EditPasteConfirmEnabled ? 1 : 0
+    shellMenuValue := EditShellMenuEnabled ? 1 : 0
+    shellMenuPersistentValue := EditShellMenuPersistent ? 1 : 0
     normalizedHotkey := NormalizeHotkey(EditPanelHotkey)
     normalizedSyncToggleHotkey := NormalizeHotkey(EditSyncToggleHotkey)
     normalizedTrayIconHotkey := NormalizeHotkey(EditTrayIconHotkey)
@@ -221,12 +227,15 @@ SaveConfig:
     IniWrite, %normalizedFileConfirmSeconds%, %ConfigPath%, sync, fileConfirmSeconds
     IniWrite, %copyConfirmValue%, %ConfigPath%, sync, copyConfirmEnabled
     IniWrite, %pasteConfirmValue%, %ConfigPath%, sync, pasteConfirmEnabled
+    IniWrite, %shellMenuValue%, %ConfigPath%, sync, shellMenuEnabled
+    IniWrite, %shellMenuPersistentValue%, %ConfigPath%, sync, shellMenuPersistent
     RefreshRuntimePaths()
     RegisterPanelHotkey()
     RegisterSyncToggleHotkey()
     RegisterTrayIconHotkey()
     RegisterDirectSendHotkey()
     RegisterDirectPasteHotkey()
+    SyncShellMenuRegistration(true)
     SyncStartupShortcut()
     LastSyncResult := "配置已保存"
     if (HelperActive) {
@@ -546,6 +555,7 @@ ExitClient:
         AppendCommand("shutdown", "")
     ClearPendingPayloadState()
     StopHelper()
+    SyncShellMenuRegistration(true)
     ExitApp
 return
 
@@ -573,6 +583,8 @@ EnsureConfig() {
     IniWrite, 8, %ConfigPath%, sync, fileConfirmSeconds
     IniWrite, 1, %ConfigPath%, sync, copyConfirmEnabled
     IniWrite, 1, %ConfigPath%, sync, pasteConfirmEnabled
+    IniWrite, 1, %ConfigPath%, sync, shellMenuEnabled
+    IniWrite, 0, %ConfigPath%, sync, shellMenuPersistent
     IniWrite, stopped, %ConfigPath%, sync, lastDesiredRunningState
     IniWrite, 0, %ConfigPath%, sync, hasConnectedOnce
 }
@@ -617,6 +629,12 @@ MigrateConfig() {
     IniRead, PasteConfirmEnabled, %ConfigPath%, sync, pasteConfirmEnabled, %missingValue%
     if (PasteConfirmEnabled = missingValue || PasteConfirmEnabled = "")
         IniWrite, 1, %ConfigPath%, sync, pasteConfirmEnabled
+    IniRead, ShellMenuEnabled, %ConfigPath%, sync, shellMenuEnabled, %missingValue%
+    if (ShellMenuEnabled = missingValue || ShellMenuEnabled = "")
+        IniWrite, 1, %ConfigPath%, sync, shellMenuEnabled
+    IniRead, ShellMenuPersistent, %ConfigPath%, sync, shellMenuPersistent, %missingValue%
+    if (ShellMenuPersistent = missingValue || ShellMenuPersistent = "")
+        IniWrite, 0, %ConfigPath%, sync, shellMenuPersistent
     IniRead, LastDesiredRunningState, %ConfigPath%, sync, lastDesiredRunningState, %missingValue%
     if (LastDesiredRunningState = missingValue || LastDesiredRunningState = "")
         IniWrite, stopped, %ConfigPath%, sync, lastDesiredRunningState
@@ -688,7 +706,7 @@ InitGui() {
 
 InitAdvancedGui() {
     global EditDeviceId, EditRuntimeDir, EditPanelHotkey, EditSyncToggleHotkey, EditTrayIconHotkey, EditDirectSendHotkey, EditDirectPasteHotkey
-    global EditAutoConnectEnabled, EditStartupEnabled, EditFileConfirmSeconds, EditCopyConfirmEnabled, EditPasteConfirmEnabled
+    global EditAutoConnectEnabled, EditStartupEnabled, EditFileConfirmSeconds, EditCopyConfirmEnabled, EditPasteConfirmEnabled, EditShellMenuEnabled, EditShellMenuPersistent
     Gui, Advanced:New, +OwnerStatus +ToolWindow +OwnDialogs, Cloud Clipboard 高级设置
     Gui, Advanced:Margin, 18, 18
     Gui, Advanced:Color, F6F8FC
@@ -736,6 +754,8 @@ InitAdvancedGui() {
     Gui, Advanced:Add, Text, x+12 yp+4 w246, 普通复制文件后会先提示，在这个时间内再次复制同一批文件才发送；收到远端文件后，再次粘贴可确认下载。
     Gui, Advanced:Add, CheckBox, xm y+14 w470 vEditCopyConfirmEnabled, 普通复制文件时启用二次确认
     Gui, Advanced:Add, CheckBox, xm y+8 w470 vEditPasteConfirmEnabled, 收到远端文件后启用二次粘贴确认下载
+    Gui, Advanced:Add, CheckBox, xm y+8 w470 vEditShellMenuEnabled, 同步可用时自动挂上资源管理器右键菜单
+    Gui, Advanced:Add, CheckBox, xm y+8 w470 vEditShellMenuPersistent, 始终保留右键菜单入口，不随同步状态自动摘除
     Gui, Advanced:Add, CheckBox, xm y+8 w470 vEditAutoConnectEnabled, 启动客户端后按上次状态自动恢复同步
     Gui, Advanced:Add, CheckBox, xm y+8 w470 vEditStartupEnabled, 跟随 Windows 开机启动本客户端
     Gui, Advanced:Add, Button, xm y+18 w104 h30 gSaveConfig Default, 保存配置
@@ -760,8 +780,11 @@ UpdateGui() {
     IniRead, FileConfirmSeconds, %ConfigPath%, sync, fileConfirmSeconds, 8
     IniRead, CopyConfirmEnabled, %ConfigPath%, sync, copyConfirmEnabled, 1
     IniRead, PasteConfirmEnabled, %ConfigPath%, sync, pasteConfirmEnabled, 1
+    IniRead, ShellMenuEnabled, %ConfigPath%, sync, shellMenuEnabled, 1
+    IniRead, ShellMenuPersistent, %ConfigPath%, sync, shellMenuPersistent, 0
     masked := RoomPassword = "" ? "未设置" : "已设置"
     autoResumeText := AutoConnectEnabled = 1 ? "开启" : "关闭"
+    shellMenuText := ShellMenuEnabled = 1 ? (ShellMenuPersistent = 1 ? "始终保留" : "自动管理") : "关闭"
     displayHotkey := FormatHotkeyForDisplay(PanelHotkey)
     displaySyncToggleHotkey := FormatHotkeyForDisplay(SyncToggleHotkey)
     displayTrayIconHotkey := FormatHotkeyForDisplay(TrayIconHotkey)
@@ -784,11 +807,14 @@ UpdateGui() {
     GuiControl, Advanced:, EditFileConfirmSeconds, %FileConfirmSeconds%
     GuiControl, Advanced:, EditCopyConfirmEnabled, % CopyConfirmEnabled = 1 ? 1 : 0
     GuiControl, Advanced:, EditPasteConfirmEnabled, % PasteConfirmEnabled = 1 ? 1 : 0
+    GuiControl, Advanced:, EditShellMenuEnabled, % ShellMenuEnabled = 1 ? 1 : 0
+    GuiControl, Advanced:, EditShellMenuPersistent, % ShellMenuPersistent = 1 ? 1 : 0
     GuiControl, Status:, StatusText, 状态：%ClientStatus%
     GuiControl, Status:, RoomText, 房间：%RoomName%
     GuiControl, Status:, DeviceText, 设备：%DeviceName%（%DeviceId%） 面板热键：%displayHotkey%
-    GuiControl, Status:, PasswordText, 房间密码：%masked% 自动恢复：%autoResumeText% 托盘图标键：%displayTrayIconHotkey%
+    GuiControl, Status:, PasswordText, 房间密码：%masked% 自动恢复：%autoResumeText% 右键菜单：%shellMenuText%
     GuiControl, Status:, ResultText, 最近结果：%LastSyncResult% 同步开关键：%displaySyncToggleHotkey% 直发热键：%displayDirectSendHotkey% 直贴热键：%displayDirectPasteHotkey% 运行目录：%runtimeDirText%
+    SyncShellMenuRegistration()
 }
 
 InitTray() {
@@ -1216,6 +1242,69 @@ ResetReconnectFailures() {
     global HelperStartAttempts, NextHelperRestartAt
     HelperStartAttempts := 0
     NextHelperRestartAt := 0
+}
+
+IsShellMenuEnabled() {
+    global ConfigPath
+    IniRead, value, %ConfigPath%, sync, shellMenuEnabled, 1
+    return value = 1
+}
+
+IsShellMenuPersistent() {
+    global ConfigPath
+    IniRead, value, %ConfigPath%, sync, shellMenuPersistent, 0
+    return value = 1
+}
+
+IsShellMenuUsable() {
+    global HelperActive, SyncPaused, ClientStatus
+    return (HelperActive && !SyncPaused && ClientStatus = "已信任")
+}
+
+SyncShellMenuRegistration(force := false) {
+    global ShellMenuRegistered
+    shouldRegister := false
+    if (IsShellMenuEnabled()) {
+        if (IsShellMenuPersistent() || IsShellMenuUsable())
+            shouldRegister := true
+    }
+    if (!force && shouldRegister = ShellMenuRegistered)
+        return
+    if (shouldRegister) {
+        RegisterShellMenus()
+        ShellMenuRegistered := true
+    } else {
+        UnregisterShellMenus()
+        ShellMenuRegistered := false
+    }
+}
+
+RegisterShellMenus() {
+    global ShellMenuScriptPath
+    shellCommand := BuildShellMenuCommand()
+    RegWrite, REG_SZ, HKCU\Software\Classes\*\shell\CloudClipboardSyncCopy, , 复制到剪贴板服务器
+    RegWrite, REG_SZ, HKCU\Software\Classes\*\shell\CloudClipboardSyncCopy, Icon, %A_ScriptFullPath%
+    RegWrite, REG_SZ, HKCU\Software\Classes\*\shell\CloudClipboardSyncCopy\command, , % shellCommand . " -Mode copy -Path ""%1"""
+    RegWrite, REG_SZ, HKCU\Software\Classes\Directory\shell\CloudClipboardSyncPaste, , 从剪贴板服务器粘贴到此处
+    RegWrite, REG_SZ, HKCU\Software\Classes\Directory\shell\CloudClipboardSyncPaste, Icon, %A_ScriptFullPath%
+    RegWrite, REG_SZ, HKCU\Software\Classes\Directory\shell\CloudClipboardSyncPaste\command, , % shellCommand . " -Mode paste -Path ""%1"""
+    RegWrite, REG_SZ, HKCU\Software\Classes\Directory\Background\shell\CloudClipboardSyncPaste, , 从剪贴板服务器粘贴到此处
+    RegWrite, REG_SZ, HKCU\Software\Classes\Directory\Background\shell\CloudClipboardSyncPaste, Icon, %A_ScriptFullPath%
+    RegWrite, REG_SZ, HKCU\Software\Classes\Directory\Background\shell\CloudClipboardSyncPaste\command, , % shellCommand . " -Mode paste -Path ""%V"""
+}
+
+UnregisterShellMenus() {
+    RegDelete, HKCU\Software\Classes\*\shell\CloudClipboardSyncCopy\command
+    RegDelete, HKCU\Software\Classes\*\shell\CloudClipboardSyncCopy
+    RegDelete, HKCU\Software\Classes\Directory\shell\CloudClipboardSyncPaste\command
+    RegDelete, HKCU\Software\Classes\Directory\shell\CloudClipboardSyncPaste
+    RegDelete, HKCU\Software\Classes\Directory\Background\shell\CloudClipboardSyncPaste\command
+    RegDelete, HKCU\Software\Classes\Directory\Background\shell\CloudClipboardSyncPaste
+}
+
+BuildShellMenuCommand() {
+    global ShellMenuScriptPath
+    return "powershell.exe -NoProfile -ExecutionPolicy Bypass -File """ . ShellMenuScriptPath . """"
 }
 
 AppendCommand(type, payload) {
