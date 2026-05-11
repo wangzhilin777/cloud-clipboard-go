@@ -16,6 +16,7 @@
 - 内置本地控制面板，可查看状态、修改配置、保存后触发重连
 - 支持失败自动重连次数与重连间隔控制，超过上限后停止自动重连
 - 支持启动时自动拉起控制面板，也可从面板再次调用系统浏览器打开
+- 支持本机选择文件上传，并向同步房间广播文件接收通知
 
 后续会继续补：
 
@@ -47,5 +48,6 @@ C:\Program Files\Go\bin\go.exe run ./cmd/cloud-clipboard-desktop -headless
 - 可在面板内修改 `serverBase / room / roomPassword / deviceName / pollInterval / noticeMode`
 - 可在面板内修改失败自动重连次数与重连间隔
 - 可配置启动时是否自动打开面板，也可点击按钮调用系统浏览器打开
+- 可从面板按钮或托盘菜单直接选择文件并发送到同步房间
 - 保存后会立即触发同步客户端重连
 - 如果修改了 `panelAddress`，需要用新地址重新打开页面

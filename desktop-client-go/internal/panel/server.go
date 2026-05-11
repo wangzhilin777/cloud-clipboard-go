@@ -21,6 +21,7 @@ type Backend interface {
 	UpdateConfig(cfg config.Config) error
 	RequestReconnect()
 	OpenPanel() error
+	SendFiles(paths []string) ([]string, error)
 }
 
 type Server struct {
@@ -81,6 +82,7 @@ func New(address string, backend Backend) *Server {
 	mux.HandleFunc("/api/config", s.handleConfig)
 	mux.HandleFunc("/api/reconnect", s.handleReconnect)
 	mux.HandleFunc("/api/open-panel", s.handleOpenPanel)
+	mux.HandleFunc("/api/send-file", s.handleSendFile)
 	mux.Handle("/", http.FileServer(http.FS(staticRoot)))
 	return s
 }
@@ -172,6 +174,26 @@ func (s *Server) handleOpenPanel(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+}
+
+func (s *Server) handleSendFile(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	var body struct {
+		Paths []string `json:"paths"`
+	}
+	if r.Body != nil {
+		defer r.Body.Close()
+		_ = json.NewDecoder(r.Body).Decode(&body)
+	}
+	results, err := s.backend.SendFiles(body.Paths)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"files": results})
 }
 
 func toConfigView(cfg config.Config) configView {

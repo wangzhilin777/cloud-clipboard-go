@@ -14,6 +14,7 @@ type Backend interface {
 	Status() panel.StatusView
 	RequestReconnect()
 	OpenPanel() error
+	SendFiles(paths []string) ([]string, error)
 }
 
 func Run(ctx context.Context, logger *log.Logger, backend Backend, stop func()) error {
@@ -46,6 +47,17 @@ func Run(ctx context.Context, logger *log.Logger, backend Backend, stop func()) 
 	})
 	tray.AppendMenu("立即重连", func() {
 		backend.RequestReconnect()
+	})
+	tray.AppendSeparator()
+	tray.AppendMenu("发送文件到同步房间", func() {
+		files, err := backend.SendFiles(nil)
+		if err != nil {
+			logger.Printf("托盘发送文件失败: %v", err)
+			return
+		}
+		if len(files) > 0 {
+			logger.Printf("托盘发送文件成功: %s", strings.Join(files, ", "))
+		}
 	})
 	tray.AppendSeparator()
 	tray.AppendMenu("退出", func() {

@@ -222,6 +222,7 @@
         <button class="primary" id="saveButton" type="button">保存并重连</button>
         <button class="secondary" id="reconnectButton" type="button">仅重连</button>
         <button class="secondary" id="openPanelButton" type="button">系统浏览器打开</button>
+        <button class="secondary" id="sendFileButton" type="button">选择文件并发送</button>
       </div>
       <div class="message" id="message"></div>
       <div class="footer">配置保存后会立即触发桌面客户端重连。若修改了面板监听地址，本页面需要手动用新地址重新打开。</div>
@@ -341,9 +342,27 @@
       }
     }
 
+    async function sendFile() {
+      message.textContent = '正在打开文件选择框...';
+      try {
+        const resp = await fetch('/api/send-file', { method: 'POST' });
+        const text = await resp.text();
+        if (!resp.ok) throw new Error(text || `HTTP ${resp.status}`);
+        const data = JSON.parse(text || '{}');
+        if (Array.isArray(data.files) && data.files.length) {
+          message.textContent = `发送成功：${data.files.join('，')}`;
+        } else {
+          message.textContent = '已取消选择文件。';
+        }
+      } catch (err) {
+        message.textContent = `发送失败：${err.message}`;
+      }
+    }
+
     document.getElementById('saveButton').addEventListener('click', saveConfig);
     document.getElementById('reconnectButton').addEventListener('click', reconnect);
     document.getElementById('openPanelButton').addEventListener('click', openPanelInBrowser);
+    document.getElementById('sendFileButton').addEventListener('click', sendFile);
 
     loadStatus();
     refreshTimer = setInterval(() => loadStatus(true), 2000);

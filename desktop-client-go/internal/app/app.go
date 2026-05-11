@@ -13,7 +13,9 @@ import (
 
 	"github.com/jonnyan404/cloud-clipboard-go/desktop-client-go/internal/config"
 	"github.com/jonnyan404/cloud-clipboard-go/desktop-client-go/internal/panel"
+	"github.com/jonnyan404/cloud-clipboard-go/desktop-client-go/internal/picker"
 	"github.com/jonnyan404/cloud-clipboard-go/desktop-client-go/internal/syncclient"
+	"github.com/jonnyan404/cloud-clipboard-go/desktop-client-go/internal/transfer"
 )
 
 type App struct {
@@ -261,4 +263,27 @@ func (a *App) currentConfig() config.Config {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	return a.cfg
+}
+
+func (a *App) SendFiles(paths []string) ([]string, error) {
+	var err error
+	if len(paths) == 0 {
+		paths, err = picker.PickFiles(context.Background())
+		if err != nil {
+			return nil, err
+		}
+	}
+	if len(paths) == 0 {
+		return nil, nil
+	}
+	sender := transfer.NewSender(a.currentConfig(), a.logger)
+	results, err := sender.SendFiles(context.Background(), paths)
+	if err != nil {
+		return nil, err
+	}
+	names := make([]string, 0, len(results))
+	for _, result := range results {
+		names = append(names, result.Name)
+	}
+	return names, nil
 }
