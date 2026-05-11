@@ -1,6 +1,8 @@
 package com.transparentlc.cloudclipboardsync.sync
 
 import android.content.Context
+import android.os.Build
+import android.provider.Settings
 import java.util.UUID
 
 object SettingsStore {
@@ -30,6 +32,7 @@ object SettingsStore {
     const val CLIPBOARD_MODE_SHIZUKU = "shizuku"
     const val RUNNING_STATE_STOPPED = "stopped"
     const val RUNNING_STATE_RUNNING = "running"
+    private const val LEGACY_DEFAULT_DEVICE_NAME = "Android 同步端"
 
     data class Config(
         val serverBase: String,
@@ -57,11 +60,15 @@ object SettingsStore {
         val deviceId = prefs.getString(KEY_DEVICE_ID, null) ?: UUID.randomUUID().toString().also {
             prefs.edit().putString(KEY_DEVICE_ID, it).apply()
         }
+        val resolvedDeviceName = prefs.getString(KEY_DEVICE_NAME, null)
+            ?.trim()
+            ?.takeUnless { it.isBlank() || it == LEGACY_DEFAULT_DEVICE_NAME }
+            ?: detectLocalDeviceName(context)
         return Config(
             serverBase = prefs.getString(KEY_SERVER_BASE, "http://127.0.0.1:9501") ?: "http://127.0.0.1:9501",
             room = prefs.getString(KEY_ROOM, "") ?: "",
             roomPassword = prefs.getString(KEY_ROOM_PASSWORD, prefs.getString(KEY_AUTH_CODE_LEGACY, "")) ?: "",
-            deviceName = prefs.getString(KEY_DEVICE_NAME, "Android 同步端") ?: "Android 同步端",
+            deviceName = resolvedDeviceName,
             deviceId = deviceId,
             autoConnectEnabled = prefs.getBoolean(KEY_AUTO_CONNECT_ENABLED, true),
             startOnBootEnabled = prefs.getBoolean(KEY_START_ON_BOOT_ENABLED, false),
@@ -126,5 +133,24 @@ object SettingsStore {
             .putInt(KEY_FLOATING_POS_X, x)
             .putInt(KEY_FLOATING_POS_Y, y)
             .apply()
+    }
+
+    fun detectLocalDeviceName(context: Context): String {
+        val systemName = Settings.Global.getString(context.contentResolver, "device_name")
+            ?.trim()
+            ?.takeIf { it.isNotBlank() }
+        if (systemName != null) {
+            return systemName
+        }
+
+        val manufacturer = Build.MANUFACTURER.orEmpty().trim()
+        val model = Build.MODEL.orEmpty().trim()
+        if (manufacturer.isBlank() && model.isBlank()) {
+            return LEGACY_DEFAULT_DEVICE_NAME
+        }
+        if (model.startsWith(manufacturer, ignoreCase = true) || manufacturer.isBlank()) {
+            return model.ifBlank { LEGACY_DEFAULT_DEVICE_NAME }
+        }
+        return "$manufacturer $model".trim()
     }
 }

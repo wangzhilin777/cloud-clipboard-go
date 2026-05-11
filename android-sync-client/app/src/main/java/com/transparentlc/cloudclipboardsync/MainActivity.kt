@@ -213,7 +213,7 @@ class MainActivity : AppCompatActivity() {
             serverBase = serverBaseInput.text.toString().trim(),
             room = roomInput.text.toString().trim(),
             roomPassword = roomPasswordInput.text.toString().trim(),
-            deviceName = deviceNameInput.text.toString().trim().ifBlank { "Android 同步端" },
+            deviceName = deviceNameInput.text.toString().trim().ifBlank { SettingsStore.detectLocalDeviceName(this) },
             deviceId = previous.deviceId,
             autoConnectEnabled = autoConnectSwitch.isChecked,
             startOnBootEnabled = startOnBootSwitch.isChecked,

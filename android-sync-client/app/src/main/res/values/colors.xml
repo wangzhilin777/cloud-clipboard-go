@@ -1,0 +1,13 @@
+<resources>
+    <color name="cc_primary">#1F5EFF</color>
+    <color name="cc_primary_dark">#1646BF</color>
+    <color name="cc_primary_soft">#E8EFFF</color>
+    <color name="cc_secondary">#16A085</color>
+    <color name="cc_surface">#FFFDF9</color>
+    <color name="cc_panel">#FFFFFFFF</color>
+    <color name="cc_text">#1E2430</color>
+    <color name="cc_text_muted">#6B7280</color>
+    <color name="cc_divider">#D7DEEA</color>
+    <color name="cc_nav_selected">#1F5EFF</color>
+    <color name="cc_nav_unselected">#8A93A6</color>
+</resources>
