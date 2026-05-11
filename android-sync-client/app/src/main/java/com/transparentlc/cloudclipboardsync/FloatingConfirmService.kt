@@ -8,6 +8,7 @@ import android.os.Build
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
+import android.provider.Settings
 import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.MotionEvent
@@ -68,6 +69,10 @@ class FloatingConfirmService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     private fun enqueuePayload(payloadId: String) {
+        if (!canDrawOverlays()) {
+            stopSelf()
+            return
+        }
         if (payloadId == currentPayloadId || pendingPayloadIds.contains(payloadId)) return
         pendingPayloadIds.addLast(payloadId)
         if (currentPayloadId == null) {
@@ -88,6 +93,10 @@ class FloatingConfirmService : Service() {
     }
 
     private fun showOverlay(entry: PayloadEntry) {
+        if (!canDrawOverlays()) {
+            stopSelf()
+            return
+        }
         handler.removeCallbacks(hideRunnable)
         countdownRunnable?.let(handler::removeCallbacks)
         overlayView?.let { windowManager?.removeViewImmediate(it) }
@@ -153,12 +162,18 @@ class FloatingConfirmService : Service() {
         attachDragSupport(root, params)
         layoutParams = params
         overlayView = root
-        windowManager?.addView(root, params)
+        if (!attachOverlayView(root, params)) {
+            return
+        }
         applyClampedPosition(root, params, save = false)
         bindCountdown(root.findViewById(R.id.floatingCountdownText), config.floatingShowSeconds.coerceAtLeast(5))
     }
 
     private fun showAlertOverlay(title: String, message: String) {
+        if (!canDrawOverlays()) {
+            stopSelf()
+            return
+        }
         alertMode = true
         handler.removeCallbacks(hideRunnable)
         countdownRunnable?.let(handler::removeCallbacks)
@@ -198,12 +213,18 @@ class FloatingConfirmService : Service() {
         attachDragSupport(root, params)
         layoutParams = params
         overlayView = root
-        windowManager?.addView(root, params)
+        if (!attachOverlayView(root, params)) {
+            return
+        }
         applyClampedPosition(root, params, save = false)
         bindCountdown(root.findViewById(R.id.floatingCountdownText), config.floatingShowSeconds.coerceAtLeast(5))
     }
 
     private fun showPreviewOverlay() {
+        if (!canDrawOverlays()) {
+            stopSelf()
+            return
+        }
         alertMode = true
         handler.removeCallbacks(hideRunnable)
         countdownRunnable?.let(handler::removeCallbacks)
@@ -256,9 +277,20 @@ class FloatingConfirmService : Service() {
         attachDragSupport(root, params)
         layoutParams = params
         overlayView = root
-        windowManager?.addView(root, params)
+        if (!attachOverlayView(root, params)) {
+            return
+        }
         applyClampedPosition(root, params, save = false)
         bindCountdown(root.findViewById(R.id.floatingCountdownText), config.floatingShowSeconds.coerceAtLeast(5))
+    }
+
+    private fun attachOverlayView(view: View, params: WindowManager.LayoutParams): Boolean = try {
+        windowManager?.addView(view, params)
+        true
+    } catch (_: Exception) {
+        overlayView = null
+        stopSelf()
+        false
     }
 
     private fun attachDragSupport(view: View, params: WindowManager.LayoutParams) {
@@ -324,6 +356,10 @@ class FloatingConfirmService : Service() {
         getString(R.string.floating_queue_single)
     } else {
         getString(R.string.floating_queue_multiple, pendingPayloadIds.size)
+    }
+
+    private fun canDrawOverlays(): Boolean {
+        return Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.canDrawOverlays(this)
     }
 
     private fun openReceivedPage(payloadId: String) {
