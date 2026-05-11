@@ -3,8 +3,10 @@
 使用方式：
 
 1. 安装 AutoHotkey 1.1
-2. 编辑 `config.ini`
-3. 运行 `CloudClipboardSync.ahk`
+2. 运行 `CloudClipboardSync.ahk`
+3. 在弹出的同步面板里填写配置并点击“保存配置”
+
+也可以直接编辑 `config.ini` 作为高级配置入口。
 
 配置项：
 
@@ -20,7 +22,7 @@
 
 说明：
 
-- AHK 负责托盘、状态面板、快捷键、文本剪贴板监听
+- AHK 负责托盘、配置/状态面板、快捷键、文本剪贴板监听
 - `sync-helper.ps1` 负责连接 Go 服务端同步协议
 - 当前版本支持：
   - Windows 与 Web / Android 的纯文本自动同步

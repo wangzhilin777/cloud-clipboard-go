@@ -17,3 +17,6 @@ cloudflare/node_modules
 *.keystore
 clipboard-monitor
 clipboard-monitor/src-tauri/target/
+/windows-client/config.ini
+/windows-client/commands.log
+/windows-client/events.log
