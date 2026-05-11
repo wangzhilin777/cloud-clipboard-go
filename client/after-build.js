@@ -1,6 +1,7 @@
 const fs = require('fs-extra');
 const glob = require('glob');
 const zlib = require('zlib');
+const path = require('path');
 
 (async () => {
 
@@ -26,9 +27,16 @@ await Promise.all(files.map(e => [
     }),
 ]).flat());
 
-fs.rmSync('../server/static', { recursive: true, force: true });
-fs.rmSync('../server-node/static', { recursive: true, force: true });
-fs.copySync('dist', '../server/static');
-fs.copySync('dist', '../server-node/static');
+const targets = [
+    path.resolve(__dirname, '../server/static'),
+    path.resolve(__dirname, '../server-node/static'),
+    path.resolve(__dirname, '../cloud-clip/lib/static'),
+];
+
+for (const target of targets) {
+    fs.rmSync(target, { recursive: true, force: true });
+    fs.copySync(path.resolve(__dirname, 'dist'), target);
+    console.log(`[after-build] copied dist -> ${target}`);
+}
 
 })()
