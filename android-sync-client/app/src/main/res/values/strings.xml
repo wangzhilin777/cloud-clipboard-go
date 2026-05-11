@@ -17,6 +17,12 @@
     <string name="permission_section_desc">把通知、悬浮窗、无障碍和电池策略一次检查清楚。</string>
     <string name="receive_section_title">接收与缓存</string>
     <string name="receive_section_desc">管理图片/文件确认方式、本地缓存保留时长和接收页入口。</string>
+    <string name="receive_overlay_ready">悬浮确认已就绪</string>
+    <string name="receive_overlay_attention">悬浮确认仍需补齐</string>
+    <string name="receive_overlay_ready_summary">当前已开启悬浮确认，收到图片或文件时可直接弹出确认入口。</string>
+    <string name="receive_overlay_disabled_summary">当前仍使用通知确认。如需悬浮确认，请先打开悬浮确认开关。</string>
+    <string name="receive_overlay_permission_summary">已开启悬浮确认，但系统尚未允许悬浮窗显示，请补开悬浮窗权限。</string>
+    <string name="receive_overlay_action_button">打开悬浮窗设置</string>
     <string name="runtime_recommendation_ready">当前模式已就绪</string>
     <string name="runtime_recommendation_attention">建议继续完善</string>
     <string name="permission_overview_ready">当前可直接使用</string>

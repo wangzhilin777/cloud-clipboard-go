@@ -50,6 +50,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var floatingHeightInput: EditText
     private lateinit var floatingShowSecondsInput: EditText
     private lateinit var floatingLayoutSummaryText: TextView
+    private lateinit var receiveOverlayBadgeText: TextView
+    private lateinit var receiveOverlaySummaryText: TextView
     private lateinit var cacheRetentionInput: EditText
     private lateinit var permissionSummaryText: TextView
     private lateinit var permissionGuideText: TextView
@@ -100,6 +102,8 @@ class MainActivity : AppCompatActivity() {
         floatingHeightInput = findViewById(R.id.floatingHeightInput)
         floatingShowSecondsInput = findViewById(R.id.floatingShowSecondsInput)
         floatingLayoutSummaryText = findViewById(R.id.floatingLayoutSummaryText)
+        receiveOverlayBadgeText = findViewById(R.id.receiveOverlayBadgeText)
+        receiveOverlaySummaryText = findViewById(R.id.receiveOverlaySummaryText)
         cacheRetentionInput = findViewById(R.id.cacheRetentionInput)
         permissionSummaryText = findViewById(R.id.permissionSummaryText)
         permissionGuideText = findViewById(R.id.permissionGuideText)
@@ -154,7 +158,10 @@ class MainActivity : AppCompatActivity() {
             openNotificationSettings()
         }
         findViewById<Button>(R.id.openOverlaySettingsButton).setOnClickListener {
-            startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName")))
+            openOverlaySettings()
+        }
+        findViewById<Button>(R.id.openReceiveOverlaySettingsButton).setOnClickListener {
+            openOverlaySettings()
         }
         findViewById<Button>(R.id.openAccessibilitySettingsButton).setOnClickListener {
             startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
@@ -352,6 +359,18 @@ class MainActivity : AppCompatActivity() {
             config.floatingHeightDp,
             config.floatingShowSeconds,
         )
+        val overlayReady = config.floatingEnabled && status.overlayEnabled
+        bindStatusBadge(
+            receiveOverlayBadgeText,
+            ready = overlayReady,
+            readyText = getString(R.string.receive_overlay_ready),
+            warningText = getString(R.string.receive_overlay_attention),
+        )
+        receiveOverlaySummaryText.text = when {
+            !config.floatingEnabled -> getString(R.string.receive_overlay_disabled_summary)
+            !status.overlayEnabled -> getString(R.string.receive_overlay_permission_summary)
+            else -> getString(R.string.receive_overlay_ready_summary)
+        }
     }
 
     private fun openNotificationSettings() {
@@ -361,6 +380,10 @@ class MainActivity : AppCompatActivity() {
             Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName"))
         }
         startActivity(intent)
+    }
+
+    private fun openOverlaySettings() {
+        startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName")))
     }
 
     private fun openBatteryOptimizationSettings() {
