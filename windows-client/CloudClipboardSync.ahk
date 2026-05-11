@@ -240,6 +240,22 @@ SendFilesToAndroid:
     UpdateGui()
 return
 
+ClearRuntimeCache:
+    global CommandPath, EventPath, LastEventLine, LastSyncResult, HelperActive, ApplyingRemoteClipboard
+    ApplyingRemoteClipboard := false
+    LastEventLine := 0
+    if (HelperActive) {
+        RestartHelper(true)
+        LastSyncResult := "已清理本地运行缓存，并重新连接后台同步"
+    } else {
+        FileDelete, %CommandPath%
+        FileDelete, %EventPath%
+        LastSyncResult := "已清理本地运行缓存"
+    }
+    UpdateGui()
+    TrayTip, Cloud Clipboard, 已清理本地运行缓存, 3, 1
+return
+
 ReconnectHelper:
     if (HelperActive)
         RestartHelper(true)
@@ -408,7 +424,8 @@ InitGui() {
     Gui, Status:Add, Button, x+8 w84 gReconnectHelper, 重新连接
     Gui, Status:Add, Button, x+8 w84 gOpenWebConsole, 网页管理台
     Gui, Status:Add, Button, xm y+10 w112 gOpenConfig, 打开 ini
-    Gui, Status:Add, Button, x+8 w340 h32 gSendFilesToAndroid, 发送文件或图片到安卓确认接收
+    Gui, Status:Add, Button, x+8 w112 gClearRuntimeCache, 清理本地缓存
+    Gui, Status:Add, Button, x+8 w220 h32 gSendFilesToAndroid, 发送文件或图片到安卓确认接收
 }
 
 UpdateGui() {
@@ -451,6 +468,7 @@ InitTray() {
     Menu, Tray, Add, 暂停/恢复同步, TogglePause
     Menu, Tray, Add, 重新连接, ReconnectHelper
     Menu, Tray, Add, 发送文件/图片到安卓, SendFilesToAndroid
+    Menu, Tray, Add, 清理本地缓存, ClearRuntimeCache
     Menu, Tray, Add, 打开网页管理台, OpenWebConsole
     Menu, Tray, Add, 打开 ini 配置, OpenConfig
     Menu, Tray, Add, 开机启动开关, ToggleStartup
