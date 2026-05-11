@@ -673,15 +673,33 @@
                         android:textAppearance="@style/TextAppearance.MaterialComponents.Body2"
                         android:textColor="@color/cc_text_muted" />
 
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/resetFloatingPositionButton"
-                        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                    <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="12dp"
-                        android:text="@string/reset_floating_position_button"
-                        android:textColor="@color/cc_primary"
-                        app:strokeColor="@color/cc_primary_soft" />
+                        android:orientation="horizontal">
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/previewFloatingConfirmButton"
+                            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="@string/preview_floating_confirm_button"
+                            android:textColor="@color/cc_primary"
+                            app:strokeColor="@color/cc_primary_soft" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/resetFloatingPositionButton"
+                            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="12dp"
+                            android:layout_weight="1"
+                            android:text="@string/reset_floating_position_button"
+                            android:textColor="@color/cc_primary"
+                            app:strokeColor="@color/cc_primary_soft" />
+                    </LinearLayout>
 
                     <com.google.android.material.textfield.TextInputLayout
                         android:layout_width="match_parent"

@@ -47,6 +47,10 @@ class FloatingConfirmService : Service() {
             )
             return START_NOT_STICKY
         }
+        if (intent?.action == ACTION_SHOW_PREVIEW) {
+            showPreviewOverlay()
+            return START_NOT_STICKY
+        }
         val payloadId = intent?.getStringExtra(EXTRA_PAYLOAD_ID)
         if (!payloadId.isNullOrBlank()) {
             enqueuePayload(payloadId)
@@ -199,6 +203,64 @@ class FloatingConfirmService : Service() {
         bindCountdown(root.findViewById(R.id.floatingCountdownText), config.floatingShowSeconds.coerceAtLeast(5))
     }
 
+    private fun showPreviewOverlay() {
+        alertMode = true
+        handler.removeCallbacks(hideRunnable)
+        countdownRunnable?.let(handler::removeCallbacks)
+        overlayView?.let { windowManager?.removeViewImmediate(it) }
+
+        val config = SettingsStore.load(this)
+        val root = LayoutInflater.from(this).inflate(R.layout.view_floating_confirm, null)
+        root.findViewById<TextView>(R.id.floatingBadgeText).text = getString(R.string.floating_preview_badge)
+        root.findViewById<TextView>(R.id.floatingTitleText).text = getString(R.string.floating_preview_title)
+        root.findViewById<TextView>(R.id.floatingMetaText).text = getString(
+            R.string.floating_meta_format,
+            getString(R.string.payload_kind_image),
+            "2.4 MB",
+        )
+        root.findViewById<TextView>(R.id.floatingSourceText).text = getString(
+            R.string.floating_source_format,
+            getString(R.string.floating_preview_source_device),
+            getString(R.string.floating_preview_source_room),
+        )
+        root.findViewById<Button>(R.id.floatingConfirmButton).setOnClickListener {
+            dismissCurrent(showNext = false)
+        }
+        root.findViewById<Button>(R.id.floatingOpenButton).setOnClickListener {
+            dismissCurrent(showNext = false)
+        }
+        root.findViewById<Button>(R.id.floatingIgnoreButton).setOnClickListener {
+            dismissCurrent(showNext = false)
+        }
+        root.findViewById<Button>(R.id.floatingIgnoreAllButton).setOnClickListener {
+            dismissCurrent(showNext = false)
+        }
+
+        val params = WindowManager.LayoutParams(
+            dp(config.floatingWidthDp),
+            dp(config.floatingHeightDp).coerceAtLeast(WindowManager.LayoutParams.WRAP_CONTENT),
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+            } else {
+                WindowManager.LayoutParams.TYPE_PHONE
+            },
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+            PixelFormat.TRANSLUCENT,
+        ).apply {
+            gravity = Gravity.TOP or Gravity.START
+            x = config.floatingPosX
+            y = config.floatingPosY
+        }
+
+        attachDragSupport(root, params)
+        layoutParams = params
+        overlayView = root
+        windowManager?.addView(root, params)
+        applyClampedPosition(root, params, save = false)
+        bindCountdown(root.findViewById(R.id.floatingCountdownText), config.floatingShowSeconds.coerceAtLeast(5))
+    }
+
     private fun attachDragSupport(view: View, params: WindowManager.LayoutParams) {
         var startX = 0
         var startY = 0
@@ -310,6 +372,7 @@ class FloatingConfirmService : Service() {
 
     companion object {
         private const val ACTION_SHOW_ALERT = "com.transparentlc.cloudclipboardsync.action.SHOW_ALERT"
+        private const val ACTION_SHOW_PREVIEW = "com.transparentlc.cloudclipboardsync.action.SHOW_PREVIEW"
         private const val EXTRA_PAYLOAD_ID = "payload_id"
         private const val EXTRA_ALERT_TITLE = "alert_title"
         private const val EXTRA_ALERT_MESSAGE = "alert_message"
@@ -324,6 +387,12 @@ class FloatingConfirmService : Service() {
                 .setAction(ACTION_SHOW_ALERT)
                 .putExtra(EXTRA_ALERT_TITLE, title)
                 .putExtra(EXTRA_ALERT_MESSAGE, message)
+            context.startService(intent)
+        }
+
+        fun showPreview(context: Context) {
+            val intent = Intent(context, FloatingConfirmService::class.java)
+                .setAction(ACTION_SHOW_PREVIEW)
             context.startService(intent)
         }
     }

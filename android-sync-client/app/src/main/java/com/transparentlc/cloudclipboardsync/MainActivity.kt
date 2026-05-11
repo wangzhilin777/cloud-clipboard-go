@@ -160,6 +160,14 @@ class MainActivity : AppCompatActivity() {
             refreshRuntimeHints()
             Toast.makeText(this, R.string.floating_position_reset_toast, Toast.LENGTH_SHORT).show()
         }
+        findViewById<Button>(R.id.previewFloatingConfirmButton).setOnClickListener {
+            if (!PermissionStatusHelper.read(this).overlayEnabled) {
+                Toast.makeText(this, R.string.preview_floating_confirm_permission_toast, Toast.LENGTH_SHORT).show()
+                openOverlaySettings()
+                return@setOnClickListener
+            }
+            FloatingConfirmService.showPreview(this)
+        }
         findViewById<Button>(R.id.openNotificationSettingsButton).setOnClickListener {
             openNotificationSettings()
         }

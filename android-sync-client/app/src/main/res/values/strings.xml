@@ -44,7 +44,13 @@
     <string name="floating_width_hint">悬浮宽度，默认 280</string>
     <string name="floating_height_hint">悬浮高度，默认 110</string>
     <string name="floating_seconds_hint">显示时长，默认 20 秒</string>
-    <string name="floating_layout_summary_format">当前位置：X %1$d / Y %2$d\n当前尺寸：宽 %3$ddp · 高 %4$ddp · 显示 %5$d 秒</string>
+    <string name="floating_layout_summary_format">当前位置：X %1$d / Y %2$d\n当前尺寸：宽 %3$ddp · 高 %4$ddp · 显示 %5$d 秒\n拖动悬浮卡片后会自动记住当前位置，并尽量贴在屏幕可见区域内。</string>
+    <string name="preview_floating_confirm_button">预览悬浮确认</string>
+    <string name="preview_floating_confirm_permission_toast">需要先允许悬浮窗显示，才能直接预览悬浮确认。</string>
+    <string name="floating_preview_badge">悬浮确认预览</string>
+    <string name="floating_preview_title">示例图片已准备好接收</string>
+    <string name="floating_preview_source_device">Windows 工作台</string>
+    <string name="floating_preview_source_room">默认房间</string>
     <string name="reset_floating_position_button">重置悬浮位置</string>
     <string name="floating_position_reset_toast">悬浮位置已恢复默认</string>
     <string name="cache_retention_hint">缓存保留小时数，默认 24</string>
