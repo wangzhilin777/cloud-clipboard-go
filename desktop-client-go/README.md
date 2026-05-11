@@ -5,6 +5,7 @@
 当前这版先完成最小闭环：
 
 - 读取本地 `config.json`
+- 默认以托盘模式启动，可从托盘打开面板、立即重连、退出
 - 连接 Go 服务端 `/api/sync/server` 与 `/sync/ws`
 - 走现有 `roomPassword + 配对批准` 模型
 - 纯文本剪贴板轮询同步
@@ -32,6 +33,13 @@ C:\Program Files\Go\bin\go.exe run ./cmd/cloud-clipboard-desktop
 ```
 
 首次运行会自动生成 `config.json`。
+
+如果只想无托盘运行，方便调试或自动化验证：
+
+```powershell
+cd E:\Workspace\VSCode\cloud-clipboard\desktop-client-go
+C:\Program Files\Go\bin\go.exe run ./cmd/cloud-clipboard-desktop -headless
+```
 
 默认会同时启动本地控制面板：
 
