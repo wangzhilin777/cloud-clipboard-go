@@ -26,6 +26,7 @@ global RegisteredPanelHotkey := ""
 global RegisteredSyncToggleHotkey := ""
 global RegisteredTrayIconHotkey := ""
 global RegisteredDirectSendHotkey := ""
+global RegisteredDirectPasteHotkey := ""
 global HotkeyCaptureSuspended := false
 global TrayIconVisible := true
 global AdvancedPanelVisible := false
@@ -44,6 +45,7 @@ global EditPanelHotkey := ""
 global EditSyncToggleHotkey := ""
 global EditTrayIconHotkey := ""
 global EditDirectSendHotkey := ""
+global EditDirectPasteHotkey := ""
 global EditAutoConnectEnabled := 0
 global EditStartupEnabled := 0
 global EditFileConfirmSeconds := 8
@@ -55,6 +57,12 @@ global PendingPayloadExpiresAt := 0
 global PendingPayloadAction := ""
 global PendingPayloadDescription := ""
 global PendingPayloadCount := 0
+global PendingReceivePayloadId := ""
+global PendingReceivePayloadTitle := ""
+global PendingReceivePayloadExpiresAt := 0
+global PendingReceiveSourceDevice := ""
+global PendingReceiveKind := ""
+global SuppressPasteHotkey := false
 
 EnsureConfig()
 RefreshRuntimePaths()
@@ -65,9 +73,11 @@ RegisterPanelHotkey()
 RegisterSyncToggleHotkey()
 RegisterTrayIconHotkey()
 RegisterDirectSendHotkey()
+RegisterDirectPasteHotkey()
 if (ShouldShowInitialPanel())
     ShowStatusPanel()
 OnClipboardChange("HandleClipboardChange")
+Hotkey, ^v, InterceptPasteHotkey, On
 SetTimer, PollEvents, 800
 SetTimer, EnsureHelperRunning, 2000
 TryAutoStartSync()
@@ -124,6 +134,12 @@ PollEvents:
             LastSyncResult := "已接收远端文本并写入剪贴板"
             UpdateGui()
             SetTimer, ClearClipboardGuard, -1500
+        } else if (type = "payloadNotice") {
+            HandleIncomingPayloadNotice(Base64Decode(parts[2]))
+        } else if (type = "payloadDownloaded") {
+            HandleIncomingPayloadDownloaded(Base64Decode(parts[2]))
+        } else if (type = "payloadClipboardReady") {
+            HandleIncomingPayloadClipboardReady(Base64Decode(parts[2]))
         }
     }
 return
@@ -165,7 +181,7 @@ return
 
 SaveConfig:
     global ConfigPath, EditServerBase, EditRoom, EditRoomPassword, EditDeviceName, EditDeviceId, EditRuntimeDir
-    global EditPanelHotkey, EditSyncToggleHotkey, EditTrayIconHotkey, EditDirectSendHotkey, EditAutoConnectEnabled, EditStartupEnabled, EditFileConfirmSeconds, LastSyncResult, HelperActive
+    global EditPanelHotkey, EditSyncToggleHotkey, EditTrayIconHotkey, EditDirectSendHotkey, EditDirectPasteHotkey, EditAutoConnectEnabled, EditStartupEnabled, EditFileConfirmSeconds, LastSyncResult, HelperActive
     Gui, Status:Submit, NoHide
     Gui, Advanced:Submit, NoHide
     autoConnectValue := EditAutoConnectEnabled ? 1 : 0
@@ -174,6 +190,7 @@ SaveConfig:
     normalizedSyncToggleHotkey := NormalizeHotkey(EditSyncToggleHotkey)
     normalizedTrayIconHotkey := NormalizeHotkey(EditTrayIconHotkey)
     normalizedDirectSendHotkey := NormalizeHotkey(EditDirectSendHotkey)
+    normalizedDirectPasteHotkey := NormalizeHotkey(EditDirectPasteHotkey)
     normalizedRuntimeDir := NormalizeRuntimeDirForSave(EditRuntimeDir)
     normalizedFileConfirmSeconds := EditFileConfirmSeconds + 0
     if (normalizedFileConfirmSeconds < 3)
@@ -190,6 +207,7 @@ SaveConfig:
     IniWrite, %normalizedSyncToggleHotkey%, %ConfigPath%, sync, syncToggleHotkey
     IniWrite, %normalizedTrayIconHotkey%, %ConfigPath%, sync, trayIconHotkey
     IniWrite, %normalizedDirectSendHotkey%, %ConfigPath%, sync, directSendHotkey
+    IniWrite, %normalizedDirectPasteHotkey%, %ConfigPath%, sync, directPasteHotkey
     IniWrite, %autoConnectValue%, %ConfigPath%, sync, autoConnectEnabled
     IniWrite, %startupValue%, %ConfigPath%, sync, startupEnabled
     IniWrite, %normalizedFileConfirmSeconds%, %ConfigPath%, sync, fileConfirmSeconds
@@ -198,6 +216,7 @@ SaveConfig:
     RegisterSyncToggleHotkey()
     RegisterTrayIconHotkey()
     RegisterDirectSendHotkey()
+    RegisterDirectPasteHotkey()
     SyncStartupShortcut()
     LastSyncResult := "配置已保存"
     if (HelperActive) {
@@ -283,12 +302,31 @@ OpenDirectSendHotkeyCapture:
     Gui, HotkeyCapture:Show, AutoSize, 录制直发热键
 return
 
+OpenDirectPasteHotkeyCapture:
+    global CaptureHotkeyValue, CaptureHotkeyTarget, EditDirectPasteHotkey
+    Gui, Advanced:Submit, NoHide
+    SuspendRegisteredHotkeys()
+    CaptureHotkeyTarget := "directPaste"
+    CaptureHotkeyValue := NormalizeHotkey(EditDirectPasteHotkey)
+    Gui, HotkeyCapture:Destroy
+    Gui, HotkeyCapture:New, +OwnerStatus +AlwaysOnTop +ToolWindow, 录制直贴热键
+    Gui, HotkeyCapture:Margin, 16, 16
+    Gui, HotkeyCapture:Add, Text, w280, 按下要用于直接下载并粘贴远端文件的快捷键；也可以清空为不设置。
+    Gui, HotkeyCapture:Add, Hotkey, xm y+12 w280 vCaptureHotkeyValue, %CaptureHotkeyValue%
+    Gui, HotkeyCapture:Add, Button, xm y+14 w84 gSaveCapturedHotkey Default, 确认
+    Gui, HotkeyCapture:Add, Button, x+8 w84 gClearCapturedHotkey, 清空
+    Gui, HotkeyCapture:Add, Button, x+8 w84 gCancelCapturedHotkey, 取消
+    Gui, HotkeyCapture:Show, AutoSize, 录制直贴热键
+return
+
 SaveCapturedHotkey:
     global CaptureHotkeyValue, CaptureHotkeyTarget
     Gui, HotkeyCapture:Submit, NoHide
     displayHotkey := FormatHotkeyForDisplay(CaptureHotkeyValue)
     if (CaptureHotkeyTarget = "syncToggle")
         GuiControl, Advanced:, EditSyncToggleHotkey, %displayHotkey%
+    else if (CaptureHotkeyTarget = "directPaste")
+        GuiControl, Advanced:, EditDirectPasteHotkey, %displayHotkey%
     else if (CaptureHotkeyTarget = "directSend")
         GuiControl, Advanced:, EditDirectSendHotkey, %displayHotkey%
     else if (CaptureHotkeyTarget = "trayIcon")
@@ -471,6 +509,14 @@ DirectSendSelectedFiles:
     ClearPendingPayloadState()
 return
 
+DirectPasteLatestPayload:
+    if (!TriggerPendingReceiveDownload(true, true)) {
+        LastSyncResult := "当前没有待接收的远端文件，暂时无法直接下载并粘贴"
+        UpdateGui()
+        ShowActionTip("Cloud Clipboard", "当前没有待接收的远端文件，收到新的图片或文件通知后再试")
+    }
+return
+
 ExitClient:
     if (HelperActive)
         AppendCommand("shutdown", "")
@@ -497,6 +543,7 @@ EnsureConfig() {
     IniWrite, %emptyValue%, %ConfigPath%, sync, syncToggleHotkey
     IniWrite, %emptyValue%, %ConfigPath%, sync, trayIconHotkey
     IniWrite, ^!c, %ConfigPath%, sync, directSendHotkey
+    IniWrite, ^!+v, %ConfigPath%, sync, directPasteHotkey
     IniWrite, 1, %ConfigPath%, sync, autoConnectEnabled
     IniWrite, 0, %ConfigPath%, sync, startupEnabled
     IniWrite, stopped, %ConfigPath%, sync, lastDesiredRunningState
@@ -525,6 +572,9 @@ MigrateConfig() {
     IniRead, DirectSendHotkey, %ConfigPath%, sync, directSendHotkey, %missingValue%
     if (DirectSendHotkey = missingValue)
         IniWrite, ^!c, %ConfigPath%, sync, directSendHotkey
+    IniRead, DirectPasteHotkey, %ConfigPath%, sync, directPasteHotkey, %missingValue%
+    if (DirectPasteHotkey = missingValue)
+        IniWrite, ^!+v, %ConfigPath%, sync, directPasteHotkey
     IniRead, AutoConnectEnabled, %ConfigPath%, sync, autoConnectEnabled, %missingValue%
     if (AutoConnectEnabled = missingValue || AutoConnectEnabled = "")
         IniWrite, 1, %ConfigPath%, sync, autoConnectEnabled
@@ -599,7 +649,7 @@ InitGui() {
 }
 
 InitAdvancedGui() {
-    global EditDeviceId, EditRuntimeDir, EditPanelHotkey, EditSyncToggleHotkey, EditTrayIconHotkey, EditDirectSendHotkey
+    global EditDeviceId, EditRuntimeDir, EditPanelHotkey, EditSyncToggleHotkey, EditTrayIconHotkey, EditDirectSendHotkey, EditDirectPasteHotkey
     global EditAutoConnectEnabled, EditStartupEnabled, EditFileConfirmSeconds
     Gui, Advanced:New, +OwnerStatus +ToolWindow +OwnDialogs, Cloud Clipboard 高级设置
     Gui, Advanced:Margin, 18, 18
@@ -635,6 +685,9 @@ InitAdvancedGui() {
     Gui, Advanced:Add, Text, xm y+12 w92, 直发热键
     Gui, Advanced:Add, Edit, x+10 yp-3 w256 h24 vEditDirectSendHotkey,
     Gui, Advanced:Add, Button, x+8 yp-1 w104 h28 gOpenDirectSendHotkeyCapture, 录制快捷键
+    Gui, Advanced:Add, Text, xm y+12 w92, 直贴热键
+    Gui, Advanced:Add, Edit, x+10 yp-3 w256 h24 vEditDirectPasteHotkey,
+    Gui, Advanced:Add, Button, x+8 yp-1 w104 h28 gOpenDirectPasteHotkeyCapture, 录制快捷键
 
     Gui, Advanced:Add, Progress, xm y+18 w470 h1 Disabled cE1E7F0 BackgroundE1E7F0, 100
     Gui, Advanced:Font, s10 Bold c24476B, Segoe UI
@@ -661,6 +714,7 @@ UpdateGui() {
     IniRead, SyncToggleHotkey, %ConfigPath%, sync, syncToggleHotkey,
     IniRead, TrayIconHotkey, %ConfigPath%, sync, trayIconHotkey,
     IniRead, DirectSendHotkey, %ConfigPath%, sync, directSendHotkey, ^!c
+    IniRead, DirectPasteHotkey, %ConfigPath%, sync, directPasteHotkey, ^!+v
     IniRead, AutoConnectEnabled, %ConfigPath%, sync, autoConnectEnabled, 1
     IniRead, StartupEnabled, %ConfigPath%, sync, startupEnabled, 0
     IniRead, FileConfirmSeconds, %ConfigPath%, sync, fileConfirmSeconds, 8
@@ -670,6 +724,7 @@ UpdateGui() {
     displaySyncToggleHotkey := FormatHotkeyForDisplay(SyncToggleHotkey)
     displayTrayIconHotkey := FormatHotkeyForDisplay(TrayIconHotkey)
     displayDirectSendHotkey := FormatHotkeyForDisplay(DirectSendHotkey)
+    displayDirectPasteHotkey := FormatHotkeyForDisplay(DirectPasteHotkey)
     runtimeDirText := ResolveRuntimeDir(RuntimeDirValue)
     GuiControl, Status:, EditServerBase, %ServerBase%
     GuiControl, Status:, EditRoom, %RoomName%
@@ -681,6 +736,7 @@ UpdateGui() {
     GuiControl, Advanced:, EditSyncToggleHotkey, %displaySyncToggleHotkey%
     GuiControl, Advanced:, EditTrayIconHotkey, %displayTrayIconHotkey%
     GuiControl, Advanced:, EditDirectSendHotkey, %displayDirectSendHotkey%
+    GuiControl, Advanced:, EditDirectPasteHotkey, %displayDirectPasteHotkey%
     GuiControl, Advanced:, EditAutoConnectEnabled, % AutoConnectEnabled = 1 ? 1 : 0
     GuiControl, Advanced:, EditStartupEnabled, % StartupEnabled = 1 ? 1 : 0
     GuiControl, Advanced:, EditFileConfirmSeconds, %FileConfirmSeconds%
@@ -688,7 +744,7 @@ UpdateGui() {
     GuiControl, Status:, RoomText, 房间：%RoomName%
     GuiControl, Status:, DeviceText, 设备：%DeviceName%（%DeviceId%） 面板热键：%displayHotkey%
     GuiControl, Status:, PasswordText, 房间密码：%masked% 自动恢复：%autoResumeText% 托盘图标键：%displayTrayIconHotkey%
-    GuiControl, Status:, ResultText, 最近结果：%LastSyncResult% 同步开关键：%displaySyncToggleHotkey% 直发热键：%displayDirectSendHotkey% 运行目录：%runtimeDirText%
+    GuiControl, Status:, ResultText, 最近结果：%LastSyncResult% 同步开关键：%displaySyncToggleHotkey% 直发热键：%displayDirectSendHotkey% 直贴热键：%displayDirectPasteHotkey% 运行目录：%runtimeDirText%
 }
 
 InitTray() {
@@ -702,6 +758,7 @@ InitTray() {
     Menu, Tray, Add, 停止同步, StopSync
     Menu, Tray, Add, 暂停/恢复同步, TogglePause
     Menu, Tray, Add, 直接发送当前选中文件, DirectSendSelectedFiles
+    Menu, Tray, Add, 下载并粘贴最近收到的文件, DirectPasteLatestPayload
     Menu, Tray, Add, 重新连接, ReconnectHelper
     Menu, Tray, Add, 发送文件/图片到安卓, SendFilesToAndroid
     Menu, Tray, Add, 清理本地缓存, ClearRuntimeCache
@@ -883,8 +940,24 @@ RegisterDirectSendHotkey() {
     RegisteredDirectSendHotkey := NextHotkey
 }
 
+RegisterDirectPasteHotkey() {
+    global RegisteredDirectPasteHotkey, ConfigPath, LastSyncResult
+    IniRead, NextHotkey, %ConfigPath%, sync, directPasteHotkey, ^!+v
+    NextHotkey := NormalizeHotkey(NextHotkey)
+    if (RegisteredDirectPasteHotkey != "")
+        Hotkey, %RegisteredDirectPasteHotkey%, DirectPasteLatestPayload, Off UseErrorLevel
+    if (NextHotkey != "") {
+        Hotkey, %NextHotkey%, DirectPasteLatestPayload, On UseErrorLevel
+        if (ErrorLevel) {
+            LastSyncResult := "直贴热键无效，已忽略当前设置"
+            NextHotkey := ""
+        }
+    }
+    RegisteredDirectPasteHotkey := NextHotkey
+}
+
 SuspendRegisteredHotkeys() {
-    global RegisteredPanelHotkey, RegisteredSyncToggleHotkey, RegisteredTrayIconHotkey, RegisteredDirectSendHotkey, HotkeyCaptureSuspended
+    global RegisteredPanelHotkey, RegisteredSyncToggleHotkey, RegisteredTrayIconHotkey, RegisteredDirectSendHotkey, RegisteredDirectPasteHotkey, HotkeyCaptureSuspended
     if (HotkeyCaptureSuspended)
         return
     if (RegisteredPanelHotkey != "")
@@ -895,6 +968,8 @@ SuspendRegisteredHotkeys() {
         Hotkey, %RegisteredTrayIconHotkey%, ToggleTrayIconVisibility, Off UseErrorLevel
     if (RegisteredDirectSendHotkey != "")
         Hotkey, %RegisteredDirectSendHotkey%, DirectSendSelectedFiles, Off UseErrorLevel
+    if (RegisteredDirectPasteHotkey != "")
+        Hotkey, %RegisteredDirectPasteHotkey%, DirectPasteLatestPayload, Off UseErrorLevel
     HotkeyCaptureSuspended := true
 }
 
@@ -907,6 +982,7 @@ ResumeRegisteredHotkeys() {
     RegisterSyncToggleHotkey()
     RegisterTrayIconHotkey()
     RegisterDirectSendHotkey()
+    RegisterDirectPasteHotkey()
 }
 
 CloseHotkeyCapture() {
@@ -1128,6 +1204,24 @@ RequestPayloadConfirmation(paths, action := "upload", reason := "已记录文件
     ArmPendingPayload(action, paths, signature, reason)
 }
 
+TriggerPendingReceiveDownload(pasteAfterCopy := true, force := false) {
+    global PendingReceivePayloadId, PendingReceivePayloadExpiresAt, PendingReceivePayloadTitle, LastSyncResult
+    if (PendingReceivePayloadId = "")
+        return false
+    if (!force && A_TickCount > PendingReceivePayloadExpiresAt) {
+        LastSyncResult := "最近收到的远端文件确认已过期，请等待新的通知后再次粘贴"
+        ClearPendingReceiveState()
+        UpdateGui()
+        return false
+    }
+    payload := "{""payloadId"":""" . EscapeJsonString(PendingReceivePayloadId) . """,""mode"":""clipboardPaste"",""paste"":" . (pasteAfterCopy ? "true" : "false") . "}"
+    AppendCommand("payloadReceive", payload)
+    LastSyncResult := "已开始接收远端文件：" . PendingReceivePayloadTitle
+    UpdateGui()
+    ShowActionTip("Cloud Clipboard", "正在下载并准备粘贴：" . PendingReceivePayloadTitle)
+    return true
+}
+
 ArmPendingPayload(action, paths, signature, reason) {
     global PendingPayloadSignature, PendingPayloadPaths, PendingPayloadExpiresAt, PendingPayloadAction
     global PendingPayloadDescription, PendingPayloadCount, LastSyncResult
@@ -1173,6 +1267,15 @@ ClearPendingPayloadState() {
     PendingPayloadCount := 0
 }
 
+ClearPendingReceiveState() {
+    global PendingReceivePayloadId, PendingReceivePayloadTitle, PendingReceivePayloadExpiresAt, PendingReceiveSourceDevice, PendingReceiveKind
+    PendingReceivePayloadId := ""
+    PendingReceivePayloadTitle := ""
+    PendingReceivePayloadExpiresAt := 0
+    PendingReceiveSourceDevice := ""
+    PendingReceiveKind := ""
+}
+
 ClearPendingPayloadTimer:
     global PendingPayloadSignature, PendingPayloadExpiresAt, PendingPayloadDescription, LastSyncResult
     if (PendingPayloadSignature = "")
@@ -1216,6 +1319,100 @@ CountPayloadPaths(paths) {
             count++
     }
     return count
+}
+
+HandleIncomingPayloadNotice(jsonText) {
+    global PendingReceivePayloadId, PendingReceivePayloadTitle, PendingReceivePayloadExpiresAt, PendingReceiveSourceDevice, PendingReceiveKind
+    global LastSyncResult
+    payloadId := ReadJsonValue(jsonText, "payloadId")
+    title := ReadJsonValue(jsonText, "title")
+    sourceDevice := ReadJsonValue(jsonText, "sourceDeviceId")
+    kind := ReadJsonValue(jsonText, "kind")
+    if (payloadId = "")
+        return
+    seconds := GetFileConfirmSeconds()
+    PendingReceivePayloadId := payloadId
+    PendingReceivePayloadTitle := title = "" ? "远端文件" : title
+    PendingReceiveSourceDevice := sourceDevice
+    PendingReceiveKind := kind
+    PendingReceivePayloadExpiresAt := A_TickCount + seconds * 1000
+    LastSyncResult := "收到远端" . DescribePayloadKind(kind) . "：" . PendingReceivePayloadTitle . "；请在 " . seconds . " 秒内再次粘贴确认下载"
+    UpdateGui()
+    ShowActionTip("Cloud Clipboard", "收到远端" . DescribePayloadKind(kind) . "“" . PendingReceivePayloadTitle . "”，" . seconds . " 秒内再次按 Ctrl+V 可确认下载")
+    SetTimer, ClearPendingReceiveTimer, Off
+    delayMs := seconds * 1000
+    SetTimer, ClearPendingReceiveTimer, % -delayMs
+}
+
+HandleIncomingPayloadDownloaded(jsonText) {
+    global LastSyncResult
+    title := ReadJsonValue(jsonText, "title")
+    path := ReadJsonValue(jsonText, "path")
+    LastSyncResult := "已下载远端文件到本地：" . title
+    UpdateGui()
+    ShowActionTip("Cloud Clipboard", "已下载到本地：" . path)
+    ClearPendingReceiveState()
+}
+
+HandleIncomingPayloadClipboardReady(jsonText) {
+    global LastSyncResult, SuppressPasteHotkey
+    title := ReadJsonValue(jsonText, "title")
+    pasteFlag := ReadJsonValue(jsonText, "paste")
+    LastSyncResult := "已准备好粘贴远端文件：" . title
+    UpdateGui()
+    ClearPendingReceiveState()
+    if (pasteFlag = "true") {
+        SuppressPasteHotkey := true
+        SendInput, ^v
+    }
+}
+
+ClearPendingReceiveTimer:
+    global PendingReceivePayloadId, PendingReceivePayloadExpiresAt, PendingReceivePayloadTitle, LastSyncResult
+    if (PendingReceivePayloadId = "")
+        return
+    if (A_TickCount < PendingReceivePayloadExpiresAt)
+        return
+    LastSyncResult := "远端文件“" . PendingReceivePayloadTitle . "”的接收确认已过期"
+    ClearPendingReceiveState()
+    UpdateGui()
+return
+
+ReadJsonValue(jsonText, key) {
+    pattern := """" . key . """:(?:\s*)(""((?:[^""\\]|\\.)*)""|(true|false|null|-?\d+(?:\.\d+)?))"
+    if !RegExMatch(jsonText, pattern, match)
+        return ""
+    value := match2
+    if (value = "") {
+        value := match3
+    }
+    quote := Chr(34)
+    slash := Chr(92)
+    value := StrReplace(value, slash . quote, quote)
+    value := StrReplace(value, slash . slash, slash)
+    value := StrReplace(value, slash . "/", "/")
+    value := StrReplace(value, slash . "n", "`n")
+    value := StrReplace(value, slash . "r", "`r")
+    value := StrReplace(value, slash . "t", A_Tab)
+    return value
+}
+
+EscapeJsonString(value) {
+    quote := Chr(34)
+    slash := Chr(92)
+    value := StrReplace(value, slash, slash . slash)
+    value := StrReplace(value, quote, slash . quote)
+    value := StrReplace(value, "`r", slash . "r")
+    value := StrReplace(value, "`n", slash . "n")
+    return value
+}
+
+DescribePayloadKind(kind) {
+    if (kind = "image")
+        return "图片"
+    if (kind = "file")
+        return "文件"
+    return "内容"
 }
 
 ClipboardContainsFiles() {
@@ -1316,3 +1513,15 @@ Base64Decode(text) {
     DllCall("Crypt32.dll\CryptStringToBinary", "Str", text, "UInt", 0, "UInt", 0x1, "Ptr", &bin, "UIntP", size, "Ptr", 0, "Ptr", 0)
     return StrGet(&bin, size, "UTF-8")
 }
+InterceptPasteHotkey:
+    global SuppressPasteHotkey
+    if (SuppressPasteHotkey) {
+        SuppressPasteHotkey := false
+        SendInput, ^v
+        return
+    }
+    if (TriggerPendingReceiveDownload(true))
+        return
+    SuppressPasteHotkey := true
+    SendInput, ^v
+return

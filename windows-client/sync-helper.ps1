@@ -7,6 +7,7 @@
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Net.Http
+Add-Type -AssemblyName System.Windows.Forms
 
 function Get-IniValue {
     param(
@@ -54,6 +55,17 @@ function Write-Clipboard {
     $bytes = [Text.Encoding]::UTF8.GetBytes($Text)
     $encoded = [Convert]::ToBase64String($bytes)
     Write-EventLine "clipboard|$encoded"
+}
+
+function Write-JsonEvent {
+    param(
+        [string]$Type,
+        [object]$Value
+    )
+    $json = $Value | ConvertTo-Json -Depth 8 -Compress
+    $bytes = [Text.Encoding]::UTF8.GetBytes($json)
+    $encoded = [Convert]::ToBase64String($bytes)
+    Write-EventLine "$Type|$encoded"
 }
 
 function Get-MimeType {
@@ -289,6 +301,108 @@ function Send-PayloadFiles {
     }
 }
 
+function Resolve-ServerUrl {
+    param(
+        [hashtable]$Config,
+        [string]$Url
+    )
+    if (-not $Url) {
+        return $null
+    }
+    if ($Url -match '^https?://') {
+        return $Url
+    }
+    if ($Url.StartsWith('/')) {
+        return "$($Config.ServerBase)$Url"
+    }
+    return "$($Config.ServerBase)/$Url"
+}
+
+function Get-DownloadDirectory {
+    param([string]$EventLogPath)
+    $runtimeDir = Split-Path -Parent $EventLogPath
+    return Join-Path $runtimeDir 'received-payloads'
+}
+
+function Get-SafePayloadFileName {
+    param(
+        [string]$PayloadId,
+        [string]$Title
+    )
+    $safeName = ($Title -replace '[\\/:*?"<>|]', '_').Trim()
+    if (-not $safeName) {
+        $safeName = $PayloadId
+    }
+    return "${PayloadId}_$safeName"
+}
+
+function Set-ClipboardFiles {
+    param([string[]]$Paths)
+    $collection = New-Object System.Collections.Specialized.StringCollection
+    foreach ($path in $Paths) {
+        if ($path) {
+            [void]$collection.Add($path)
+        }
+    }
+    [System.Windows.Forms.Clipboard]::SetFileDropList($collection)
+}
+
+function Receive-PayloadFile {
+    param(
+        [System.Net.Http.HttpClient]$HttpClient,
+        [hashtable]$Config,
+        [hashtable]$ReceivedPayloads,
+        [string]$PayloadId,
+        [string]$Mode,
+        [bool]$PasteAfterCopy,
+        [string]$EventLogPath
+    )
+    if (-not $ReceivedPayloads.ContainsKey($PayloadId)) {
+        throw "未找到待接收内容：$PayloadId"
+    }
+    $notice = $ReceivedPayloads[$PayloadId]
+    $downloadUrl = Resolve-ServerUrl -Config $Config -Url $(if ($notice.downloadUrl) { $notice.downloadUrl } else { $notice.actionUrl })
+    if (-not $downloadUrl) {
+        throw '当前内容没有可下载地址'
+    }
+    $downloadDir = Get-DownloadDirectory -EventLogPath $EventLogPath
+    New-Item -ItemType Directory -Path $downloadDir -Force | Out-Null
+    $filePath = Join-Path $downloadDir (Get-SafePayloadFileName -PayloadId $PayloadId -Title $notice.title)
+    $response = Send-HttpRequest -Client $HttpClient -Method ([System.Net.Http.HttpMethod]::Get) -Uri $downloadUrl -Config $Config -Accept '*/*'
+    try {
+        if (-not $response.IsSuccessStatusCode) {
+            throw "下载失败：HTTP $([int]$response.StatusCode)"
+        }
+        $stream = $response.Content.ReadAsStreamAsync().GetAwaiter().GetResult()
+        try {
+            $output = [System.IO.File]::Open($filePath, [System.IO.FileMode]::Create, [System.IO.FileAccess]::Write, [System.IO.FileShare]::Read)
+            try {
+                $stream.CopyTo($output)
+            } finally {
+                $output.Dispose()
+            }
+        } finally {
+            $stream.Dispose()
+        }
+    } finally {
+        $response.Dispose()
+    }
+
+    $result = [ordered]@{
+        payloadId = $PayloadId
+        title = $notice.title
+        path = $filePath
+        mode = $Mode
+        paste = $PasteAfterCopy
+    }
+    if ($Mode -eq 'clipboard' -or $Mode -eq 'clipboardPaste') {
+        Set-ClipboardFiles -Paths @($filePath)
+        Write-JsonEvent -Type 'payloadClipboardReady' -Value $result
+    } else {
+        Write-JsonEvent -Type 'payloadDownloaded' -Value $result
+    }
+}
+
 [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]::Tls12
 
 $Config = Get-Config
@@ -307,6 +421,7 @@ $lastBootstrapAt = [datetime]::MinValue
 $trusted = $false
 $paused = $false
 $receiveTask = $null
+$receivedPayloads = @{}
 
 try {
     Write-Status '连接中'
@@ -393,6 +508,23 @@ try {
                             Write-Log "发送文件通知失败：$($_.Exception.Message)"
                         }
                     }
+                    'payloadReceive' {
+                        if ($paused) {
+                            Write-Log '当前已暂停同步，未下载远端文件'
+                            continue
+                        }
+                        if (-not $trusted) {
+                            Write-Log '当前设备尚未获批，未下载远端文件'
+                            continue
+                        }
+                        try {
+                            $request = $payload | ConvertFrom-Json
+                            Receive-PayloadFile -HttpClient $httpClient -Config $Config -ReceivedPayloads $receivedPayloads -PayloadId $request.payloadId -Mode $request.mode -PasteAfterCopy ([bool]$request.paste) -EventLogPath $EventPath
+                            Write-Log "已接收远端文件：$($request.payloadId)"
+                        } catch {
+                            Write-Log "接收远端文件失败：$($_.Exception.Message)"
+                        }
+                    }
                     'shutdown' {
                         $cts.Cancel()
                         break
@@ -448,6 +580,21 @@ try {
                     }
                 }
                 'payloadNotice' {
+                    $payloadId = [string]$event.data.payloadId
+                    if ($payloadId) {
+                        $receivedPayloads[$payloadId] = @{
+                            payloadId = $payloadId
+                            title = [string]$event.data.title
+                            kind = [string]$event.data.kind
+                            mime = [string]$event.data.mime
+                            size = [int64]$event.data.size
+                            room = [string]$event.data.room
+                            sourceDeviceId = [string]$event.data.sourceDeviceId
+                            actionUrl = [string]$event.data.actionUrl
+                            downloadUrl = [string]$event.data.downloadUrl
+                        }
+                        Write-JsonEvent -Type 'payloadNotice' -Value $receivedPayloads[$payloadId]
+                    }
                     Write-Log "收到 payload 通知：$($event.data.title)"
                 }
             }
