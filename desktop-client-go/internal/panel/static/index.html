@@ -169,6 +169,10 @@
         <span class="label">最近手动发送</span>
         <div id="actionText" class="value">-</div>
       </article>
+      <article class="card">
+        <span class="label">快捷键概览</span>
+        <div id="hotkeyText" class="value">-</div>
+      </article>
     </section>
 
     <section class="form-card">
@@ -290,6 +294,7 @@
     const payloadText = document.getElementById('payloadText');
     const errorText = document.getElementById('errorText');
     const actionText = document.getElementById('actionText');
+    const hotkeyText = document.getElementById('hotkeyText');
     const message = document.getElementById('message');
     let refreshTimer = null;
 
@@ -310,6 +315,7 @@
         }
       });
       deviceNameText.textContent = cfg.deviceName || '-';
+      hotkeyText.textContent = formatHotkeySummary(cfg);
     }
 
     function fillState(state) {
@@ -318,7 +324,36 @@
       statusText.className = `value ${statusClass(status)}`;
       payloadText.textContent = state.lastPayloadTitle ? `${state.lastPayloadKind || 'file'} / ${state.lastPayloadTitle}` : '-';
       errorText.textContent = state.lastError || '-';
-      actionText.textContent = state.lastActionDetail ? `${state.lastActionType || 'action'} / ${state.lastActionDetail}` : '-';
+      actionText.textContent = state.lastActionDetail ? `${actionLabel(state.lastActionType)} / ${state.lastActionDetail}` : '-';
+    }
+
+    function actionLabel(actionType) {
+      switch (String(actionType || '').trim()) {
+        case 'file-send':
+          return '发送文件';
+        case 'manual-text':
+          return '发送输入文本';
+        case 'clipboard-text':
+          return '发送剪贴板文本';
+        case 'fetch-latest-text':
+          return '拉取最新文本';
+        case 'download-latest-file':
+          return '下载最新文件';
+        case 'open-download-dir':
+          return '打开下载目录';
+        case 'clear-download-dir':
+          return '清空下载缓存';
+        default:
+          return actionType || '动作';
+      }
+    }
+
+    function formatHotkeySummary(cfg) {
+      const items = [];
+      if (cfg.sendClipboardHotkey) items.push(`发：${cfg.sendClipboardHotkey}`);
+      if (cfg.fetchLatestHotkey) items.push(`拉：${cfg.fetchLatestHotkey}`);
+      if (cfg.downloadLatestHotkey) items.push(`下：${cfg.downloadLatestHotkey}`);
+      return items.length ? items.join(' / ') : '未配置';
     }
 
     async function loadStatus(silent = false) {
