@@ -19,6 +19,7 @@ global LastSyncResult := "暂无"
 global PanelVisible := false
 global HelperActive := false
 global HelperRestartFailures := 0
+global NextHelperRestartAt := 0
 global RegisteredPanelHotkey := ""
 global RegisteredSyncToggleHotkey := ""
 global StatusText := ""
@@ -260,14 +261,17 @@ ToggleSyncSession:
 return
 
 EnsureHelperRunning:
-    global HelperPid, HelperActive, HelperRestartFailures, ClientStatus, LastSyncResult
+    global HelperPid, HelperActive, HelperRestartFailures, ClientStatus, LastSyncResult, NextHelperRestartAt
     if (!HelperActive)
+        return
+    if (A_TickCount < NextHelperRestartAt)
         return
     Process, Exist, %HelperPid%
     if (HelperPid = "" || ErrorLevel = 0) {
         HelperRestartFailures++
         if (HelperRestartFailures >= 3) {
             HelperActive := false
+            NextHelperRestartAt := 0
             ClientStatus := "重连失败"
             LastSyncResult := "连续 3 次重连失败，请检查服务端状态后手动点“启动同步”或“重新连接”"
             TrayTip, Cloud Clipboard, 连续 3 次重连失败，请检查服务端后手动重试, 5, 17
@@ -276,6 +280,7 @@ EnsureHelperRunning:
         }
         ClientStatus := "重连中"
         LastSyncResult := "后台同步连接失败，正在进行第 " . HelperRestartFailures . "/3 次重试"
+        NextHelperRestartAt := A_TickCount + 2000
         UpdateGui()
         StartHelper()
     }
@@ -453,12 +458,13 @@ InitTray() {
 StartHelper() {
     global HelperPid, HelperPath, ConfigPath, CommandPath, EventPath, HelperActive
     HelperActive := true
-    Run, %ComSpec% /c powershell -ExecutionPolicy Bypass -File "%HelperPath%" -ConfigPath "%ConfigPath%" -CommandPath "%CommandPath%" -EventPath "%EventPath%",, Hide, HelperPid
+    Run, powershell.exe -ExecutionPolicy Bypass -File "%HelperPath%" -ConfigPath "%ConfigPath%" -CommandPath "%CommandPath%" -EventPath "%EventPath%",, Hide, HelperPid
 }
 
 StopHelper() {
-    global HelperPid, HelperActive
+    global HelperPid, HelperActive, NextHelperRestartAt
     HelperActive := false
+    NextHelperRestartAt := 0
     if (HelperPid != "")
         Process, Close, %HelperPid%
     HelperPid := ""
@@ -529,24 +535,34 @@ ShouldShowInitialPanel() {
 }
 
 RegisterPanelHotkey() {
-    global RegisteredPanelHotkey, ConfigPath
+    global RegisteredPanelHotkey, ConfigPath, LastSyncResult
     IniRead, NextHotkey, %ConfigPath%, sync, panelHotkey,
     NextHotkey := NormalizeHotkey(NextHotkey)
     if (RegisteredPanelHotkey != "")
-        Hotkey, %RegisteredPanelHotkey%, ToggleStatusPanel, Off
-    if (NextHotkey != "")
-        Hotkey, %NextHotkey%, ToggleStatusPanel, On
+        Hotkey, %RegisteredPanelHotkey%, ToggleStatusPanel, Off UseErrorLevel
+    if (NextHotkey != "") {
+        Hotkey, %NextHotkey%, ToggleStatusPanel, On UseErrorLevel
+        if (ErrorLevel) {
+            LastSyncResult := "面板热键无效，已忽略当前设置"
+            NextHotkey := ""
+        }
+    }
     RegisteredPanelHotkey := NextHotkey
 }
 
 RegisterSyncToggleHotkey() {
-    global RegisteredSyncToggleHotkey, ConfigPath
+    global RegisteredSyncToggleHotkey, ConfigPath, LastSyncResult
     IniRead, NextHotkey, %ConfigPath%, sync, syncToggleHotkey,
     NextHotkey := NormalizeHotkey(NextHotkey)
     if (RegisteredSyncToggleHotkey != "")
-        Hotkey, %RegisteredSyncToggleHotkey%, ToggleSyncSession, Off
-    if (NextHotkey != "")
-        Hotkey, %NextHotkey%, ToggleSyncSession, On
+        Hotkey, %RegisteredSyncToggleHotkey%, ToggleSyncSession, Off UseErrorLevel
+    if (NextHotkey != "") {
+        Hotkey, %NextHotkey%, ToggleSyncSession, On UseErrorLevel
+        if (ErrorLevel) {
+            LastSyncResult := "同步开关键无效，已忽略当前设置"
+            NextHotkey := ""
+        }
+    }
     RegisteredSyncToggleHotkey := NextHotkey
 }
 
@@ -554,19 +570,20 @@ NormalizeHotkey(value) {
     value := Trim(value)
     if (value = "")
         return ""
-    if InStr(value, "^") || InStr(value, "!") || InStr(value, "+") || InStr(value, "#") {
-        return value
+    compact := StrReplace(value, " ", "")
+    if RegExMatch(value, "i)\b(ctrl|control|alt|shift|win|windows)\b") {
+        normalized := RegExReplace(value, "\s*\+\s*", "+")
+        parts := StrSplit(normalized, "+")
+    } else {
+        return compact
     }
-
-    normalized := RegExReplace(value, "\s*\+\s*", "+")
-    normalized := StrReplace(normalized, " ", "")
-    StringLower, normalized, normalized
-    parts := StrSplit(normalized, "+")
     modifiers := ""
     key := ""
     for index, part in parts {
+        part := Trim(part)
         if (part = "")
             continue
+        StringLower, part, part
         if (part = "ctrl" || part = "control")
             modifiers .= "^"
         else if (part = "alt")
@@ -578,9 +595,9 @@ NormalizeHotkey(value) {
         else
             key := part
     }
+    key := NormalizeHotkeyKey(key)
     if (key = "")
         return ""
-    StringUpper, key, key
     return modifiers . key
 }
 
@@ -589,23 +606,112 @@ FormatHotkeyForDisplay(value) {
     if (value = "")
         return ""
     output := ""
-    Loop, Parse, value
+    loop
     {
-        token := A_LoopField
-        if (token = "^")
+        prefix := SubStr(value, 1, 1)
+        if (prefix = "^") {
             output .= (output = "" ? "" : " + ") . "Ctrl"
-        else if (token = "!")
-            output .= (output = "" ? "" : " + ") . "Alt"
-        else if (token = "+")
-            output .= (output = "" ? "" : " + ") . "Shift"
-        else if (token = "#")
-            output .= (output = "" ? "" : " + ") . "Win"
-        else {
-            StringUpper, token, token
-            output .= (output = "" ? "" : " + ") . token
+            value := SubStr(value, 2)
+            continue
         }
+        if (prefix = "!") {
+            output .= (output = "" ? "" : " + ") . "Alt"
+            value := SubStr(value, 2)
+            continue
+        }
+        if (prefix = "+") {
+            output .= (output = "" ? "" : " + ") . "Shift"
+            value := SubStr(value, 2)
+            continue
+        }
+        if (prefix = "#") {
+            output .= (output = "" ? "" : " + ") . "Win"
+            value := SubStr(value, 2)
+            continue
+        }
+        break
     }
+    keyText := FormatHotkeyKeyForDisplay(value)
+    if (keyText != "")
+        output .= (output = "" ? "" : " + ") . keyText
     return output
+}
+
+NormalizeHotkeyKey(value) {
+    value := Trim(value)
+    if (value = "")
+        return ""
+    StringLower, lowerValue, value
+    if (lowerValue = "semicolon")
+        return ";"
+    if (lowerValue = "comma")
+        return ","
+    if (lowerValue = "period" || lowerValue = "dot")
+        return "."
+    if (lowerValue = "slash")
+        return "/"
+    if (lowerValue = "backslash")
+        return "\"
+    if (lowerValue = "minus" || lowerValue = "hyphen")
+        return "-"
+    if (lowerValue = "quote" || lowerValue = "apostrophe")
+        return "'"
+    if (lowerValue = "backtick" || lowerValue = "grave")
+        return "``"
+    if (lowerValue = "space")
+        return "Space"
+    if (lowerValue = "escape")
+        return "Esc"
+    if (lowerValue = "tab")
+        return "Tab"
+    if (lowerValue = "enter")
+        return "Enter"
+    if (lowerValue = "esc")
+        return "Esc"
+    if (lowerValue = "up")
+        return "Up"
+    if (lowerValue = "down")
+        return "Down"
+    if (lowerValue = "left")
+        return "Left"
+    if (lowerValue = "right")
+        return "Right"
+    if (lowerValue = "home")
+        return "Home"
+    if (lowerValue = "end")
+        return "End"
+    if (lowerValue = "pgup")
+        return "PgUp"
+    if (lowerValue = "pgdn")
+        return "PgDn"
+    if (lowerValue = "ins")
+        return "Ins"
+    if (lowerValue = "del")
+        return "Del"
+    if (lowerValue = "bs")
+        return "BS"
+    if (lowerValue = "appskey")
+        return "AppsKey"
+    if RegExMatch(lowerValue, "^f([1-9]|1[0-9]|2[0-4])$")
+        return "F" . SubStr(lowerValue, 2)
+    if (StrLen(value) = 1) {
+        StringUpper, value, value
+        return value
+    }
+    return value
+}
+
+FormatHotkeyKeyForDisplay(value) {
+    value := NormalizeHotkeyKey(value)
+    if (value = "")
+        return ""
+    if (value = "Space")
+        return "Space"
+    if (StrLen(value) = 1) {
+        StringUpper, value, value
+        return value
+    }
+    return value
 }
 
 ResolveDeviceNameForSave(value) {
@@ -639,8 +745,9 @@ MarkConnectedOnce() {
 }
 
 ResetReconnectFailures() {
-    global HelperRestartFailures
+    global HelperRestartFailures, NextHelperRestartAt
     HelperRestartFailures := 0
+    NextHelperRestartAt := 0
 }
 
 AppendCommand(type, payload) {
