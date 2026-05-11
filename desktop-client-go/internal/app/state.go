@@ -1,0 +1,44 @@
+package app
+
+import (
+	"encoding/json"
+	"os"
+	"path/filepath"
+	"sync"
+	"time"
+)
+
+type StateStore struct {
+	path string
+	mu   sync.Mutex
+}
+
+type StateSnapshot struct {
+	Connected        bool   `json:"connected"`
+	Trusted          bool   `json:"trusted"`
+	Status           string `json:"status"`
+	LastError        string `json:"lastError,omitempty"`
+	LastRemoteTextAt int64  `json:"lastRemoteTextAt,omitempty"`
+	LastPayloadTitle string `json:"lastPayloadTitle,omitempty"`
+	LastPayloadKind  string `json:"lastPayloadKind,omitempty"`
+	LastPayloadAt    int64  `json:"lastPayloadAt,omitempty"`
+	LastUpdatedAt    int64  `json:"lastUpdatedAt"`
+}
+
+func NewStateStore(path string) *StateStore {
+	return &StateStore{path: path}
+}
+
+func (s *StateStore) Save(snapshot StateSnapshot) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	snapshot.LastUpdatedAt = time.Now().UnixMilli()
+	if err := os.MkdirAll(filepath.Dir(s.path), 0o755); err != nil {
+		return err
+	}
+	data, err := json.MarshalIndent(snapshot, "", "  ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(s.path, data, 0o644)
+}

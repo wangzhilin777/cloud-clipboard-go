@@ -25,6 +25,7 @@ type Client struct {
 	cfg        config.Config
 	logger     *log.Logger
 	httpClient *http.Client
+	events     EventHandler
 
 	mu                sync.Mutex
 	conn              *websocket.Conn
@@ -72,10 +73,19 @@ type deviceStatePayload struct {
 	Trusted  bool   `json:"trusted"`
 }
 
-func New(cfg config.Config, logger *log.Logger) *Client {
+type payloadNoticePayload struct {
+	Kind  string `json:"kind"`
+	Title string `json:"title"`
+}
+
+func New(cfg config.Config, logger *log.Logger, events EventHandler) *Client {
+	if events == nil {
+		events = noopEventHandler{}
+	}
 	return &Client{
 		cfg:    cfg,
 		logger: logger,
+		events: events,
 		httpClient: &http.Client{
 			Timeout: 15 * time.Second,
 		},
@@ -104,8 +114,10 @@ func (c *Client) Run(ctx context.Context) error {
 }
 
 func (c *Client) runSession(ctx context.Context) error {
+	c.events.OnConnecting()
 	wsURL, err := c.fetchServerURL(ctx)
 	if err != nil {
+		c.events.OnError(err)
 		return err
 	}
 
@@ -116,11 +128,13 @@ func (c *Client) runSession(ctx context.Context) error {
 
 	conn, _, err := websocket.DefaultDialer.DialContext(ctx, wsURL, headers)
 	if err != nil {
+		c.events.OnError(err)
 		return err
 	}
 	defer conn.Close()
 
 	c.setConnState(conn, true, false)
+	c.events.OnConnected()
 	defer c.setConnState(nil, false, false)
 
 	if err := c.sendHello(); err != nil {
@@ -213,6 +227,7 @@ func (c *Client) readLoop(ctx context.Context, errCh chan<- error) {
 		}
 		if err := c.handleMessage(data); err != nil {
 			c.logger.Printf("处理服务端消息失败: %v", err)
+			c.events.OnError(err)
 		}
 	}
 }
@@ -262,6 +277,7 @@ func (c *Client) handleMessage(data []byte) error {
 			return err
 		}
 		c.setTrusted(payload.Device.Trusted)
+		c.events.OnTrustedChanged(payload.Device.Trusted)
 		if payload.Device.Trusted {
 			c.logger.Printf("设备已连接并获批")
 		} else {
@@ -279,6 +295,7 @@ func (c *Client) handleMessage(data []byte) error {
 		c.lastRemoteText = payload.Text
 		c.lastLocalText = payload.Text
 		clipboard.Write(clipboard.FmtText, []byte(payload.Text))
+		c.events.OnRemoteText(payload.Text)
 		c.logger.Printf("已接收远端文本")
 	case "deviceState":
 		var payload deviceStatePayload
@@ -287,6 +304,7 @@ func (c *Client) handleMessage(data []byte) error {
 		}
 		if payload.DeviceID == c.cfg.DeviceID && payload.Type == "trusted" {
 			c.setTrusted(payload.Trusted)
+			c.events.OnTrustedChanged(payload.Trusted)
 			if payload.Trusted {
 				c.logger.Printf("当前设备已获批准")
 			} else {
@@ -296,9 +314,15 @@ func (c *Client) handleMessage(data []byte) error {
 	case "clipboardAck":
 		c.logger.Printf("文本已提交到同步服务")
 	case "payloadNotice":
+		var payload payloadNoticePayload
+		if err := json.Unmarshal(env.Data, &payload); err != nil {
+			return err
+		}
+		c.events.OnPayloadNotice(payload.Kind, payload.Title)
 		c.logger.Printf("收到远端 payload 通知")
 	case "forbidden":
 		c.logger.Printf("同步认证失败，请检查房间密码")
+		c.events.OnError(errors.New("同步认证失败，请检查房间密码"))
 	default:
 	}
 	return nil

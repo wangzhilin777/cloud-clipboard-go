@@ -18,6 +18,7 @@ type Config struct {
 	DeviceName   string        `json:"deviceName"`
 	DeviceID     string        `json:"deviceId"`
 	PollInterval time.Duration `json:"pollInterval"`
+	NoticeMode   string        `json:"noticeMode"`
 }
 
 func Default() Config {
@@ -32,6 +33,7 @@ func Default() Config {
 		DeviceName:   host,
 		DeviceID:     uuid.NewString(),
 		PollInterval: 800 * time.Millisecond,
+		NoticeMode:   "popup",
 	}
 }
 
@@ -90,5 +92,17 @@ func (c *Config) normalize() {
 	}
 	if c.PollInterval > 3*time.Second {
 		c.PollInterval = 3 * time.Second
+	}
+	c.NoticeMode = normalizeNoticeMode(c.NoticeMode)
+}
+
+func normalizeNoticeMode(value string) string {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "off":
+		return "off"
+	case "log":
+		return "log"
+	default:
+		return "popup"
 	}
 }

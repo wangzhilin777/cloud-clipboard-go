@@ -27,7 +27,7 @@ func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
-	if err := app.New(logger, cfg).Run(ctx); err != nil && err != context.Canceled {
+	if err := app.New(logger, cfg, *configPath).Run(ctx); err != nil && err != context.Canceled {
 		logger.Fatalf("桌面同步客户端退出: %v", err)
 	}
 }
