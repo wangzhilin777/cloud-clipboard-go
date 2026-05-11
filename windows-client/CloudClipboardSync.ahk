@@ -7,8 +7,9 @@ SetBatchLines, -1
 SetWorkingDir %A_ScriptDir%
 
 global ConfigPath := A_ScriptDir . "\config.ini"
-global CommandPath := A_ScriptDir . "\commands.log"
-global EventPath := A_ScriptDir . "\events.log"
+global RuntimeDir := A_ScriptDir
+global CommandPath := RuntimeDir . "\commands.log"
+global EventPath := RuntimeDir . "\events.log"
 global HelperPath := A_ScriptDir . "\sync-helper.ps1"
 global HelperPid := ""
 global LastEventLine := 0
@@ -33,6 +34,7 @@ global EditRoom := ""
 global EditRoomPassword := ""
 global EditDeviceName := ""
 global EditDeviceId := ""
+global EditRuntimeDir := ""
 global EditPanelHotkey := ""
 global EditSyncToggleHotkey := ""
 global EditAutoConnectEnabled := 0
@@ -41,6 +43,7 @@ global CaptureHotkeyValue := ""
 global CaptureHotkeyTarget := ""
 
 EnsureConfig()
+RefreshRuntimePaths()
 InitGui()
 InitTray()
 RegisterPanelHotkey()
@@ -136,22 +139,25 @@ OpenConfig:
 return
 
 SaveConfig:
-    global ConfigPath, EditServerBase, EditRoom, EditRoomPassword, EditDeviceName, EditDeviceId
+    global ConfigPath, EditServerBase, EditRoom, EditRoomPassword, EditDeviceName, EditDeviceId, EditRuntimeDir
     global EditPanelHotkey, EditSyncToggleHotkey, EditAutoConnectEnabled, EditStartupEnabled, LastSyncResult, HelperActive
     Gui, Status:Submit, NoHide
     autoConnectValue := EditAutoConnectEnabled ? 1 : 0
     startupValue := EditStartupEnabled ? 1 : 0
     normalizedHotkey := NormalizeHotkey(EditPanelHotkey)
     normalizedSyncToggleHotkey := NormalizeHotkey(EditSyncToggleHotkey)
+    normalizedRuntimeDir := NormalizeRuntimeDirForSave(EditRuntimeDir)
     IniWrite, %EditServerBase%, %ConfigPath%, sync, serverBase
     IniWrite, %EditRoom%, %ConfigPath%, sync, room
     IniWrite, %EditRoomPassword%, %ConfigPath%, sync, roomPassword
     IniWrite, % ResolveDeviceNameForSave(EditDeviceName), %ConfigPath%, sync, deviceName
     IniWrite, % ResolveDeviceIdForSave(EditDeviceId), %ConfigPath%, sync, deviceId
+    IniWrite, %normalizedRuntimeDir%, %ConfigPath%, sync, runtimeDir
     IniWrite, %normalizedHotkey%, %ConfigPath%, sync, panelHotkey
     IniWrite, %normalizedSyncToggleHotkey%, %ConfigPath%, sync, syncToggleHotkey
     IniWrite, %autoConnectValue%, %ConfigPath%, sync, autoConnectEnabled
     IniWrite, %startupValue%, %ConfigPath%, sync, startupEnabled
+    RefreshRuntimePaths()
     RegisterPanelHotkey()
     RegisterSyncToggleHotkey()
     SyncStartupShortcut()
@@ -161,6 +167,14 @@ SaveConfig:
         RestartHelper(true)
     }
     UpdateGui()
+return
+
+BrowseRuntimeDir:
+    global EditRuntimeDir
+    FileSelectFolder, selectedDir, %EditRuntimeDir%, 3, 选择运行态缓存目录
+    if (ErrorLevel)
+        return
+    GuiControl, Status:, EditRuntimeDir, %selectedDir%
 return
 
 OpenHotkeyCapture:
@@ -349,6 +363,7 @@ EnsureConfig() {
     IniWrite, %emptyValue%, %ConfigPath%, sync, roomPassword
     IniWrite, %A_ComputerName%, %ConfigPath%, sync, deviceName
     IniWrite, %A_Now%%suffix%, %ConfigPath%, sync, deviceId
+    IniWrite, %emptyValue%, %ConfigPath%, sync, runtimeDir
     IniWrite, ^!v, %ConfigPath%, sync, panelHotkey
     IniWrite, %emptyValue%, %ConfigPath%, sync, syncToggleHotkey
     IniWrite, 1, %ConfigPath%, sync, autoConnectEnabled
@@ -367,6 +382,9 @@ MigrateConfig() {
     IniRead, PanelHotkey, %ConfigPath%, sync, panelHotkey, %missingValue%
     if (PanelHotkey = missingValue)
         IniWrite, ^!v, %ConfigPath%, sync, panelHotkey
+    IniRead, RuntimeDirValue, %ConfigPath%, sync, runtimeDir, %missingValue%
+    if (RuntimeDirValue = missingValue)
+        IniWrite, %emptyValue%, %ConfigPath%, sync, runtimeDir
     IniRead, SyncToggleHotkey, %ConfigPath%, sync, syncToggleHotkey, %missingValue%
     if (SyncToggleHotkey = missingValue)
         IniWrite, %emptyValue%, %ConfigPath%, sync, syncToggleHotkey
@@ -387,11 +405,11 @@ MigrateConfig() {
 
 InitGui() {
     global StatusText, RoomText, DeviceText, PasswordText, ResultText
-    global EditServerBase, EditRoom, EditRoomPassword, EditDeviceName, EditDeviceId
+    global EditServerBase, EditRoom, EditRoomPassword, EditDeviceName, EditDeviceId, EditRuntimeDir
     global EditPanelHotkey, EditAutoConnectEnabled, EditStartupEnabled
     Gui, Status:New, +AlwaysOnTop +ToolWindow, Cloud Clipboard 同步面板
     Gui, Status:Margin, 16, 16
-    Gui, Status:Add, GroupBox, w460 h326, 同步配置
+    Gui, Status:Add, GroupBox, w460 h362, 同步配置
     Gui, Status:Add, Text, xm+14 yp+28 w90, 服务端地址
     Gui, Status:Add, Edit, x+8 yp-3 w330 vEditServerBase, http://127.0.0.1:9501
     Gui, Status:Add, Text, xm+14 y+14 w90, 房间名
@@ -402,6 +420,9 @@ InitGui() {
     Gui, Status:Add, Edit, x+8 yp-3 w330 vEditDeviceName,
     Gui, Status:Add, Text, xm+14 y+14 w90, 设备 ID
     Gui, Status:Add, Edit, x+8 yp-3 w330 vEditDeviceId,
+    Gui, Status:Add, Text, xm+14 y+14 w90, 缓存目录
+    Gui, Status:Add, Edit, x+8 yp-3 w220 vEditRuntimeDir,
+    Gui, Status:Add, Button, x+8 yp-1 w102 h28 gBrowseRuntimeDir, 浏览目录
     Gui, Status:Add, Text, xm+14 y+14 w90, 面板热键
     Gui, Status:Add, Edit, x+8 yp-3 w220 vEditPanelHotkey,
     Gui, Status:Add, Button, x+8 yp-1 w102 h28 gOpenHotkeyCapture, 录制快捷键
@@ -434,6 +455,7 @@ UpdateGui() {
     IniRead, DeviceName, %ConfigPath%, sync, deviceName, %A_ComputerName%
     IniRead, ServerBase, %ConfigPath%, sync, serverBase, http://127.0.0.1:9501
     IniRead, DeviceId, %ConfigPath%, sync, deviceId,
+    IniRead, RuntimeDirValue, %ConfigPath%, sync, runtimeDir,
     IniRead, RoomPassword, %ConfigPath%, sync, roomPassword,
     IniRead, PanelHotkey, %ConfigPath%, sync, panelHotkey,
     IniRead, SyncToggleHotkey, %ConfigPath%, sync, syncToggleHotkey,
@@ -443,11 +465,13 @@ UpdateGui() {
     autoResumeText := AutoConnectEnabled = 1 ? "开启" : "关闭"
     displayHotkey := FormatHotkeyForDisplay(PanelHotkey)
     displaySyncToggleHotkey := FormatHotkeyForDisplay(SyncToggleHotkey)
+    runtimeDirText := ResolveRuntimeDir(RuntimeDirValue)
     GuiControl, Status:, EditServerBase, %ServerBase%
     GuiControl, Status:, EditRoom, %RoomName%
     GuiControl, Status:, EditRoomPassword, %RoomPassword%
     GuiControl, Status:, EditDeviceName, %DeviceName%
     GuiControl, Status:, EditDeviceId, %DeviceId%
+    GuiControl, Status:, EditRuntimeDir, %runtimeDirText%
     GuiControl, Status:, EditPanelHotkey, %displayHotkey%
     GuiControl, Status:, EditSyncToggleHotkey, %displaySyncToggleHotkey%
     GuiControl, Status:, EditAutoConnectEnabled, % AutoConnectEnabled = 1 ? 1 : 0
@@ -455,7 +479,7 @@ UpdateGui() {
     GuiControl, Status:, StatusText, 状态：%ClientStatus%
     GuiControl, Status:, RoomText, 房间：%RoomName%
     GuiControl, Status:, DeviceText, 设备：%DeviceName%（%DeviceId%） 面板热键：%displayHotkey%
-    GuiControl, Status:, PasswordText, 房间密码：%masked% 自动恢复：%autoResumeText%
+    GuiControl, Status:, PasswordText, 房间密码：%masked% 自动恢复：%autoResumeText% 运行目录：%runtimeDirText%
     GuiControl, Status:, ResultText, 最近结果：%LastSyncResult% 同步开关键：%displaySyncToggleHotkey%
 }
 
@@ -474,6 +498,32 @@ InitTray() {
     Menu, Tray, Add, 开机启动开关, ToggleStartup
     Menu, Tray, Add, 退出, ExitClient
     Menu, Tray, Default, 显示/隐藏同步面板
+}
+
+RefreshRuntimePaths() {
+    global ConfigPath, RuntimeDir, CommandPath, EventPath
+    IniRead, runtimeDirValue, %ConfigPath%, sync, runtimeDir,
+    RuntimeDir := ResolveRuntimeDir(runtimeDirValue)
+    FileCreateDir, %RuntimeDir%
+    CommandPath := RuntimeDir . "\commands.log"
+    EventPath := RuntimeDir . "\events.log"
+}
+
+ResolveRuntimeDir(value) {
+    value := Trim(value)
+    if (value = "")
+        return A_ScriptDir
+    value := StrReplace(value, "/", "\")
+    if RegExMatch(value, "i)^[A-Z]:\\") || SubStr(value, 1, 2) = "\\"
+        return RTrim(value, "\")
+    return RTrim(A_ScriptDir . "\" . value, "\")
+}
+
+NormalizeRuntimeDirForSave(value) {
+    resolved := ResolveRuntimeDir(value)
+    if (resolved = A_ScriptDir)
+        return ""
+    return resolved
 }
 
 StartHelper() {

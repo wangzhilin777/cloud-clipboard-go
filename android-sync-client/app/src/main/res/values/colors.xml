@@ -1,13 +1,21 @@
 <resources>
-    <color name="cc_primary">#1F5EFF</color>
-    <color name="cc_primary_dark">#1646BF</color>
-    <color name="cc_primary_soft">#E8EFFF</color>
-    <color name="cc_secondary">#16A085</color>
-    <color name="cc_surface">#FFFDF9</color>
+    <color name="cc_primary">#0F6FFF</color>
+    <color name="cc_primary_dark">#0A4FCC</color>
+    <color name="cc_primary_soft">#EAF2FF</color>
+    <color name="cc_primary_deep">#0D244C</color>
+    <color name="cc_secondary">#16B39A</color>
+    <color name="cc_secondary_soft">#DFF7F0</color>
+    <color name="cc_surface">#F4F7FB</color>
     <color name="cc_panel">#FFFFFFFF</color>
-    <color name="cc_text">#1E2430</color>
-    <color name="cc_text_muted">#6B7280</color>
-    <color name="cc_divider">#D7DEEA</color>
-    <color name="cc_nav_selected">#1F5EFF</color>
-    <color name="cc_nav_unselected">#8A93A6</color>
+    <color name="cc_text">#172033</color>
+    <color name="cc_text_muted">#64748B</color>
+    <color name="cc_divider">#DCE4F0</color>
+    <color name="cc_nav_selected">#0F6FFF</color>
+    <color name="cc_nav_unselected">#8793A9</color>
+    <color name="cc_hero_top">#0F6FFF</color>
+    <color name="cc_hero_bottom">#38C4FF</color>
+    <color name="cc_status_surface">#F0F6FF</color>
+    <color name="cc_preview_surface">#EEF4FD</color>
+    <color name="cc_success">#0F9D7A</color>
+    <color name="cc_launcher_bg">#0D244C</color>
 </resources>

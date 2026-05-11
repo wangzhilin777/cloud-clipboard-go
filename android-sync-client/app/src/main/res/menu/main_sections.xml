@@ -2,18 +2,18 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
     <item
         android:id="@+id/nav_connection"
-        android:icon="@android:drawable/ic_menu_upload"
+        android:icon="@drawable/ic_nav_connection"
         android:title="@string/tab_connection" />
     <item
         android:id="@+id/nav_runtime"
-        android:icon="@android:drawable/ic_media_play"
+        android:icon="@drawable/ic_nav_runtime"
         android:title="@string/tab_runtime" />
     <item
         android:id="@+id/nav_permissions"
-        android:icon="@android:drawable/ic_lock_lock"
+        android:icon="@drawable/ic_nav_permissions"
         android:title="@string/tab_permissions" />
     <item
         android:id="@+id/nav_receive"
-        android:icon="@android:drawable/ic_menu_save"
+        android:icon="@drawable/ic_nav_receive"
         android:title="@string/tab_receive" />
 </menu>

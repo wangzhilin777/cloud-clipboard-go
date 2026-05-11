@@ -1,6 +1,8 @@
 <resources>
     <string name="app_name">Cloud Clipboard Sync</string>
-    <string name="home_subtitle">当前设备的同步状态、接收入口和系统配置都集中在这里。</string>
+    <string name="home_badge">Cloud Clipboard 工具台</string>
+    <string name="home_subtitle">把连接状态、后台策略、权限检查和接收入口集中到一个更顺手的面板里。</string>
+    <string name="home_quick_tip">建议先填好连接信息，再开启自动续连和后台保活。</string>
     <string name="server_base_hint">服务端地址，例如 http://192.168.1.10:9501</string>
     <string name="server_base_tip">如果 Go 服务跑在 Windows 上，这里要填 Windows 的局域网 IP，不要填 127.0.0.1。</string>
     <string name="server_base_loopback_hint">当前地址指向安卓设备自己；如果服务端在 Windows，请改成 http://Windows局域网IP:9501</string>
@@ -8,6 +10,13 @@
     <string name="tab_runtime">运行</string>
     <string name="tab_permissions">权限</string>
     <string name="tab_receive">接收</string>
+    <string name="connection_section_title">连接配置</string>
+    <string name="connection_section_desc">服务地址、房间密码和设备名都在这里维护。</string>
+    <string name="runtime_section_title">后台与续连</string>
+    <string name="runtime_section_desc">控制剪贴板读取方式、自动恢复策略和后台常驻行为。</string>
+    <string name="permission_section_desc">把通知、悬浮窗、无障碍和电池策略一次检查清楚。</string>
+    <string name="receive_section_title">接收与缓存</string>
+    <string name="receive_section_desc">管理图片/文件确认方式、本地缓存保留时长和接收页入口。</string>
     <string name="room_hint">房间名称（可留空）</string>
     <string name="room_password_hint">房间密码或全局密码（可留空）</string>
     <string name="device_name_hint">设备名称</string>
@@ -21,6 +30,7 @@
     <string name="remove_task_switch">启动同步后从最近任务中移除本应用</string>
     <string name="floating_confirm_switch">收到图片/文件通知时优先用悬浮确认</string>
     <string name="cache_retention_hint">缓存保留小时数，默认 24</string>
+    <string name="cache_retention_tip">缓存会在启动 App、回前台、下载前和同步服务启动时做过期清理。</string>
     <string name="clear_cache_button">立即清空本地缓存</string>
     <string name="permission_section_label">权限与系统配置检查</string>
     <string name="permission_summary_placeholder">正在读取当前权限状态…</string>

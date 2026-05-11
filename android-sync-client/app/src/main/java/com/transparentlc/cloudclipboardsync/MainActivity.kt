@@ -12,26 +12,25 @@ import android.provider.Settings
 import android.view.View
 import android.widget.Button
 import android.widget.EditText
-import android.widget.LinearLayout
 import android.widget.RadioButton
 import android.widget.RadioGroup
-import android.widget.Switch
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import com.google.android.material.bottomnavigation.BottomNavigationView
+import com.google.android.material.materialswitch.MaterialSwitch
 import com.transparentlc.cloudclipboardsync.sync.PayloadCacheStore
 import com.transparentlc.cloudclipboardsync.sync.SettingsStore
 import com.transparentlc.cloudclipboardsync.sync.SyncService
 
 class MainActivity : AppCompatActivity() {
     private lateinit var settingsBottomNav: BottomNavigationView
-    private lateinit var connectionSection: LinearLayout
-    private lateinit var runtimeSection: LinearLayout
-    private lateinit var permissionSection: LinearLayout
-    private lateinit var receiveSection: LinearLayout
+    private lateinit var connectionSection: View
+    private lateinit var runtimeSection: View
+    private lateinit var permissionSection: View
+    private lateinit var receiveSection: View
     private lateinit var serverBaseInput: EditText
     private lateinit var roomInput: EditText
     private lateinit var roomPasswordInput: EditText
@@ -40,11 +39,11 @@ class MainActivity : AppCompatActivity() {
     private lateinit var clipboardModeForeground: RadioButton
     private lateinit var clipboardModeAccessibility: RadioButton
     private lateinit var clipboardModeShizuku: RadioButton
-    private lateinit var autoConnectSwitch: Switch
-    private lateinit var startOnBootSwitch: Switch
-    private lateinit var closeAfterStartSwitch: Switch
-    private lateinit var removeTaskSwitch: Switch
-    private lateinit var floatingConfirmSwitch: Switch
+    private lateinit var autoConnectSwitch: MaterialSwitch
+    private lateinit var startOnBootSwitch: MaterialSwitch
+    private lateinit var closeAfterStartSwitch: MaterialSwitch
+    private lateinit var removeTaskSwitch: MaterialSwitch
+    private lateinit var floatingConfirmSwitch: MaterialSwitch
     private lateinit var cacheRetentionInput: EditText
     private lateinit var permissionSummaryText: TextView
     private lateinit var permissionGuideText: TextView

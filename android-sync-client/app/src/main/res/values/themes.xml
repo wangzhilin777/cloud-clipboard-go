@@ -1,10 +1,43 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <style name="Theme.CloudClipboardSync" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+    <style name="Theme.CloudClipboardSync" parent="Theme.MaterialComponents.Light.NoActionBar">
         <item name="colorPrimary">@color/cc_primary</item>
         <item name="colorPrimaryVariant">@color/cc_primary_dark</item>
         <item name="colorOnPrimary">@android:color/white</item>
         <item name="colorSecondary">@color/cc_secondary</item>
+        <item name="colorSecondaryVariant">@color/cc_secondary</item>
+        <item name="colorOnSecondary">@android:color/white</item>
         <item name="android:windowBackground">@color/cc_surface</item>
-        <item name="android:statusBarColor">?attr/colorPrimaryVariant</item>
+        <item name="android:statusBarColor">@color/cc_primary_deep</item>
+        <item name="android:navigationBarColor">@color/cc_panel</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">true</item>
+        <item name="materialButtonStyle">@style/Widget.CloudClipboardSync.Button</item>
+        <item name="materialCardViewStyle">@style/Widget.CloudClipboardSync.Card</item>
+        <item name="textInputStyle">@style/Widget.CloudClipboardSync.TextInputLayout</item>
+    </style>
+
+    <style name="Widget.CloudClipboardSync.Card" parent="Widget.MaterialComponents.CardView">
+        <item name="cardBackgroundColor">@color/cc_panel</item>
+        <item name="cardCornerRadius">24dp</item>
+        <item name="cardElevation">0dp</item>
+        <item name="strokeColor">@color/cc_divider</item>
+        <item name="strokeWidth">1dp</item>
+    </style>
+
+    <style name="Widget.CloudClipboardSync.Button" parent="Widget.MaterialComponents.Button">
+        <item name="cornerRadius">16dp</item>
+        <item name="android:minHeight">52dp</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="rippleColor">@color/cc_primary_soft</item>
+    </style>
+
+    <style name="Widget.CloudClipboardSync.TextInputLayout" parent="Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense">
+        <item name="boxBackgroundMode">outline</item>
+        <item name="boxCornerRadiusTopStart">18dp</item>
+        <item name="boxCornerRadiusTopEnd">18dp</item>
+        <item name="boxCornerRadiusBottomStart">18dp</item>
+        <item name="boxCornerRadiusBottomEnd">18dp</item>
+        <item name="boxStrokeColor">@color/cc_divider</item>
+        <item name="hintTextColor">@color/cc_text_muted</item>
     </style>
 </resources>
