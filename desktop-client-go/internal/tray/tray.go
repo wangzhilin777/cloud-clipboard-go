@@ -28,7 +28,17 @@ func Run(ctx context.Context, logger *log.Logger, backend Backend, stop func()) 
 	if err := tray.Show(0, "Cloud Clipboard Desktop"); err != nil {
 		return err
 	}
+	tray.OnClick(func() {
+		if err := backend.OpenPanel(); err != nil {
+			logger.Printf("托盘左键打开控制面板失败: %v", err)
+		}
+	})
 
+	tray.AppendMenu("状态：启动中", func() {})
+	if len(tray.Menu) > 0 {
+		tray.Menu[0].Disabled = true
+	}
+	tray.AppendSeparator()
 	tray.AppendMenu("打开控制面板", func() {
 		if err := backend.OpenPanel(); err != nil {
 			logger.Printf("托盘打开控制面板失败: %v", err)
@@ -62,18 +72,18 @@ func refreshTooltipLoop(ctx context.Context, tray *systray.Systray, backend Back
 	ticker := time.NewTicker(2 * time.Second)
 	defer ticker.Stop()
 
-	updateTooltip(tray, backend.Status())
+	updateTrayState(tray, backend.Status())
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			updateTooltip(tray, backend.Status())
+			updateTrayState(tray, backend.Status())
 		}
 	}
 }
 
-func updateTooltip(tray *systray.Systray, status panel.StatusView) {
+func updateTrayState(tray *systray.Systray, status panel.StatusView) {
 	if tray == nil {
 		return
 	}
@@ -85,6 +95,20 @@ func updateTooltip(tray *systray.Systray, status panel.StatusView) {
 		text = text + " / " + strings.TrimSpace(status.Config.DeviceName)
 	}
 	_ = tray.SetTooltip(text)
+	if len(tray.Menu) > 0 && tray.Menu[0] != nil {
+		tray.Menu[0].Label = "状态：" + normalizeStatusLine(status)
+	}
+}
+
+func normalizeStatusLine(status panel.StatusView) string {
+	parts := []string{normalizeStatus(status.State.Status)}
+	if status.State.Connected {
+		parts = append(parts, "已连接")
+	}
+	if strings.TrimSpace(status.Config.DeviceName) != "" {
+		parts = append(parts, strings.TrimSpace(status.Config.DeviceName))
+	}
+	return strings.Join(parts, " / ")
 }
 
 func normalizeStatus(status string) string {
