@@ -44,9 +44,13 @@ class ReceivedPayloadActivity : AppCompatActivity() {
     private val payloadUpdateReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             val payloadId = intent?.getStringExtra(SyncService.EXTRA_PAYLOAD_ID) ?: return
-            if (currentPayloadId == payloadId) {
+            entries = PayloadCacheStore.list(this@ReceivedPayloadActivity)
+            if (currentPayloadId == null || currentPayloadId == payloadId) {
+                currentPayloadId = payloadId
                 bindEntry(PayloadCacheStore.get(this@ReceivedPayloadActivity, payloadId))
+                return
             }
+            bindEntry(currentEntry())
         }
     }
 
@@ -109,6 +113,7 @@ class ReceivedPayloadActivity : AppCompatActivity() {
         }
         previousButton.setOnClickListener { showRelativeEntry(-1) }
         nextButton.setOnClickListener { showRelativeEntry(1) }
+        handlePayloadIntent(intent)
     }
 
     override fun onResume() {
@@ -118,6 +123,13 @@ class ReceivedPayloadActivity : AppCompatActivity() {
         if (currentPayloadId == null) {
             currentPayloadId = entries.firstOrNull()?.payloadId
         }
+        bindEntry(currentEntry())
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handlePayloadIntent(intent)
         bindEntry(currentEntry())
     }
 
@@ -137,6 +149,12 @@ class ReceivedPayloadActivity : AppCompatActivity() {
     }
 
     private fun currentEntry(): PayloadEntry? = currentPayloadId?.let { PayloadCacheStore.get(this, it) }
+
+    private fun handlePayloadIntent(intent: Intent?) {
+        val payloadId = intent?.getStringExtra(SyncService.EXTRA_PAYLOAD_ID) ?: return
+        currentPayloadId = payloadId
+        entries = PayloadCacheStore.list(this)
+    }
 
     private fun showRelativeEntry(offset: Int) {
         if (entries.isEmpty()) return
