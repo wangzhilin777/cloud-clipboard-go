@@ -33,6 +33,7 @@ global EditDeviceId := ""
 global EditPanelHotkey := ""
 global EditAutoConnectEnabled := 0
 global EditStartupEnabled := 0
+global CaptureHotkeyValue := ""
 
 EnsureConfig()
 InitGui()
@@ -153,6 +154,40 @@ SaveConfig:
     UpdateGui()
 return
 
+OpenHotkeyCapture:
+    global CaptureHotkeyValue, EditPanelHotkey
+    CaptureHotkeyValue := NormalizeHotkey(EditPanelHotkey)
+    Gui, HotkeyCapture:Destroy
+    Gui, HotkeyCapture:New, +OwnerStatus +AlwaysOnTop +ToolWindow, 录制面板热键
+    Gui, HotkeyCapture:Margin, 16, 16
+    Gui, HotkeyCapture:Add, Text, w280, 按下要用于显示/隐藏面板的快捷键；也可以清空为不设置。
+    Gui, HotkeyCapture:Add, Hotkey, xm y+12 w280 vCaptureHotkeyValue, %CaptureHotkeyValue%
+    Gui, HotkeyCapture:Add, Button, xm y+14 w84 gSaveCapturedHotkey Default, 确认
+    Gui, HotkeyCapture:Add, Button, x+8 w84 gClearCapturedHotkey, 清空
+    Gui, HotkeyCapture:Add, Button, x+8 w84 gCancelCapturedHotkey, 取消
+    Gui, HotkeyCapture:Show, AutoSize, 录制面板热键
+return
+
+SaveCapturedHotkey:
+    global CaptureHotkeyValue
+    Gui, HotkeyCapture:Submit, NoHide
+    displayHotkey := FormatHotkeyForDisplay(CaptureHotkeyValue)
+    GuiControl, Status:, EditPanelHotkey, %displayHotkey%
+    Gui, HotkeyCapture:Destroy
+return
+
+ClearCapturedHotkey:
+    global CaptureHotkeyValue
+    CaptureHotkeyValue := ""
+    GuiControl, HotkeyCapture:, CaptureHotkeyValue,
+return
+
+CancelCapturedHotkey:
+HotkeyCaptureGuiClose:
+HotkeyCaptureGuiEscape:
+    Gui, HotkeyCapture:Destroy
+return
+
 OpenWebConsole:
     IniRead, ServerBase, %ConfigPath%, sync, serverBase, http://127.0.0.1:9501
     ServerBase := RTrim(ServerBase, "/")
@@ -270,7 +305,7 @@ MigrateConfig() {
     if (DeviceName = missingValue || DeviceName = "" || RegExMatch(DeviceName, "^Windows"))
         IniWrite, %A_ComputerName%, %ConfigPath%, sync, deviceName
     IniRead, PanelHotkey, %ConfigPath%, sync, panelHotkey, %missingValue%
-    if (PanelHotkey = missingValue || PanelHotkey = "")
+    if (PanelHotkey = missingValue)
         IniWrite, ^!v, %ConfigPath%, sync, panelHotkey
     IniRead, AutoConnectEnabled, %ConfigPath%, sync, autoConnectEnabled, %missingValue%
     if (AutoConnectEnabled = missingValue || AutoConnectEnabled = "")
@@ -305,7 +340,8 @@ InitGui() {
     Gui, Status:Add, Text, xm+14 y+14 w90, 设备 ID
     Gui, Status:Add, Edit, x+8 yp-3 w330 vEditDeviceId,
     Gui, Status:Add, Text, xm+14 y+14 w90, 面板热键
-    Gui, Status:Add, Edit, x+8 yp-3 w330 vEditPanelHotkey,
+    Gui, Status:Add, Edit, x+8 yp-3 w220 vEditPanelHotkey,
+    Gui, Status:Add, Button, x+8 yp-1 w102 h28 gOpenHotkeyCapture, 录制快捷键
     Gui, Status:Add, CheckBox, xm+14 y+16 vEditAutoConnectEnabled, 启动客户端后按上次状态自动恢复同步
     Gui, Status:Add, CheckBox, xm+14 y+8 vEditStartupEnabled, 跟随 Windows 开机启动本客户端
 
@@ -332,7 +368,7 @@ UpdateGui() {
     IniRead, ServerBase, %ConfigPath%, sync, serverBase, http://127.0.0.1:9501
     IniRead, DeviceId, %ConfigPath%, sync, deviceId,
     IniRead, RoomPassword, %ConfigPath%, sync, roomPassword,
-    IniRead, PanelHotkey, %ConfigPath%, sync, panelHotkey, ^!v
+    IniRead, PanelHotkey, %ConfigPath%, sync, panelHotkey,
     IniRead, AutoConnectEnabled, %ConfigPath%, sync, autoConnectEnabled, 1
     IniRead, StartupEnabled, %ConfigPath%, sync, startupEnabled, 0
     masked := RoomPassword = "" ? "未设置" : "已设置"
@@ -449,18 +485,19 @@ ShouldShowInitialPanel() {
 
 RegisterPanelHotkey() {
     global RegisteredPanelHotkey, ConfigPath
-    IniRead, NextHotkey, %ConfigPath%, sync, panelHotkey, ^!v
+    IniRead, NextHotkey, %ConfigPath%, sync, panelHotkey,
     NextHotkey := NormalizeHotkey(NextHotkey)
     if (RegisteredPanelHotkey != "")
         Hotkey, %RegisteredPanelHotkey%, ToggleStatusPanel, Off
-    Hotkey, %NextHotkey%, ToggleStatusPanel, On
+    if (NextHotkey != "")
+        Hotkey, %NextHotkey%, ToggleStatusPanel, On
     RegisteredPanelHotkey := NextHotkey
 }
 
 NormalizeHotkey(value) {
     value := Trim(value)
     if (value = "")
-        return "^!v"
+        return ""
     if InStr(value, "^") || InStr(value, "!") || InStr(value, "+") || InStr(value, "#") {
         return value
     }
@@ -486,13 +523,15 @@ NormalizeHotkey(value) {
             key := part
     }
     if (key = "")
-        return "^!v"
+        return ""
     StringUpper, key, key
     return modifiers . key
 }
 
 FormatHotkeyForDisplay(value) {
     value := NormalizeHotkey(value)
+    if (value = "")
+        return ""
     output := ""
     Loop, Parse, value
     {
