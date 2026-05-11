@@ -1,4 +1,5 @@
 ﻿#NoEnv
+;@Ahk2Exe-SetMainIcon assets\cloud-clipboard-sync.ico
 #SingleInstance Force
 #Persistent
 #InstallKeybdHook

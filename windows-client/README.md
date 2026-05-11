@@ -6,6 +6,7 @@
 2. 运行 `CloudClipboardSync.ahk`
 3. 首次启动会自动弹出同步面板，填写配置后点击“保存配置”
 4. 点击“启动同步”建立连接；后续如果保留自动恢复，下次启动客户端会按上次状态自动续连
+5. 如果用 `Ahk2Exe` 打包，脚本头已经指定 `assets/cloud-clipboard-sync.ico`，生成的 exe 不会再是默认 `H` 图标
 
 也可以直接编辑 `config.ini` 作为高级配置入口。
 
