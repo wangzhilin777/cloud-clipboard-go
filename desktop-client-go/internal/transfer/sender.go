@@ -21,6 +21,8 @@ import (
 	"github.com/jonnyan404/cloud-clipboard-go/desktop-client-go/internal/config"
 )
 
+const defaultChunkSize = 1 << 20
+
 type Sender struct {
 	cfg        config.Config
 	logger     *log.Logger
@@ -74,6 +76,9 @@ func (s *Sender) sendSingleFile(ctx context.Context, path string) (UploadResult,
 	stat, err := file.Stat()
 	if err != nil {
 		return UploadResult{}, err
+	}
+	if stat.Size() > defaultChunkSize {
+		return s.sendSingleFileChunked(ctx, path, stat)
 	}
 
 	var body bytes.Buffer
@@ -139,6 +144,125 @@ func (s *Sender) sendSingleFile(ctx context.Context, path string) (UploadResult,
 		return UploadResult{}, err
 	}
 	s.logger.Printf("文件发送成功: %s", result.Name)
+	return result, nil
+}
+
+func (s *Sender) sendSingleFileChunked(ctx context.Context, path string, stat os.FileInfo) (UploadResult, error) {
+	fileName := filepath.Base(path)
+	initURL := s.cfg.ServerBase + "/upload/chunk"
+	if strings.TrimSpace(s.cfg.Room) != "" {
+		initURL += "?room=" + url.QueryEscape(s.cfg.Room)
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, initURL, strings.NewReader(fileName))
+	if err != nil {
+		return UploadResult{}, err
+	}
+	req.Header.Set("Content-Type", "text/plain")
+	if strings.TrimSpace(s.cfg.RoomPassword) != "" {
+		req.Header.Set("Authorization", "Bearer "+s.cfg.RoomPassword)
+	}
+	resp, err := s.httpClient.Do(req)
+	if err != nil {
+		return UploadResult{}, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		raw, _ := io.ReadAll(io.LimitReader(resp.Body, 2048))
+		return UploadResult{}, fmt.Errorf("初始化分块上传失败: HTTP %d %s", resp.StatusCode, strings.TrimSpace(string(raw)))
+	}
+	var initPayload struct {
+		Result struct {
+			UUID string `json:"uuid"`
+		} `json:"result"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&initPayload); err != nil {
+		return UploadResult{}, err
+	}
+	if strings.TrimSpace(initPayload.Result.UUID) == "" {
+		return UploadResult{}, fmt.Errorf("初始化分块上传失败: 未返回 uuid")
+	}
+
+	file, err := os.Open(path)
+	if err != nil {
+		return UploadResult{}, err
+	}
+	defer file.Close()
+	buffer := make([]byte, defaultChunkSize)
+	chunkURL := s.cfg.ServerBase + "/upload/chunk/" + initPayload.Result.UUID
+	for {
+		n, readErr := file.Read(buffer)
+		if n > 0 {
+			chunkReq, err := http.NewRequestWithContext(ctx, http.MethodPost, chunkURL, bytes.NewReader(buffer[:n]))
+			if err != nil {
+				return UploadResult{}, err
+			}
+			chunkReq.Header.Set("Content-Type", "application/octet-stream")
+			if strings.TrimSpace(s.cfg.RoomPassword) != "" {
+				chunkReq.Header.Set("Authorization", "Bearer "+s.cfg.RoomPassword)
+			}
+			chunkResp, err := s.httpClient.Do(chunkReq)
+			if err != nil {
+				return UploadResult{}, err
+			}
+			chunkResp.Body.Close()
+			if chunkResp.StatusCode != http.StatusOK {
+				return UploadResult{}, fmt.Errorf("上传文件分块失败: HTTP %d", chunkResp.StatusCode)
+			}
+		}
+		if readErr == io.EOF {
+			break
+		}
+		if readErr != nil {
+			return UploadResult{}, readErr
+		}
+	}
+
+	finishURL := s.cfg.ServerBase + "/upload/finish/" + initPayload.Result.UUID
+	if strings.TrimSpace(s.cfg.Room) != "" {
+		finishURL += "?room=" + url.QueryEscape(s.cfg.Room)
+	}
+	finishReq, err := http.NewRequestWithContext(ctx, http.MethodPost, finishURL, nil)
+	if err != nil {
+		return UploadResult{}, err
+	}
+	if strings.TrimSpace(s.cfg.RoomPassword) != "" {
+		finishReq.Header.Set("Authorization", "Bearer "+s.cfg.RoomPassword)
+	}
+	finishResp, err := s.httpClient.Do(finishReq)
+	if err != nil {
+		return UploadResult{}, err
+	}
+	defer finishResp.Body.Close()
+	if finishResp.StatusCode != http.StatusOK {
+		raw, _ := io.ReadAll(io.LimitReader(finishResp.Body, 2048))
+		return UploadResult{}, fmt.Errorf("完成分块上传失败: HTTP %d %s", finishResp.StatusCode, strings.TrimSpace(string(raw)))
+	}
+	var payload struct {
+		ID   string `json:"id"`
+		Type string `json:"type"`
+		URL  string `json:"url"`
+	}
+	if err := json.NewDecoder(finishResp.Body).Decode(&payload); err != nil {
+		return UploadResult{}, err
+	}
+	mimeType := mime.TypeByExtension(strings.ToLower(filepath.Ext(path)))
+	if mimeType == "" {
+		mimeType = "application/octet-stream"
+	}
+	result := UploadResult{
+		ID:          payload.ID,
+		Type:        payload.Type,
+		URL:         payload.URL,
+		Name:        fileName,
+		Size:        stat.Size(),
+		ActionURL:   payload.URL,
+		DownloadURL: payload.URL,
+		Mime:        mimeType,
+	}
+	if err := s.broadcastPayloadNotice(ctx, result); err != nil {
+		return UploadResult{}, err
+	}
+	s.logger.Printf("大文件发送成功: %s", result.Name)
 	return result, nil
 }
 
