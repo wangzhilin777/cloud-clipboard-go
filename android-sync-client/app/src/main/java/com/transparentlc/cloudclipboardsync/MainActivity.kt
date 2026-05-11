@@ -5,11 +5,13 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.widget.Button
 import android.widget.EditText
 import android.widget.TextView
+import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
@@ -49,10 +51,17 @@ class MainActivity : AppCompatActivity() {
 
         bindConfig()
         findViewById<Button>(R.id.saveButton).setOnClickListener {
-            saveConfig()
+            val config = saveConfig()
+            if (isLoopbackServerBase(config.serverBase)) {
+                showLoopbackHint()
+            }
         }
         findViewById<Button>(R.id.startButton).setOnClickListener {
-            saveConfig()
+            val config = saveConfig()
+            if (isLoopbackServerBase(config.serverBase)) {
+                showLoopbackHint()
+                return@setOnClickListener
+            }
             SyncService.start(this)
         }
         findViewById<Button>(R.id.stopButton).setOnClickListener {
@@ -93,16 +102,27 @@ class MainActivity : AppCompatActivity() {
         lastSyncText.text = getString(R.string.last_result_idle)
     }
 
-    private fun saveConfig() {
-        SettingsStore.save(
-            this,
-            SettingsStore.Config(
-                serverBase = serverBaseInput.text.toString().trim(),
-                room = roomInput.text.toString().trim(),
-                roomPassword = roomPasswordInput.text.toString().trim(),
-                deviceName = deviceNameInput.text.toString().trim().ifBlank { "Android 同步端" },
-                deviceId = SettingsStore.load(this).deviceId,
-            ),
+    private fun saveConfig(): SettingsStore.Config {
+        val config = SettingsStore.Config(
+            serverBase = serverBaseInput.text.toString().trim(),
+            room = roomInput.text.toString().trim(),
+            roomPassword = roomPasswordInput.text.toString().trim(),
+            deviceName = deviceNameInput.text.toString().trim().ifBlank { "Android 同步端" },
+            deviceId = SettingsStore.load(this).deviceId,
         )
+        SettingsStore.save(this, config)
+        return config
+    }
+
+    private fun isLoopbackServerBase(serverBase: String): Boolean {
+        if (serverBase.isBlank()) return false
+        val host = runCatching { Uri.parse(serverBase).host.orEmpty().lowercase() }.getOrDefault("")
+        return host == "127.0.0.1" || host == "localhost" || host == "::1"
+    }
+
+    private fun showLoopbackHint() {
+        val message = getString(R.string.server_base_loopback_hint)
+        lastSyncText.text = message
+        Toast.makeText(this, message, Toast.LENGTH_LONG).show()
     }
 }

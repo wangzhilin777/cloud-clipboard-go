@@ -23,6 +23,13 @@
             android:layout_marginTop="16dp"
             android:hint="@string/server_base_hint" />
 
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:text="@string/server_base_tip"
+            android:textAppearance="@style/TextAppearance.MaterialComponents.Caption" />
+
         <EditText
             android:id="@+id/roomInput"
             android:layout_width="match_parent"
