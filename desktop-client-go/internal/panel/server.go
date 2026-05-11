@@ -21,6 +21,8 @@ type Backend interface {
 	UpdateConfig(cfg config.Config) error
 	RequestReconnect()
 	OpenPanel() error
+	OpenDownloadDir() error
+	ClearDownloadDir() (int, error)
 	SendFiles(paths []string) ([]string, error)
 	SendText(text string, fromClipboard bool) (string, error)
 	FetchLatestText() (string, error)
@@ -89,6 +91,8 @@ func New(address string, backend Backend) *Server {
 	mux.HandleFunc("/api/config", s.handleConfig)
 	mux.HandleFunc("/api/reconnect", s.handleReconnect)
 	mux.HandleFunc("/api/open-panel", s.handleOpenPanel)
+	mux.HandleFunc("/api/open-download-dir", s.handleOpenDownloadDir)
+	mux.HandleFunc("/api/clear-download-dir", s.handleClearDownloadDir)
 	mux.HandleFunc("/api/send-file", s.handleSendFile)
 	mux.HandleFunc("/api/send-text", s.handleSendText)
 	mux.HandleFunc("/api/fetch-latest-text", s.handleFetchLatestText)
@@ -226,6 +230,31 @@ func (s *Server) handleSendText(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"text": result})
+}
+
+func (s *Server) handleOpenDownloadDir(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	if err := s.backend.OpenDownloadDir(); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+}
+
+func (s *Server) handleClearDownloadDir(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	count, err := s.backend.ClearDownloadDir()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"removed": count})
 }
 
 func (s *Server) handleFetchLatestText(w http.ResponseWriter, r *http.Request) {

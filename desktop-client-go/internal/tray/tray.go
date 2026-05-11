@@ -14,6 +14,8 @@ type Backend interface {
 	Status() panel.StatusView
 	RequestReconnect()
 	OpenPanel() error
+	OpenDownloadDir() error
+	ClearDownloadDir() (int, error)
 	SendFiles(paths []string) ([]string, error)
 	SendText(text string, fromClipboard bool) (string, error)
 	FetchLatestText() (string, error)
@@ -76,6 +78,21 @@ func Run(ctx context.Context, logger *log.Logger, backend Backend, stop func()) 
 			return
 		}
 		logger.Printf("托盘下载最新文件成功: %s", path)
+	})
+	tray.AppendMenu("打开下载目录", func() {
+		if err := backend.OpenDownloadDir(); err != nil {
+			logger.Printf("托盘打开下载目录失败: %v", err)
+			return
+		}
+		logger.Printf("托盘已打开下载目录")
+	})
+	tray.AppendMenu("清空下载缓存", func() {
+		count, err := backend.ClearDownloadDir()
+		if err != nil {
+			logger.Printf("托盘清空下载缓存失败: %v", err)
+			return
+		}
+		logger.Printf("托盘已清空下载缓存: %d 项", count)
 	})
 	tray.AppendSeparator()
 	tray.AppendMenu("发送文件到同步房间", func() {

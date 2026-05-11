@@ -233,6 +233,8 @@
         <button class="secondary" id="sendFileButton" type="button">选择文件并发送</button>
         <button class="secondary" id="fetchLatestTextButton" type="button">拉取最新文本到剪贴板</button>
         <button class="secondary" id="downloadLatestFileButton" type="button">下载最新文件到本机</button>
+        <button class="secondary" id="openDownloadDirButton" type="button">打开下载目录</button>
+        <button class="secondary" id="clearDownloadDirButton" type="button">清空下载缓存</button>
       </div>
       <div class="message" id="message"></div>
       <div class="footer">配置保存后会立即触发桌面客户端重连。若修改了面板监听地址，本页面需要手动用新地址重新打开。</div>
@@ -437,6 +439,31 @@
       }
     }
 
+    async function openDownloadDir() {
+      message.textContent = '正在打开下载目录...';
+      try {
+        const resp = await fetch('/api/open-download-dir', { method: 'POST' });
+        const text = await resp.text();
+        if (!resp.ok) throw new Error(text || `HTTP ${resp.status}`);
+        message.textContent = '已打开下载目录';
+      } catch (err) {
+        message.textContent = `打开下载目录失败：${err.message}`;
+      }
+    }
+
+    async function clearDownloadDir() {
+      message.textContent = '正在清空下载缓存...';
+      try {
+        const resp = await fetch('/api/clear-download-dir', { method: 'POST' });
+        const text = await resp.text();
+        if (!resp.ok) throw new Error(text || `HTTP ${resp.status}`);
+        const data = JSON.parse(text || '{}');
+        message.textContent = `已清空下载缓存：${data.removed || 0} 项`;
+      } catch (err) {
+        message.textContent = `清空下载缓存失败：${err.message}`;
+      }
+    }
+
     document.getElementById('saveButton').addEventListener('click', saveConfig);
     document.getElementById('reconnectButton').addEventListener('click', reconnect);
     document.getElementById('openPanelButton').addEventListener('click', openPanelInBrowser);
@@ -445,6 +472,8 @@
     document.getElementById('sendClipboardTextButton').addEventListener('click', () => sendText(true));
     document.getElementById('fetchLatestTextButton').addEventListener('click', fetchLatestText);
     document.getElementById('downloadLatestFileButton').addEventListener('click', downloadLatestFile);
+    document.getElementById('openDownloadDirButton').addEventListener('click', openDownloadDir);
+    document.getElementById('clearDownloadDirButton').addEventListener('click', clearDownloadDir);
 
     loadStatus();
     refreshTimer = setInterval(() => loadStatus(true), 2000);

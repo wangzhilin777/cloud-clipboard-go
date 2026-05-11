@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
@@ -260,6 +261,54 @@ func (a *App) OpenPanel() error {
 	return cmd.Start()
 }
 
+func (a *App) OpenDownloadDir() error {
+	dir := strings.TrimSpace(a.currentConfig().DownloadDir)
+	if dir == "" {
+		return errors.New("下载目录未配置")
+	}
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return err
+	}
+	var cmd *exec.Cmd
+	switch runtime.GOOS {
+	case "windows":
+		cmd = exec.Command("explorer", dir)
+	case "darwin":
+		cmd = exec.Command("open", dir)
+	default:
+		cmd = exec.Command("xdg-open", dir)
+	}
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+	a.saveLastAction("open-download-dir", dir)
+	return nil
+}
+
+func (a *App) ClearDownloadDir() (int, error) {
+	dir := strings.TrimSpace(a.currentConfig().DownloadDir)
+	if dir == "" {
+		return 0, errors.New("下载目录未配置")
+	}
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return 0, err
+	}
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return 0, err
+	}
+	removed := 0
+	for _, entry := range entries {
+		target := filepath.Join(dir, entry.Name())
+		if err := os.RemoveAll(target); err != nil {
+			return removed, err
+		}
+		removed++
+	}
+	a.saveLastAction("clear-download-dir", dir)
+	return removed, nil
+}
+
 func (a *App) currentConfig() config.Config {
 	a.mu.Lock()
 	defer a.mu.Unlock()
@@ -286,19 +335,7 @@ func (a *App) SendFiles(paths []string) ([]string, error) {
 	for _, result := range results {
 		names = append(names, result.Name)
 	}
-	_ = a.state.Save(StateSnapshot{
-		Status:           a.state.Current().Status,
-		Connected:        a.state.Current().Connected,
-		Trusted:          a.state.Current().Trusted,
-		LastError:        a.state.Current().LastError,
-		LastRemoteTextAt: a.state.Current().LastRemoteTextAt,
-		LastPayloadTitle: a.state.Current().LastPayloadTitle,
-		LastPayloadKind:  a.state.Current().LastPayloadKind,
-		LastPayloadAt:    a.state.Current().LastPayloadAt,
-		LastActionType:   "file-send",
-		LastActionDetail: strings.Join(names, "，"),
-		LastActionAt:     time.Now().UnixMilli(),
-	})
+	a.saveLastAction("file-send", strings.Join(names, "，"))
 	return names, nil
 }
 
@@ -318,20 +355,7 @@ func (a *App) SendText(text string, fromClipboard bool) (string, error) {
 	if fromClipboard {
 		label = "clipboard-text"
 	}
-	current := a.state.Current()
-	_ = a.state.Save(StateSnapshot{
-		Status:           current.Status,
-		Connected:        current.Connected,
-		Trusted:          current.Trusted,
-		LastError:        current.LastError,
-		LastRemoteTextAt: current.LastRemoteTextAt,
-		LastPayloadTitle: current.LastPayloadTitle,
-		LastPayloadKind:  current.LastPayloadKind,
-		LastPayloadAt:    current.LastPayloadAt,
-		LastActionType:   label,
-		LastActionDetail: result.Text,
-		LastActionAt:     time.Now().UnixMilli(),
-	})
+	a.saveLastAction(label, result.Text)
 	return result.Text, nil
 }
 
@@ -341,20 +365,7 @@ func (a *App) FetchLatestText() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	current := a.state.Current()
-	_ = a.state.Save(StateSnapshot{
-		Status:           current.Status,
-		Connected:        current.Connected,
-		Trusted:          current.Trusted,
-		LastError:        current.LastError,
-		LastRemoteTextAt: current.LastRemoteTextAt,
-		LastPayloadTitle: current.LastPayloadTitle,
-		LastPayloadKind:  current.LastPayloadKind,
-		LastPayloadAt:    current.LastPayloadAt,
-		LastActionType:   "fetch-latest-text",
-		LastActionDetail: result.Text,
-		LastActionAt:     time.Now().UnixMilli(),
-	})
+	a.saveLastAction("fetch-latest-text", result.Text)
 	return result.Text, nil
 }
 
@@ -364,6 +375,11 @@ func (a *App) DownloadLatestFile() (string, error) {
 	if err != nil {
 		return "", err
 	}
+	a.saveLastAction("download-latest-file", result.Path)
+	return result.Path, nil
+}
+
+func (a *App) saveLastAction(actionType string, detail string) {
 	current := a.state.Current()
 	_ = a.state.Save(StateSnapshot{
 		Status:           current.Status,
@@ -374,9 +390,8 @@ func (a *App) DownloadLatestFile() (string, error) {
 		LastPayloadTitle: current.LastPayloadTitle,
 		LastPayloadKind:  current.LastPayloadKind,
 		LastPayloadAt:    current.LastPayloadAt,
-		LastActionType:   "download-latest-file",
-		LastActionDetail: result.Path,
+		LastActionType:   actionType,
+		LastActionDetail: detail,
 		LastActionAt:     time.Now().UnixMilli(),
 	})
-	return result.Path, nil
 }
