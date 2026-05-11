@@ -701,7 +701,7 @@ InitGui() {
     Gui, Status:Add, Button, x+8 w120 h30 gClearRuntimeCache, 清理本地缓存
     Gui, Status:Add, Button, x+8 w244 h34 gSendFilesToAndroid, 发送文件或图片到安卓确认接收
     Gui, Status:Font, s9 Norm c667085, Segoe UI
-    Gui, Status:Add, Text, xm y+12 w500 Center Border vDropSendHintText, 把文件拖到这里可直接发送到安卓，不走二次复制确认
+    Gui, Status:Add, Text, xm y+12 w500 Center Border, 把文件拖到这里可直接发送到安卓，不走二次复制确认
 }
 
 InitAdvancedGui() {
