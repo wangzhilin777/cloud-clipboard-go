@@ -49,6 +49,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var floatingWidthInput: EditText
     private lateinit var floatingHeightInput: EditText
     private lateinit var floatingShowSecondsInput: EditText
+    private lateinit var floatingLayoutSummaryText: TextView
     private lateinit var cacheRetentionInput: EditText
     private lateinit var permissionSummaryText: TextView
     private lateinit var permissionGuideText: TextView
@@ -98,6 +99,7 @@ class MainActivity : AppCompatActivity() {
         floatingWidthInput = findViewById(R.id.floatingWidthInput)
         floatingHeightInput = findViewById(R.id.floatingHeightInput)
         floatingShowSecondsInput = findViewById(R.id.floatingShowSecondsInput)
+        floatingLayoutSummaryText = findViewById(R.id.floatingLayoutSummaryText)
         cacheRetentionInput = findViewById(R.id.cacheRetentionInput)
         permissionSummaryText = findViewById(R.id.permissionSummaryText)
         permissionGuideText = findViewById(R.id.permissionGuideText)
@@ -142,6 +144,11 @@ class MainActivity : AppCompatActivity() {
             PayloadCacheStore.clearAll(this)
             lastSyncText.text = getString(R.string.cache_cleared_toast)
             Toast.makeText(this, R.string.cache_cleared_toast, Toast.LENGTH_SHORT).show()
+        }
+        findViewById<Button>(R.id.resetFloatingPositionButton).setOnClickListener {
+            SettingsStore.resetFloatingPosition(this)
+            refreshRuntimeHints()
+            Toast.makeText(this, R.string.floating_position_reset_toast, Toast.LENGTH_SHORT).show()
         }
         findViewById<Button>(R.id.openNotificationSettingsButton).setOnClickListener {
             openNotificationSettings()
@@ -337,6 +344,14 @@ class MainActivity : AppCompatActivity() {
         )
         runtimeAdviceText.text = buildClipboardModeAdvice(config, status)
         autoResumeSummaryText.text = buildAutoResumeSummary(config, status)
+        floatingLayoutSummaryText.text = getString(
+            R.string.floating_layout_summary_format,
+            config.floatingPosX,
+            config.floatingPosY,
+            config.floatingWidthDp,
+            config.floatingHeightDp,
+            config.floatingShowSeconds,
+        )
     }
 
     private fun openNotificationSettings() {

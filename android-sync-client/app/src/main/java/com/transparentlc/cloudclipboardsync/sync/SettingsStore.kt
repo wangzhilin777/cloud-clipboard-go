@@ -33,6 +33,11 @@ object SettingsStore {
     const val RUNNING_STATE_STOPPED = "stopped"
     const val RUNNING_STATE_RUNNING = "running"
     private const val LEGACY_DEFAULT_DEVICE_NAME = "Android 同步端"
+    private const val DEFAULT_FLOATING_WIDTH_DP = 280
+    private const val DEFAULT_FLOATING_HEIGHT_DP = 110
+    private const val DEFAULT_FLOATING_POS_X = 48
+    private const val DEFAULT_FLOATING_POS_Y = 220
+    private const val DEFAULT_FLOATING_SHOW_SECONDS = 20
 
     data class Config(
         val serverBase: String,
@@ -72,11 +77,11 @@ object SettingsStore {
             closeActivityAfterStart = prefs.getBoolean(KEY_CLOSE_ACTIVITY_AFTER_START, false),
             removeTaskFromRecents = prefs.getBoolean(KEY_REMOVE_TASK_FROM_RECENTS, false),
             floatingEnabled = prefs.getBoolean(KEY_FLOATING_ENABLED, true),
-            floatingWidthDp = prefs.getInt(KEY_FLOATING_WIDTH_DP, 280),
-            floatingHeightDp = prefs.getInt(KEY_FLOATING_HEIGHT_DP, 110),
-            floatingPosX = prefs.getInt(KEY_FLOATING_POS_X, 48),
-            floatingPosY = prefs.getInt(KEY_FLOATING_POS_Y, 220),
-            floatingShowSeconds = prefs.getInt(KEY_FLOATING_SHOW_SECONDS, 20),
+            floatingWidthDp = prefs.getInt(KEY_FLOATING_WIDTH_DP, DEFAULT_FLOATING_WIDTH_DP),
+            floatingHeightDp = prefs.getInt(KEY_FLOATING_HEIGHT_DP, DEFAULT_FLOATING_HEIGHT_DP),
+            floatingPosX = prefs.getInt(KEY_FLOATING_POS_X, DEFAULT_FLOATING_POS_X),
+            floatingPosY = prefs.getInt(KEY_FLOATING_POS_Y, DEFAULT_FLOATING_POS_Y),
+            floatingShowSeconds = prefs.getInt(KEY_FLOATING_SHOW_SECONDS, DEFAULT_FLOATING_SHOW_SECONDS),
             cacheRetentionHours = prefs.getInt(KEY_CACHE_RETENTION_HOURS, 24),
             clipboardMode = prefs.getString(KEY_CLIPBOARD_MODE, CLIPBOARD_MODE_FOREGROUND)
                 ?.takeIf { it == CLIPBOARD_MODE_FOREGROUND || it == CLIPBOARD_MODE_ACCESSIBILITY || it == CLIPBOARD_MODE_SHIZUKU }
@@ -140,6 +145,14 @@ object SettingsStore {
             .edit()
             .putInt(KEY_FLOATING_POS_X, x)
             .putInt(KEY_FLOATING_POS_Y, y)
+            .apply()
+    }
+
+    fun resetFloatingPosition(context: Context) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putInt(KEY_FLOATING_POS_X, DEFAULT_FLOATING_POS_X)
+            .putInt(KEY_FLOATING_POS_Y, DEFAULT_FLOATING_POS_Y)
             .apply()
     }
 

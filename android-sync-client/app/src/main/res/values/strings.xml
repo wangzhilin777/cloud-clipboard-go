@@ -38,6 +38,9 @@
     <string name="floating_width_hint">悬浮宽度，默认 280</string>
     <string name="floating_height_hint">悬浮高度，默认 110</string>
     <string name="floating_seconds_hint">显示时长，默认 20 秒</string>
+    <string name="floating_layout_summary_format">当前位置：X %1$d / Y %2$d\n当前尺寸：宽 %3$ddp · 高 %4$ddp · 显示 %5$d 秒</string>
+    <string name="reset_floating_position_button">重置悬浮位置</string>
+    <string name="floating_position_reset_toast">悬浮位置已恢复默认</string>
     <string name="cache_retention_hint">缓存保留小时数，默认 24</string>
     <string name="cache_retention_tip">缓存会在启动 App、回前台、下载前和同步服务启动时做过期清理。</string>
     <string name="clear_cache_button">立即清空本地缓存</string>
