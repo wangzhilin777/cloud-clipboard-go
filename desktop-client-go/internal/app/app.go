@@ -16,6 +16,7 @@ import (
 	"github.com/jonnyan404/cloud-clipboard-go/desktop-client-go/internal/picker"
 	"github.com/jonnyan404/cloud-clipboard-go/desktop-client-go/internal/syncclient"
 	"github.com/jonnyan404/cloud-clipboard-go/desktop-client-go/internal/transfer"
+	"golang.design/x/clipboard"
 )
 
 type App struct {
@@ -286,4 +287,19 @@ func (a *App) SendFiles(paths []string) ([]string, error) {
 		names = append(names, result.Name)
 	}
 	return names, nil
+}
+
+func (a *App) SendText(text string, fromClipboard bool) (string, error) {
+	if fromClipboard {
+		if err := clipboard.Init(); err != nil {
+			return "", err
+		}
+		text = strings.TrimSpace(string(clipboard.Read(clipboard.FmtText)))
+	}
+	sender := transfer.NewSender(a.currentConfig(), a.logger)
+	result, err := sender.SendText(context.Background(), text)
+	if err != nil {
+		return "", err
+	}
+	return result.Text, nil
 }

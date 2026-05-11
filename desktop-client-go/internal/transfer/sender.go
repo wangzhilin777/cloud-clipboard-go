@@ -40,6 +40,13 @@ type UploadResult struct {
 	Mime        string `json:"mime"`
 }
 
+type TextSendResult struct {
+	ID   string `json:"id"`
+	Type string `json:"type"`
+	URL  string `json:"url"`
+	Text string `json:"text"`
+}
+
 func NewSender(cfg config.Config, logger *log.Logger) *Sender {
 	return &Sender{
 		cfg:    cfg,
@@ -312,4 +319,47 @@ func normalizeKind(result UploadResult) string {
 		return "image"
 	}
 	return "file"
+}
+
+func (s *Sender) SendText(ctx context.Context, text string) (TextSendResult, error) {
+	text = strings.TrimSpace(text)
+	if text == "" {
+		return TextSendResult{}, fmt.Errorf("要发送的文本不能为空")
+	}
+	sendURL := s.cfg.ServerBase + "/text"
+	if strings.TrimSpace(s.cfg.Room) != "" {
+		sendURL += "?room=" + url.QueryEscape(s.cfg.Room)
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, sendURL, strings.NewReader(text))
+	if err != nil {
+		return TextSendResult{}, err
+	}
+	req.Header.Set("Content-Type", "text/plain")
+	if strings.TrimSpace(s.cfg.RoomPassword) != "" {
+		req.Header.Set("Authorization", "Bearer "+s.cfg.RoomPassword)
+	}
+	resp, err := s.httpClient.Do(req)
+	if err != nil {
+		return TextSendResult{}, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		raw, _ := io.ReadAll(io.LimitReader(resp.Body, 2048))
+		return TextSendResult{}, fmt.Errorf("发送文本失败: HTTP %d %s", resp.StatusCode, strings.TrimSpace(string(raw)))
+	}
+	var payload struct {
+		ID   string `json:"id"`
+		Type string `json:"type"`
+		URL  string `json:"url"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
+		return TextSendResult{}, err
+	}
+	s.logger.Printf("文本发送成功: %s", payload.ID)
+	return TextSendResult{
+		ID:   payload.ID,
+		Type: payload.Type,
+		URL:  payload.URL,
+		Text: text,
+	}, nil
 }

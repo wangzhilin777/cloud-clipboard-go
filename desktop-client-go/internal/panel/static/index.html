@@ -227,6 +227,20 @@
       <div class="message" id="message"></div>
       <div class="footer">配置保存后会立即触发桌面客户端重连。若修改了面板监听地址，本页面需要手动用新地址重新打开。</div>
     </section>
+
+    <section class="form-card" style="margin-top: 16px;">
+      <h2 class="form-title">快速动作</h2>
+      <div class="form-grid">
+        <label class="field full">
+          <span class="label">手动发送文本</span>
+          <input id="manualText" placeholder="输入要发送到同步房间的文本">
+        </label>
+      </div>
+      <div class="actions">
+        <button class="primary" id="sendTextButton" type="button">发送输入文本</button>
+        <button class="secondary" id="sendClipboardTextButton" type="button">发送当前剪贴板文本</button>
+      </div>
+    </section>
   </div>
 
   <script>
@@ -242,6 +256,7 @@
       openPanelOnLaunch: document.getElementById('openPanelOnLaunch'),
       panelAddress: document.getElementById('panelAddress'),
     };
+    const manualText = document.getElementById('manualText');
     const statusText = document.getElementById('statusText');
     const deviceNameText = document.getElementById('deviceNameText');
     const payloadText = document.getElementById('payloadText');
@@ -359,10 +374,35 @@
       }
     }
 
+    async function sendText(fromClipboard) {
+      message.textContent = fromClipboard ? '正在读取并发送剪贴板文本...' : '正在发送文本...';
+      try {
+        const resp = await fetch('/api/send-text', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            text: manualText.value,
+            fromClipboard,
+          }),
+        });
+        const text = await resp.text();
+        if (!resp.ok) throw new Error(text || `HTTP ${resp.status}`);
+        const data = JSON.parse(text || '{}');
+        if (!fromClipboard) {
+          manualText.value = '';
+        }
+        message.textContent = `文本发送成功：${data.text || ''}`;
+      } catch (err) {
+        message.textContent = `文本发送失败：${err.message}`;
+      }
+    }
+
     document.getElementById('saveButton').addEventListener('click', saveConfig);
     document.getElementById('reconnectButton').addEventListener('click', reconnect);
     document.getElementById('openPanelButton').addEventListener('click', openPanelInBrowser);
     document.getElementById('sendFileButton').addEventListener('click', sendFile);
+    document.getElementById('sendTextButton').addEventListener('click', () => sendText(false));
+    document.getElementById('sendClipboardTextButton').addEventListener('click', () => sendText(true));
 
     loadStatus();
     refreshTimer = setInterval(() => loadStatus(true), 2000);

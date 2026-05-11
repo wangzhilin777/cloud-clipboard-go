@@ -22,6 +22,7 @@ type Backend interface {
 	RequestReconnect()
 	OpenPanel() error
 	SendFiles(paths []string) ([]string, error)
+	SendText(text string, fromClipboard bool) (string, error)
 }
 
 type Server struct {
@@ -83,6 +84,7 @@ func New(address string, backend Backend) *Server {
 	mux.HandleFunc("/api/reconnect", s.handleReconnect)
 	mux.HandleFunc("/api/open-panel", s.handleOpenPanel)
 	mux.HandleFunc("/api/send-file", s.handleSendFile)
+	mux.HandleFunc("/api/send-text", s.handleSendText)
 	mux.Handle("/", http.FileServer(http.FS(staticRoot)))
 	return s
 }
@@ -194,6 +196,27 @@ func (s *Server) handleSendFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"files": results})
+}
+
+func (s *Server) handleSendText(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	var body struct {
+		Text          string `json:"text"`
+		FromClipboard bool   `json:"fromClipboard"`
+	}
+	if r.Body != nil {
+		defer r.Body.Close()
+		_ = json.NewDecoder(r.Body).Decode(&body)
+	}
+	result, err := s.backend.SendText(body.Text, body.FromClipboard)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"text": result})
 }
 
 func toConfigView(cfg config.Config) configView {
