@@ -18,6 +18,7 @@ global ClientStatus := "未启动"
 global LastSyncResult := "暂无"
 global PanelVisible := false
 global HelperActive := false
+global HelperRestartFailures := 0
 global RegisteredPanelHotkey := ""
 global StatusText := ""
 global RoomText := ""
@@ -41,7 +42,7 @@ if (ShouldShowInitialPanel())
     ShowStatusPanel()
 OnClipboardChange("HandleClipboardChange")
 SetTimer, PollEvents, 800
-SetTimer, EnsureHelperRunning, 5000
+SetTimer, EnsureHelperRunning, 2000
 TryAutoStartSync()
 return
 
@@ -74,8 +75,10 @@ PollEvents:
         type := parts[1]
         if (type = "status") {
             ClientStatus := parts[2]
-            if (ClientStatus = "已连接" || ClientStatus = "已信任" || ClientStatus = "等待批准")
+            if (ClientStatus = "已连接" || ClientStatus = "已信任" || ClientStatus = "等待批准") {
                 MarkConnectedOnce()
+                ResetReconnectFailures()
+            }
             UpdateGui()
         } else if (type = "log") {
             LastSyncResult := Base64Decode(parts[2])
@@ -131,12 +134,13 @@ SaveConfig:
     Gui, Status:Submit, NoHide
     autoConnectValue := EditAutoConnectEnabled ? 1 : 0
     startupValue := EditStartupEnabled ? 1 : 0
+    normalizedHotkey := NormalizeHotkey(EditPanelHotkey)
     IniWrite, %EditServerBase%, %ConfigPath%, sync, serverBase
     IniWrite, %EditRoom%, %ConfigPath%, sync, room
     IniWrite, %EditRoomPassword%, %ConfigPath%, sync, roomPassword
     IniWrite, % ResolveDeviceNameForSave(EditDeviceName), %ConfigPath%, sync, deviceName
     IniWrite, % ResolveDeviceIdForSave(EditDeviceId), %ConfigPath%, sync, deviceId
-    IniWrite, % NormalizeHotkey(EditPanelHotkey), %ConfigPath%, sync, panelHotkey
+    IniWrite, %normalizedHotkey%, %ConfigPath%, sync, panelHotkey
     IniWrite, %autoConnectValue%, %ConfigPath%, sync, autoConnectEnabled
     IniWrite, %startupValue%, %ConfigPath%, sync, startupEnabled
     RegisterPanelHotkey()
@@ -144,7 +148,7 @@ SaveConfig:
     LastSyncResult := "配置已保存"
     if (HelperActive) {
         LastSyncResult := "配置已保存，并重新连接后台同步"
-        RestartHelper()
+        RestartHelper(true)
     }
     UpdateGui()
 return
@@ -173,7 +177,7 @@ return
 
 ReconnectHelper:
     if (HelperActive)
-        RestartHelper()
+        RestartHelper(true)
     else
         StartSyncSession()
 return
@@ -187,12 +191,25 @@ StopSync:
 return
 
 EnsureHelperRunning:
-    global HelperPid, HelperActive
+    global HelperPid, HelperActive, HelperRestartFailures, ClientStatus, LastSyncResult
     if (!HelperActive)
         return
     Process, Exist, %HelperPid%
-    if (HelperPid = "" || ErrorLevel = 0)
+    if (HelperPid = "" || ErrorLevel = 0) {
+        HelperRestartFailures++
+        if (HelperRestartFailures >= 3) {
+            HelperActive := false
+            ClientStatus := "重连失败"
+            LastSyncResult := "连续 3 次重连失败，请检查服务端状态后手动点“启动同步”或“重新连接”"
+            TrayTip, Cloud Clipboard, 连续 3 次重连失败，请检查服务端后手动重试, 5, 17
+            UpdateGui()
+            return
+        }
+        ClientStatus := "重连中"
+        LastSyncResult := "后台同步连接失败，正在进行第 " . HelperRestartFailures . "/3 次重试"
+        UpdateGui()
         StartHelper()
+    }
 return
 
 TogglePause:
@@ -320,17 +337,18 @@ UpdateGui() {
     IniRead, StartupEnabled, %ConfigPath%, sync, startupEnabled, 0
     masked := RoomPassword = "" ? "未设置" : "已设置"
     autoResumeText := AutoConnectEnabled = 1 ? "开启" : "关闭"
+    displayHotkey := FormatHotkeyForDisplay(PanelHotkey)
     GuiControl, Status:, EditServerBase, %ServerBase%
     GuiControl, Status:, EditRoom, %RoomName%
     GuiControl, Status:, EditRoomPassword, %RoomPassword%
     GuiControl, Status:, EditDeviceName, %DeviceName%
     GuiControl, Status:, EditDeviceId, %DeviceId%
-    GuiControl, Status:, EditPanelHotkey, %PanelHotkey%
+    GuiControl, Status:, EditPanelHotkey, %displayHotkey%
     GuiControl, Status:, EditAutoConnectEnabled, % AutoConnectEnabled = 1 ? 1 : 0
     GuiControl, Status:, EditStartupEnabled, % StartupEnabled = 1 ? 1 : 0
     GuiControl, Status:, StatusText, 状态：%ClientStatus%
     GuiControl, Status:, RoomText, 房间：%RoomName%
-    GuiControl, Status:, DeviceText, 设备：%DeviceName%（%DeviceId%） 面板热键：%PanelHotkey%
+    GuiControl, Status:, DeviceText, 设备：%DeviceName%（%DeviceId%） 面板热键：%displayHotkey%
     GuiControl, Status:, PasswordText, 房间密码：%masked% 自动恢复：%autoResumeText%
     GuiControl, Status:, ResultText, 最近结果：%LastSyncResult%
 }
@@ -365,8 +383,10 @@ StopHelper() {
     HelperPid := ""
 }
 
-RestartHelper() {
+RestartHelper(resetFailures := false) {
     global CommandPath, EventPath, LastEventLine
+    if (resetFailures)
+        ResetReconnectFailures()
     StopHelper()
     FileDelete, %CommandPath%
     FileDelete, %EventPath%
@@ -384,9 +404,10 @@ TryAutoStartSync() {
 StartSyncSession() {
     global ConfigPath, CommandPath, EventPath, LastEventLine, HelperActive, SyncPaused, ClientStatus, LastSyncResult
     SyncPaused := false
+    ResetReconnectFailures()
     IniWrite, running, %ConfigPath%, sync, lastDesiredRunningState
     if (HelperActive)
-        RestartHelper()
+        RestartHelper(true)
     else {
         FileDelete, %CommandPath%
         FileDelete, %EventPath%
@@ -401,6 +422,7 @@ StartSyncSession() {
 StopSyncSession() {
     global ConfigPath, ClientStatus, LastSyncResult, SyncPaused
     SyncPaused := false
+    ResetReconnectFailures()
     IniWrite, stopped, %ConfigPath%, sync, lastDesiredRunningState
     if (HelperActive)
         AppendCommand("shutdown", "")
@@ -439,7 +461,56 @@ NormalizeHotkey(value) {
     value := Trim(value)
     if (value = "")
         return "^!v"
-    return value
+    if InStr(value, "^") || InStr(value, "!") || InStr(value, "+") || InStr(value, "#") {
+        return value
+    }
+
+    normalized := RegExReplace(value, "\s*\+\s*", "+")
+    normalized := StrReplace(normalized, " ", "")
+    StringLower, normalized, normalized
+    parts := StrSplit(normalized, "+")
+    modifiers := ""
+    key := ""
+    for index, part in parts {
+        if (part = "")
+            continue
+        if (part = "ctrl" || part = "control")
+            modifiers .= "^"
+        else if (part = "alt")
+            modifiers .= "!"
+        else if (part = "shift")
+            modifiers .= "+"
+        else if (part = "win" || part = "windows")
+            modifiers .= "#"
+        else
+            key := part
+    }
+    if (key = "")
+        return "^!v"
+    StringUpper, key, key
+    return modifiers . key
+}
+
+FormatHotkeyForDisplay(value) {
+    value := NormalizeHotkey(value)
+    output := ""
+    Loop, Parse, value
+    {
+        token := A_LoopField
+        if (token = "^")
+            output .= (output = "" ? "" : " + ") . "Ctrl"
+        else if (token = "!")
+            output .= (output = "" ? "" : " + ") . "Alt"
+        else if (token = "+")
+            output .= (output = "" ? "" : " + ") . "Shift"
+        else if (token = "#")
+            output .= (output = "" ? "" : " + ") . "Win"
+        else {
+            StringUpper, token, token
+            output .= (output = "" ? "" : " + ") . token
+        }
+    }
+    return output
 }
 
 ResolveDeviceNameForSave(value) {
@@ -470,6 +541,11 @@ SyncStartupShortcut() {
 MarkConnectedOnce() {
     global ConfigPath
     IniWrite, 1, %ConfigPath%, sync, hasConnectedOnce
+}
+
+ResetReconnectFailures() {
+    global HelperRestartFailures
+    HelperRestartFailures := 0
 }
 
 AppendCommand(type, payload) {

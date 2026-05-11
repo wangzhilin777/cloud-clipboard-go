@@ -26,6 +26,7 @@ import org.json.JSONObject
 import kotlin.math.abs
 
 class SyncService : Service() {
+    private val reconnectDelaysMs = longArrayOf(2_000L, 2_000L, 2_000L)
     private val handler = Handler(Looper.getMainLooper())
     private lateinit var clipboardManager: ClipboardManager
     private lateinit var config: SettingsStore.Config
@@ -38,6 +39,7 @@ class SyncService : Service() {
     private var lastPublishedText = ""
     private var lastPublishedAt = 0L
     private var serviceStarted = false
+    private var reconnectAttempt = 0
     private val downloadingPayloads = mutableSetOf<String>()
 
     private val clipboardListener = ClipboardManager.OnPrimaryClipChangedListener {
@@ -99,6 +101,7 @@ class SyncService : Service() {
         client?.disconnect()
         client = ClipboardSyncClient(config, object : ClipboardSyncClient.Callbacks {
             override fun onConnected() {
+                reconnectAttempt = 0
                 broadcastStatus(getString(R.string.status_connected), "同步连接已建立")
                 updateNotification(getString(R.string.status_connected))
             }
@@ -132,17 +135,34 @@ class SyncService : Service() {
             }
 
             override fun onForbidden() {
+                reconnectAttempt = 0
                 broadcastStatus(getString(R.string.status_forbidden), "认证失败")
                 updateNotification(getString(R.string.status_forbidden))
             }
 
             override fun onDisconnected() {
-                broadcastStatus(getString(R.string.status_disconnected), "同步连接已断开，稍后自动重试")
-                updateNotification(getString(R.string.status_disconnected))
-                handler.postDelayed({ connect() }, 5_000)
+                scheduleReconnectOrStop()
             }
         })
         client?.connect()
+    }
+
+    private fun scheduleReconnectOrStop() {
+        if (reconnectAttempt >= reconnectDelaysMs.size) {
+            reconnectAttempt = 0
+            val message = getString(R.string.reconnect_failure_limit_message)
+            broadcastStatus(getString(R.string.status_disconnected), message)
+            updateNotification(getString(R.string.status_disconnected))
+            showReconnectFailureAlert(message)
+            return
+        }
+        val attempt = reconnectAttempt + 1
+        val delayMs = reconnectDelaysMs[reconnectAttempt]
+        reconnectAttempt++
+        val message = getString(R.string.reconnect_retry_message, attempt, reconnectDelaysMs.size)
+        broadcastStatus(getString(R.string.status_disconnected), message)
+        updateNotification(getString(R.string.status_disconnected))
+        handler.postDelayed({ connect() }, delayMs)
     }
 
     private fun refreshTrustState() {
@@ -199,6 +219,18 @@ class SyncService : Service() {
     private fun shouldUseFloatingConfirm(): Boolean {
         val config = SettingsStore.load(this)
         return config.floatingEnabled && PermissionStatusHelper.read(this).overlayEnabled
+    }
+
+    private fun showReconnectFailureAlert(message: String) {
+        if (shouldUseFloatingConfirm()) {
+            FloatingConfirmService.showSyncAlert(
+                this,
+                getString(R.string.reconnect_failure_alert_title),
+                message,
+            )
+            return
+        }
+        showReconnectFailureNotification(message)
     }
 
     private fun confirmPayloadDownload(payloadId: String) {
@@ -259,6 +291,28 @@ class SyncService : Service() {
                 .setStyle(NotificationCompat.BigTextStyle().bigText(getString(R.string.payload_ready_text, entry.title)))
                 .setAutoCancel(true)
                 .setContentIntent(payloadActivityIntent(entry.payloadId))
+                .build(),
+        )
+    }
+
+    private fun showReconnectFailureNotification(message: String) {
+        val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        manager.notify(
+            RECONNECT_ALERT_NOTIFICATION_ID,
+            NotificationCompat.Builder(this, RECEIVE_CHANNEL_ID)
+                .setSmallIcon(R.drawable.ic_sync_notification)
+                .setContentTitle(getString(R.string.reconnect_failure_alert_title))
+                .setContentText(message)
+                .setStyle(NotificationCompat.BigTextStyle().bigText(message))
+                .setAutoCancel(true)
+                .setContentIntent(
+                    PendingIntent.getActivity(
+                        this,
+                        RECONNECT_ALERT_NOTIFICATION_ID,
+                        Intent(this, MainActivity::class.java),
+                        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+                    ),
+                )
                 .build(),
         )
     }
@@ -352,6 +406,7 @@ class SyncService : Service() {
         private const val CHANNEL_ID = "cloud_clipboard_sync"
         private const val RECEIVE_CHANNEL_ID = "cloud_clipboard_receive"
         private const val NOTIFICATION_ID = 1001
+        private const val RECONNECT_ALERT_NOTIFICATION_ID = 1002
         @Volatile
         private var isRunning = false
 

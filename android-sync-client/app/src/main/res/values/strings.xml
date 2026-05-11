@@ -52,6 +52,10 @@
     <string name="last_result_idle">暂无</string>
     <string name="auto_resume_restored">已按上次运行状态自动恢复同步</string>
     <string name="auto_resume_loopback_hint">已跳过自动续连：当前服务地址仍是 127.0.0.1/localhost，请改成 Windows 局域网 IP</string>
+    <string name="reconnect_retry_message">同步连接失败，正在进行第 %1$d/%2$d 次重试</string>
+    <string name="reconnect_failure_limit_message">连续 3 次重连失败，已停止自动重试，请检查服务端后手动重新启动同步。</string>
+    <string name="reconnect_failure_alert_title">同步重连失败</string>
+    <string name="reconnect_failure_alert_button">我知道了</string>
     <string name="payload_notice_title">收到远端%s</string>
     <string name="payload_notice_text">%1$s，确认后下载到本地缓存</string>
     <string name="payload_ready_title">远端内容已缓存</string>

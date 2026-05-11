@@ -16,7 +16,7 @@
 - `roomPassword`：房间访问密码；如果该房间走全局密码，也在这里填写全局密码
 - `deviceName`：当前 Windows 设备显示名；首次会默认取本机名称
 - `deviceId`：设备唯一标识，首次生成后建议保持不变
-- `panelHotkey`：显示/隐藏同步面板的快捷键，例如 `^!v`
+- `panelHotkey`：显示/隐藏同步面板的快捷键；面板里既可以填 `Ctrl + Alt + V`，也可以直接填 AHK 写法 `^!v`
 - `autoConnectEnabled`：是否允许按上次运行状态自动恢复同步，`1` 为开启
 - `startupEnabled`：是否随 Windows 开机启动托盘客户端，`1` 为开启
 - `lastDesiredRunningState`：最近一次用户期望的运行状态，`running` / `stopped`
@@ -29,7 +29,7 @@
 面板能力：
 
 - 直接修改服务端地址、房间、房间密码、设备名、设备 ID
-- 直接修改面板热键
+- 直接修改面板热键，界面会按 `Ctrl + Alt + V` 这种常见格式显示
 - 开关“启动客户端后按上次状态自动恢复同步”
 - 开关“跟随 Windows 开机启动本客户端”
 - 手动“启动同步 / 停止同步 / 重新连接”

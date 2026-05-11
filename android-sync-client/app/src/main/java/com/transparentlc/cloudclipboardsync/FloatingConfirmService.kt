@@ -28,6 +28,7 @@ class FloatingConfirmService : Service() {
     private var windowManager: WindowManager? = null
     private var layoutParams: WindowManager.LayoutParams? = null
     private val hideRunnable = Runnable { dismissCurrent(showNext = true) }
+    private var alertMode = false
 
     override fun onCreate() {
         super.onCreate()
@@ -35,6 +36,13 @@ class FloatingConfirmService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (intent?.action == ACTION_SHOW_ALERT) {
+            showAlertOverlay(
+                intent.getStringExtra(EXTRA_ALERT_TITLE).orEmpty(),
+                intent.getStringExtra(EXTRA_ALERT_MESSAGE).orEmpty(),
+            )
+            return START_NOT_STICKY
+        }
         val payloadId = intent?.getStringExtra(EXTRA_PAYLOAD_ID)
         if (!payloadId.isNullOrBlank()) {
             enqueuePayload(payloadId)
@@ -60,6 +68,7 @@ class FloatingConfirmService : Service() {
     }
 
     private fun showNext() {
+        alertMode = false
         while (pendingPayloadIds.isNotEmpty()) {
             val nextId = pendingPayloadIds.removeFirst()
             val entry = PayloadCacheStore.get(this, nextId) ?: continue
@@ -139,6 +148,57 @@ class FloatingConfirmService : Service() {
         handler.postDelayed(hideRunnable, config.floatingShowSeconds.coerceAtLeast(5) * 1000L)
     }
 
+    private fun showAlertOverlay(title: String, message: String) {
+        alertMode = true
+        handler.removeCallbacks(hideRunnable)
+        overlayView?.let { windowManager?.removeViewImmediate(it) }
+
+        val config = SettingsStore.load(this)
+        val root = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setBackgroundResource(android.R.drawable.dialog_holo_light_frame)
+            setPadding(dp(14), dp(14), dp(14), dp(14))
+        }
+        val titleView = TextView(this).apply {
+            text = title.ifBlank { getString(R.string.reconnect_failure_alert_title) }
+            textSize = 16f
+        }
+        val messageView = TextView(this).apply {
+            text = message
+            textSize = 13f
+        }
+        val closeButton = Button(this).apply {
+            text = getString(R.string.reconnect_failure_alert_button)
+            setOnClickListener { dismissCurrent(showNext = false) }
+        }
+        root.addView(titleView)
+        root.addView(messageView)
+        root.addView(closeButton)
+
+        val params = WindowManager.LayoutParams(
+            dp(config.floatingWidthDp),
+            WindowManager.LayoutParams.WRAP_CONTENT,
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+            } else {
+                WindowManager.LayoutParams.TYPE_PHONE
+            },
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+            PixelFormat.TRANSLUCENT,
+        ).apply {
+            gravity = Gravity.TOP or Gravity.START
+            x = config.floatingPosX
+            y = config.floatingPosY
+        }
+
+        attachDragSupport(root, params)
+        layoutParams = params
+        overlayView = root
+        windowManager?.addView(root, params)
+        handler.postDelayed(hideRunnable, config.floatingShowSeconds.coerceAtLeast(5) * 1000L)
+    }
+
     private fun attachDragSupport(view: View, params: WindowManager.LayoutParams) {
         var startX = 0
         var startY = 0
@@ -173,9 +233,10 @@ class FloatingConfirmService : Service() {
         overlayView?.let { windowManager?.removeViewImmediate(it) }
         overlayView = null
         currentPayloadId = null
-        if (showNext) {
+        if (showNext && !alertMode) {
             showNext()
         } else {
+            alertMode = false
             stopSelf()
         }
     }
@@ -191,10 +252,21 @@ class FloatingConfirmService : Service() {
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density).roundToInt()
 
     companion object {
+        private const val ACTION_SHOW_ALERT = "com.transparentlc.cloudclipboardsync.action.SHOW_ALERT"
         private const val EXTRA_PAYLOAD_ID = "payload_id"
+        private const val EXTRA_ALERT_TITLE = "alert_title"
+        private const val EXTRA_ALERT_MESSAGE = "alert_message"
 
         fun show(context: Context, payloadId: String) {
             val intent = Intent(context, FloatingConfirmService::class.java).putExtra(EXTRA_PAYLOAD_ID, payloadId)
+            context.startService(intent)
+        }
+
+        fun showSyncAlert(context: Context, title: String, message: String) {
+            val intent = Intent(context, FloatingConfirmService::class.java)
+                .setAction(ACTION_SHOW_ALERT)
+                .putExtra(EXTRA_ALERT_TITLE, title)
+                .putExtra(EXTRA_ALERT_MESSAGE, message)
             context.startService(intent)
         }
     }
