@@ -17,6 +17,10 @@
     <string name="permission_section_desc">把通知、悬浮窗、无障碍和电池策略一次检查清楚。</string>
     <string name="receive_section_title">接收与缓存</string>
     <string name="receive_section_desc">管理图片/文件确认方式、本地缓存保留时长和接收页入口。</string>
+    <string name="runtime_recommendation_ready">当前模式已就绪</string>
+    <string name="runtime_recommendation_attention">建议继续完善</string>
+    <string name="permission_overview_ready">当前可直接使用</string>
+    <string name="permission_overview_attention">建议补齐后台权限</string>
     <string name="room_hint">房间名称（可留空）</string>
     <string name="room_password_hint">房间密码或全局密码（可留空）</string>
     <string name="device_name_hint">设备名称</string>

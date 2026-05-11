@@ -16,6 +16,8 @@ import android.widget.RadioButton
 import android.widget.RadioGroup
 import android.widget.TextView
 import android.widget.Toast
+import androidx.annotation.ColorRes
+import androidx.annotation.DrawableRes
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
@@ -49,6 +51,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var permissionGuideText: TextView
     private lateinit var runtimeAdviceText: TextView
     private lateinit var autoResumeSummaryText: TextView
+    private lateinit var runtimeModeBadgeText: TextView
+    private lateinit var permissionOverviewBadgeText: TextView
     private lateinit var statusText: TextView
     private lateinit var lastSyncText: TextView
 
@@ -93,6 +97,8 @@ class MainActivity : AppCompatActivity() {
         permissionGuideText = findViewById(R.id.permissionGuideText)
         runtimeAdviceText = findViewById(R.id.runtimeAdviceText)
         autoResumeSummaryText = findViewById(R.id.autoResumeSummaryText)
+        runtimeModeBadgeText = findViewById(R.id.runtimeModeBadgeText)
+        permissionOverviewBadgeText = findViewById(R.id.permissionOverviewBadgeText)
         statusText = findViewById(R.id.statusText)
         lastSyncText = findViewById(R.id.lastSyncText)
 
@@ -282,6 +288,18 @@ class MainActivity : AppCompatActivity() {
 
     private fun refreshPermissionSummary() {
         val status = PermissionStatusHelper.read(this)
+        val missingCount = listOf(
+            status.notificationsEnabled,
+            status.overlayEnabled,
+            status.accessibilityEnabled,
+            status.batteryOptimizationIgnored,
+        ).count { !it }
+        bindStatusBadge(
+            permissionOverviewBadgeText,
+            ready = missingCount <= 1,
+            readyText = getString(R.string.permission_overview_ready),
+            warningText = getString(R.string.permission_overview_attention),
+        )
         permissionSummaryText.text = getString(
             R.string.permission_summary_format,
             stateLabel(status.notificationsEnabled),
@@ -297,6 +315,17 @@ class MainActivity : AppCompatActivity() {
     private fun refreshRuntimeHints() {
         val config = SettingsStore.load(this)
         val status = PermissionStatusHelper.read(this)
+        val runtimeReady = when (config.clipboardMode) {
+            SettingsStore.CLIPBOARD_MODE_ACCESSIBILITY -> status.accessibilityEnabled
+            SettingsStore.CLIPBOARD_MODE_SHIZUKU -> status.shizukuInstalled
+            else -> true
+        }
+        bindStatusBadge(
+            runtimeModeBadgeText,
+            ready = runtimeReady,
+            readyText = getString(R.string.runtime_recommendation_ready),
+            warningText = getString(R.string.runtime_recommendation_attention),
+        )
         runtimeAdviceText.text = buildClipboardModeAdvice(config, status)
         autoResumeSummaryText.text = buildAutoResumeSummary(config, status)
     }
@@ -322,6 +351,27 @@ class MainActivity : AppCompatActivity() {
     private fun stateLabel(enabled: Boolean): String = getString(
         if (enabled) R.string.permission_state_enabled else R.string.permission_state_disabled,
     )
+
+    private fun bindStatusBadge(
+        view: TextView,
+        ready: Boolean,
+        readyText: String,
+        warningText: String,
+    ) {
+        @DrawableRes val backgroundRes = if (ready) {
+            R.drawable.status_chip_ready_background
+        } else {
+            R.drawable.status_chip_warning_background
+        }
+        @ColorRes val textColorRes = if (ready) {
+            R.color.cc_success
+        } else {
+            R.color.cc_warning
+        }
+        view.setBackgroundResource(backgroundRes)
+        view.setTextColor(ContextCompat.getColor(this, textColorRes))
+        view.text = if (ready) readyText else warningText
+    }
 
     private fun buildClipboardModeAdvice(
         config: SettingsStore.Config,
