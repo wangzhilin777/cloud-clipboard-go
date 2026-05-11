@@ -343,7 +343,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         else -> {
-            "当前是前台服务模式：最省事、最适合先联调；如果后台复制经常丢失，再切到无障碍或 Shizuku。"
+            "当前是前台服务模式：配置最省心；如果后台复制经常丢失，再切到无障碍或 Shizuku。"
         }
     }
 
@@ -390,7 +390,7 @@ class MainActivity : AppCompatActivity() {
             steps += "想用图片/文件悬浮确认，再补开悬浮窗权限。"
         }
         if (steps.isEmpty()) {
-            return "当前常用权限都已到位：通知、悬浮窗、无障碍/电池优化都具备，适合继续做后台稳定性联调。"
+            return "当前常用权限都已到位：通知、悬浮窗、无障碍和电池优化都已具备。"
         }
         return steps.joinToString("\n")
     }

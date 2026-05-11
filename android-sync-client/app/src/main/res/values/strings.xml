@@ -35,8 +35,8 @@
     <string name="permission_section_label">权限与系统配置检查</string>
     <string name="permission_summary_placeholder">正在读取当前权限状态…</string>
     <string name="permission_summary_format">通知：%1$s\n悬浮窗：%2$s\n无障碍：%3$s\n忽略电池优化：%4$s\nShizuku：%5$s</string>
-    <string name="permission_guide_placeholder">推荐先开通知和忽略电池优化；要更稳的后台文本同步，再开无障碍或 Shizuku。</string>
-    <string name="runtime_advice_placeholder">推荐先用前台服务验证链路；如果后台复制经常丢失，再切到无障碍或 Shizuku。</string>
+    <string name="permission_guide_placeholder">推荐先开通知和忽略电池优化；需要更稳定的后台文本同步时，再开启无障碍或 Shizuku。</string>
+    <string name="runtime_advice_placeholder">推荐优先使用前台服务模式；如果后台复制经常丢失，再切到无障碍或 Shizuku。</string>
     <string name="auto_resume_placeholder">自动续连状态会在这里显示。</string>
     <string name="permission_state_enabled">已开启</string>
     <string name="permission_state_disabled">未开启</string>
