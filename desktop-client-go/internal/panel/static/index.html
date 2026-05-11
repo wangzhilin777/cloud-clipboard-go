@@ -230,6 +230,13 @@
           <input id="downloadDir" placeholder="C:\\Users\\用户名\\Downloads\\CloudClipboard">
         </label>
         <label class="field">
+          <span class="label">Windows 右键菜单</span>
+          <select id="shellMenuEnabled">
+            <option value="false">关闭</option>
+            <option value="true">开启</option>
+          </select>
+        </label>
+        <label class="field">
           <span class="label">发送剪贴板文本热键</span>
           <input id="sendClipboardHotkey" placeholder="Ctrl+Alt+C">
         </label>
@@ -284,6 +291,7 @@
       openPanelOnLaunch: document.getElementById('openPanelOnLaunch'),
       panelAddress: document.getElementById('panelAddress'),
       downloadDir: document.getElementById('downloadDir'),
+      shellMenuEnabled: document.getElementById('shellMenuEnabled'),
       sendClipboardHotkey: document.getElementById('sendClipboardHotkey'),
       fetchLatestHotkey: document.getElementById('fetchLatestHotkey'),
       downloadLatestHotkey: document.getElementById('downloadLatestHotkey'),
@@ -353,6 +361,7 @@
       if (cfg.sendClipboardHotkey) items.push(`发：${cfg.sendClipboardHotkey}`);
       if (cfg.fetchLatestHotkey) items.push(`拉：${cfg.fetchLatestHotkey}`);
       if (cfg.downloadLatestHotkey) items.push(`下：${cfg.downloadLatestHotkey}`);
+      if (cfg.shellMenuEnabled) items.push('右键菜单：开');
       return items.length ? items.join(' / ') : '未配置';
     }
 
@@ -383,6 +392,7 @@
         openPanelOnLaunch: fields.openPanelOnLaunch.value === 'true',
         panelAddress: fields.panelAddress.value,
         downloadDir: fields.downloadDir.value,
+        shellMenuEnabled: fields.shellMenuEnabled.value === 'true',
         sendClipboardHotkey: fields.sendClipboardHotkey.value,
         fetchLatestHotkey: fields.fetchLatestHotkey.value,
         downloadLatestHotkey: fields.downloadLatestHotkey.value,

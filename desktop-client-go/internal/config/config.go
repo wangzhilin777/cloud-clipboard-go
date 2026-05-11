@@ -22,6 +22,7 @@ type Config struct {
 	PanelAddress         string        `json:"panelAddress"`
 	OpenPanelOnLaunch    bool          `json:"openPanelOnLaunch"`
 	DownloadDir          string        `json:"downloadDir"`
+	ShellMenuEnabled     bool          `json:"shellMenuEnabled"`
 	SendClipboardHotkey  string        `json:"sendClipboardHotkey"`
 	FetchLatestHotkey    string        `json:"fetchLatestHotkey"`
 	DownloadLatestHotkey string        `json:"downloadLatestHotkey"`

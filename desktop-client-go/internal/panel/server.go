@@ -71,6 +71,7 @@ type configView struct {
 	PanelAddress         string `json:"panelAddress"`
 	OpenPanelOnLaunch    bool   `json:"openPanelOnLaunch"`
 	DownloadDir          string `json:"downloadDir"`
+	ShellMenuEnabled     bool   `json:"shellMenuEnabled"`
 	SendClipboardHotkey  string `json:"sendClipboardHotkey"`
 	FetchLatestHotkey    string `json:"fetchLatestHotkey"`
 	DownloadLatestHotkey string `json:"downloadLatestHotkey"`
@@ -159,6 +160,7 @@ func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
 		PanelAddress:         payload.PanelAddress,
 		OpenPanelOnLaunch:    payload.OpenPanelOnLaunch,
 		DownloadDir:          payload.DownloadDir,
+		ShellMenuEnabled:     payload.ShellMenuEnabled,
 		SendClipboardHotkey:  payload.SendClipboardHotkey,
 		FetchLatestHotkey:    payload.FetchLatestHotkey,
 		DownloadLatestHotkey: payload.DownloadLatestHotkey,
@@ -300,6 +302,7 @@ func toConfigView(cfg config.Config) configView {
 		PanelAddress:         cfg.PanelAddress,
 		OpenPanelOnLaunch:    cfg.OpenPanelOnLaunch,
 		DownloadDir:          cfg.DownloadDir,
+		ShellMenuEnabled:     cfg.ShellMenuEnabled,
 		SendClipboardHotkey:  cfg.SendClipboardHotkey,
 		FetchLatestHotkey:    cfg.FetchLatestHotkey,
 		DownloadLatestHotkey: cfg.DownloadLatestHotkey,
