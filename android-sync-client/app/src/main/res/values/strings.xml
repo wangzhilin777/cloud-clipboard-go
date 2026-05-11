@@ -103,7 +103,16 @@
     <string name="payload_ready_text">%1$s 已可在接收页中打开</string>
     <string name="payload_confirm_download">确认接收</string>
     <string name="floating_confirm_button">确认下载</string>
+    <string name="floating_open_button">打开接收页</string>
     <string name="floating_ignore_button">稍后处理</string>
+    <string name="floating_ignore_all_button">收起全部</string>
+    <string name="floating_queue_single">待接收内容</string>
+    <string name="floating_queue_multiple">待接收内容 · 还有 %1$d 条</string>
+    <string name="floating_countdown_format">%1$d 秒后自动收起</string>
+    <string name="floating_meta_format">%1$s · %2$s</string>
+    <string name="floating_source_format">来自 %1$s · 房间 %2$s</string>
+    <string name="floating_source_unknown_device">远端设备</string>
+    <string name="floating_source_default_room">默认房间</string>
     <string name="payload_kind_image">图片</string>
     <string name="payload_kind_file">文件</string>
     <string name="payload_kind_unknown">内容</string>

@@ -9,15 +9,17 @@ import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import android.view.Gravity
+import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
 import android.widget.Button
-import android.widget.LinearLayout
 import android.widget.TextView
 import com.transparentlc.cloudclipboardsync.sync.PayloadCacheStore
+import com.transparentlc.cloudclipboardsync.sync.PayloadEntry
 import com.transparentlc.cloudclipboardsync.sync.SettingsStore
 import com.transparentlc.cloudclipboardsync.sync.SyncService
+import java.util.Locale
 import kotlin.math.roundToInt
 
 class FloatingConfirmService : Service() {
@@ -28,6 +30,8 @@ class FloatingConfirmService : Service() {
     private var windowManager: WindowManager? = null
     private var layoutParams: WindowManager.LayoutParams? = null
     private val hideRunnable = Runnable { dismissCurrent(showNext = true) }
+    private var countdownRunnable: Runnable? = null
+    private var countdownTargetAt = 0L
     private var alertMode = false
 
     override fun onCreate() {
@@ -73,56 +77,57 @@ class FloatingConfirmService : Service() {
             val nextId = pendingPayloadIds.removeFirst()
             val entry = PayloadCacheStore.get(this, nextId) ?: continue
             currentPayloadId = nextId
-            showOverlay(entry.title, "${describeKind(entry.kind)} · ${entry.size.sizeLabel()}", nextId)
+            showOverlay(entry)
             return
         }
         stopSelf()
     }
 
-    private fun showOverlay(title: String, meta: String, payloadId: String) {
+    private fun showOverlay(entry: PayloadEntry) {
         handler.removeCallbacks(hideRunnable)
+        countdownRunnable?.let(handler::removeCallbacks)
         overlayView?.let { windowManager?.removeViewImmediate(it) }
 
         val config = SettingsStore.load(this)
-        val root = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setBackgroundResource(android.R.drawable.dialog_holo_light_frame)
-            setPadding(dp(14), dp(14), dp(14), dp(14))
-        }
-        val titleView = TextView(this).apply {
-            text = title
-            textSize = 16f
-        }
-        val metaView = TextView(this).apply {
-            text = meta
-            textSize = 12f
-        }
-        val buttonRow = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-        }
-        val confirmButton = Button(this).apply {
+        val root = LayoutInflater.from(this).inflate(R.layout.view_floating_confirm, null)
+        root.findViewById<TextView>(R.id.floatingBadgeText).text = pendingBadgeText()
+        root.findViewById<TextView>(R.id.floatingTitleText).text = entry.title
+        root.findViewById<TextView>(R.id.floatingMetaText).text = getString(
+            R.string.floating_meta_format,
+            describeKind(entry.kind),
+            entry.size.sizeLabel(),
+        )
+        root.findViewById<TextView>(R.id.floatingSourceText).text = getString(
+            R.string.floating_source_format,
+            entry.sourceDeviceId.ifBlank { getString(R.string.floating_source_unknown_device) },
+            entry.room.ifBlank { getString(R.string.floating_source_default_room) },
+        )
+        root.findViewById<Button>(R.id.floatingConfirmButton).apply {
             text = getString(R.string.floating_confirm_button)
             setOnClickListener {
-                SyncService.confirmPayload(this@FloatingConfirmService, payloadId)
-                startActivity(
-                    Intent(this@FloatingConfirmService, ReceivedPayloadActivity::class.java)
-                        .putExtra(SyncService.EXTRA_PAYLOAD_ID, payloadId)
-                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
-                )
+                SyncService.confirmPayload(this@FloatingConfirmService, entry.payloadId)
+                openReceivedPage(entry.payloadId)
                 dismissCurrent(showNext = true)
             }
         }
-        val ignoreButton = Button(this).apply {
+        root.findViewById<Button>(R.id.floatingOpenButton).apply {
+            text = getString(R.string.floating_open_button)
+            setOnClickListener {
+                openReceivedPage(entry.payloadId)
+                dismissCurrent(showNext = true)
+            }
+        }
+        root.findViewById<Button>(R.id.floatingIgnoreButton).apply {
             text = getString(R.string.floating_ignore_button)
             setOnClickListener { dismissCurrent(showNext = true) }
         }
-        buttonRow.addView(confirmButton, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-        buttonRow.addView(ignoreButton, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
-            marginStart = dp(10)
-        })
-        root.addView(titleView)
-        root.addView(metaView)
-        root.addView(buttonRow)
+        root.findViewById<Button>(R.id.floatingIgnoreAllButton).apply {
+            text = getString(R.string.floating_ignore_all_button)
+            setOnClickListener {
+                pendingPayloadIds.clear()
+                dismissCurrent(showNext = false)
+            }
+        }
 
         val params = WindowManager.LayoutParams(
             dp(config.floatingWidthDp),
@@ -145,35 +150,29 @@ class FloatingConfirmService : Service() {
         layoutParams = params
         overlayView = root
         windowManager?.addView(root, params)
-        handler.postDelayed(hideRunnable, config.floatingShowSeconds.coerceAtLeast(5) * 1000L)
+        applyClampedPosition(root, params, save = false)
+        bindCountdown(root.findViewById(R.id.floatingCountdownText), config.floatingShowSeconds.coerceAtLeast(5))
     }
 
     private fun showAlertOverlay(title: String, message: String) {
         alertMode = true
         handler.removeCallbacks(hideRunnable)
+        countdownRunnable?.let(handler::removeCallbacks)
         overlayView?.let { windowManager?.removeViewImmediate(it) }
 
         val config = SettingsStore.load(this)
-        val root = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setBackgroundResource(android.R.drawable.dialog_holo_light_frame)
-            setPadding(dp(14), dp(14), dp(14), dp(14))
-        }
-        val titleView = TextView(this).apply {
-            text = title.ifBlank { getString(R.string.reconnect_failure_alert_title) }
-            textSize = 16f
-        }
-        val messageView = TextView(this).apply {
-            text = message
-            textSize = 13f
-        }
-        val closeButton = Button(this).apply {
+        val root = LayoutInflater.from(this).inflate(R.layout.view_floating_confirm, null)
+        root.findViewById<TextView>(R.id.floatingBadgeText).text = getString(R.string.reconnect_failure_alert_title)
+        root.findViewById<TextView>(R.id.floatingTitleText).text = title.ifBlank { getString(R.string.reconnect_failure_alert_title) }
+        root.findViewById<TextView>(R.id.floatingMetaText).text = message
+        root.findViewById<TextView>(R.id.floatingSourceText).visibility = View.GONE
+        root.findViewById<Button>(R.id.floatingConfirmButton).apply {
             text = getString(R.string.reconnect_failure_alert_button)
             setOnClickListener { dismissCurrent(showNext = false) }
         }
-        root.addView(titleView)
-        root.addView(messageView)
-        root.addView(closeButton)
+        root.findViewById<Button>(R.id.floatingOpenButton).visibility = View.GONE
+        root.findViewById<Button>(R.id.floatingIgnoreButton).visibility = View.GONE
+        root.findViewById<Button>(R.id.floatingIgnoreAllButton).visibility = View.GONE
 
         val params = WindowManager.LayoutParams(
             dp(config.floatingWidthDp),
@@ -196,7 +195,8 @@ class FloatingConfirmService : Service() {
         layoutParams = params
         overlayView = root
         windowManager?.addView(root, params)
-        handler.postDelayed(hideRunnable, config.floatingShowSeconds.coerceAtLeast(5) * 1000L)
+        applyClampedPosition(root, params, save = false)
+        bindCountdown(root.findViewById(R.id.floatingCountdownText), config.floatingShowSeconds.coerceAtLeast(5))
     }
 
     private fun attachDragSupport(view: View, params: WindowManager.LayoutParams) {
@@ -216,11 +216,11 @@ class FloatingConfirmService : Service() {
                 MotionEvent.ACTION_MOVE -> {
                     params.x = startX + (event.rawX - touchX).roundToInt()
                     params.y = startY + (event.rawY - touchY).roundToInt()
-                    windowManager?.updateViewLayout(view, params)
+                    applyClampedPosition(view, params, save = false)
                     true
                 }
                 MotionEvent.ACTION_UP -> {
-                    SettingsStore.updateFloatingPosition(this, params.x, params.y)
+                    applyClampedPosition(view, params, save = true)
                     false
                 }
                 else -> false
@@ -228,8 +228,54 @@ class FloatingConfirmService : Service() {
         }
     }
 
+    private fun applyClampedPosition(view: View, params: WindowManager.LayoutParams, save: Boolean) {
+        val metrics = resources.displayMetrics
+        val maxX = (metrics.widthPixels - dp(160)).coerceAtLeast(0)
+        val maxY = (metrics.heightPixels - dp(96)).coerceAtLeast(0)
+        params.x = params.x.coerceIn(0, maxX)
+        params.y = params.y.coerceIn(0, maxY)
+        windowManager?.updateViewLayout(view, params)
+        if (save) {
+            SettingsStore.updateFloatingPosition(this, params.x, params.y)
+        }
+    }
+
+    private fun bindCountdown(countdownView: TextView, seconds: Int) {
+        countdownTargetAt = System.currentTimeMillis() + seconds * 1000L
+        val runnable = object : Runnable {
+            override fun run() {
+                val remaining = ((countdownTargetAt - System.currentTimeMillis()) / 1000.0).toInt().coerceAtLeast(0)
+                countdownView.text = getString(R.string.floating_countdown_format, remaining)
+                if (remaining <= 0) {
+                    dismissCurrent(showNext = true)
+                } else {
+                    handler.postDelayed(this, 1000L)
+                }
+            }
+        }
+        countdownRunnable = runnable
+        runnable.run()
+        handler.postDelayed(hideRunnable, seconds * 1000L)
+    }
+
+    private fun pendingBadgeText(): String = if (pendingPayloadIds.isEmpty()) {
+        getString(R.string.floating_queue_single)
+    } else {
+        getString(R.string.floating_queue_multiple, pendingPayloadIds.size)
+    }
+
+    private fun openReceivedPage(payloadId: String) {
+        startActivity(
+            Intent(this, ReceivedPayloadActivity::class.java)
+                .putExtra(SyncService.EXTRA_PAYLOAD_ID, payloadId)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+        )
+    }
+
     private fun dismissCurrent(showNext: Boolean) {
         handler.removeCallbacks(hideRunnable)
+        countdownRunnable?.let(handler::removeCallbacks)
+        countdownRunnable = null
         overlayView?.let { windowManager?.removeViewImmediate(it) }
         overlayView = null
         currentPayloadId = null
@@ -247,7 +293,18 @@ class FloatingConfirmService : Service() {
         else -> getString(R.string.payload_kind_unknown)
     }
 
-    private fun Long.sizeLabel(): String = if (this > 0) "${this} B" else getString(R.string.payload_size_unknown)
+    private fun Long.sizeLabel(): String {
+        if (this <= 0) {
+            return getString(R.string.payload_size_unknown)
+        }
+        val value = this.toDouble()
+        return when {
+            value >= 1024 * 1024 * 1024 -> String.format(Locale.getDefault(), "%.1f GB", value / (1024 * 1024 * 1024))
+            value >= 1024 * 1024 -> String.format(Locale.getDefault(), "%.1f MB", value / (1024 * 1024))
+            value >= 1024 -> String.format(Locale.getDefault(), "%.1f KB", value / 1024)
+            else -> "${this} B"
+        }
+    }
 
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density).roundToInt()
 
