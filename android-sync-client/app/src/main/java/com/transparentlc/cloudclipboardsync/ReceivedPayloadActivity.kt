@@ -24,6 +24,7 @@ import android.content.Context
 class ReceivedPayloadActivity : AppCompatActivity() {
     private lateinit var titleText: TextView
     private lateinit var metaText: TextView
+    private lateinit var originText: TextView
     private lateinit var expiryText: TextView
     private lateinit var statusText: TextView
     private lateinit var indexText: TextView
@@ -66,6 +67,7 @@ class ReceivedPayloadActivity : AppCompatActivity() {
 
         titleText = findViewById(R.id.payloadTitleText)
         metaText = findViewById(R.id.payloadMetaText)
+        originText = findViewById(R.id.payloadOriginText)
         expiryText = findViewById(R.id.payloadExpiryText)
         statusText = findViewById(R.id.payloadStatusText)
         indexText = findViewById(R.id.payloadIndexText)
@@ -149,6 +151,7 @@ class ReceivedPayloadActivity : AppCompatActivity() {
         if (entry == null) {
             titleText.text = getString(R.string.payload_empty_title)
             metaText.text = getString(R.string.payload_empty_text)
+            originText.text = ""
             expiryText.text = getString(R.string.payload_cache_empty_hint)
             statusText.text = getString(R.string.payload_empty_text)
             indexText.text = getString(R.string.payload_index_format, 0, 0)
@@ -165,6 +168,11 @@ class ReceivedPayloadActivity : AppCompatActivity() {
         currentPayloadId = entry.payloadId
         titleText.text = entry.title
         metaText.text = buildMeta(entry)
+        originText.text = getString(
+            R.string.payload_origin_format,
+            entry.sourceDeviceId.ifBlank { "-" },
+            entry.room.ifBlank { "默认房间" },
+        )
         expiryText.text = getString(
             R.string.payload_cache_expires_format,
             DateFormat.getDateTimeInstance().format(entry.expiresAt),
@@ -177,7 +185,13 @@ class ReceivedPayloadActivity : AppCompatActivity() {
         openButton.isEnabled = entry.isDownloaded
         shareButton.isEnabled = entry.isDownloaded
         saveButton.isEnabled = entry.isDownloaded
-        markProcessedButton.isEnabled = true
+        val processed = entry.processedAt != null
+        markProcessedButton.isEnabled = !processed
+        markProcessedButton.text = if (processed) {
+            getString(R.string.payload_mark_processed_done_button)
+        } else {
+            getString(R.string.payload_mark_processed_button)
+        }
         previousButton.isEnabled = currentIndex > 0
         nextButton.isEnabled = currentIndex < entries.lastIndex
 

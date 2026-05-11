@@ -105,6 +105,7 @@
     <string name="payload_preview">内容预览</string>
     <string name="payload_size_unknown">大小未知</string>
     <string name="payload_meta_format">%1$s · %2$s · %3$s · %4$s</string>
+    <string name="payload_origin_format">来源设备：%1$s\n来源房间：%2$s</string>
     <string name="payload_cache_expires_format">缓存保留至：%1$s</string>
     <string name="payload_cache_empty_hint">本地缓存会按设置的保留时长自动清理。</string>
     <string name="payload_index_format">第 %1$d / %2$d 条</string>
@@ -114,4 +115,5 @@
     <string name="payload_status_pending">待处理</string>
     <string name="payload_status_cached">已缓存</string>
     <string name="payload_status_not_downloaded">未下载</string>
+    <string name="payload_mark_processed_done_button">已标记为已处理</string>
 </resources>
