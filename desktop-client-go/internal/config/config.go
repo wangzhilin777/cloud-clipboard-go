@@ -19,6 +19,7 @@ type Config struct {
 	DeviceID     string        `json:"deviceId"`
 	PollInterval time.Duration `json:"pollInterval"`
 	NoticeMode   string        `json:"noticeMode"`
+	PanelAddress string        `json:"panelAddress"`
 }
 
 func Default() Config {
@@ -34,6 +35,7 @@ func Default() Config {
 		DeviceID:     uuid.NewString(),
 		PollInterval: 800 * time.Millisecond,
 		NoticeMode:   "popup",
+		PanelAddress: "127.0.0.1:9530",
 	}
 }
 
@@ -94,6 +96,14 @@ func (c *Config) normalize() {
 		c.PollInterval = 3 * time.Second
 	}
 	c.NoticeMode = normalizeNoticeMode(c.NoticeMode)
+	c.PanelAddress = strings.TrimSpace(c.PanelAddress)
+	if c.PanelAddress == "" {
+		c.PanelAddress = def.PanelAddress
+	}
+}
+
+func (c *Config) Normalize() {
+	c.normalize()
 }
 
 func normalizeNoticeMode(value string) string {

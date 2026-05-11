@@ -2,6 +2,7 @@ package syncclient
 
 import (
 	"bytes"
+	"compress/gzip"
 	"context"
 	"encoding/json"
 	"errors"
@@ -171,7 +172,7 @@ func (c *Client) fetchServerURL(ctx context.Context) (string, error) {
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(io.LimitReader(resp.Body, 2048))
+		body, _ := readResponsePreview(resp)
 		return "", fmt.Errorf("获取同步入口失败: HTTP %d %s", resp.StatusCode, strings.TrimSpace(string(body)))
 	}
 	var payload struct {
@@ -383,4 +384,17 @@ func (c *Client) connOrNil() *websocket.Conn {
 func (c *Client) readClipboardText() string {
 	data := clipboard.Read(clipboard.FmtText)
 	return strings.TrimSpace(string(bytes.TrimSpace(data)))
+}
+
+func readResponsePreview(resp *http.Response) ([]byte, error) {
+	reader := io.Reader(resp.Body)
+	if strings.EqualFold(strings.TrimSpace(resp.Header.Get("Content-Encoding")), "gzip") {
+		gzReader, err := gzip.NewReader(resp.Body)
+		if err != nil {
+			return nil, err
+		}
+		defer gzReader.Close()
+		reader = gzReader
+	}
+	return io.ReadAll(io.LimitReader(reader, 2048))
 }

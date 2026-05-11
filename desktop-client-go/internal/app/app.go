@@ -5,18 +5,24 @@ import (
 	"log"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/jonnyan404/cloud-clipboard-go/desktop-client-go/internal/config"
+	"github.com/jonnyan404/cloud-clipboard-go/desktop-client-go/internal/panel"
 	"github.com/jonnyan404/cloud-clipboard-go/desktop-client-go/internal/syncclient"
 )
 
 type App struct {
-	logger    *log.Logger
-	cfg       config.Config
-	configDir string
-	state     *StateStore
-	notifier  Notifier
+	logger     *log.Logger
+	cfg        config.Config
+	configPath string
+	configDir  string
+	state      *StateStore
+	notifier   Notifier
+	panel      *panel.Server
+	reloadCh   chan struct{}
+	mu         sync.Mutex
 }
 
 func New(logger *log.Logger, cfg config.Config, configPath string) *App {
@@ -25,19 +31,57 @@ func New(logger *log.Logger, cfg config.Config, configPath string) *App {
 		configDir = "."
 	}
 	return &App{
-		logger:    logger,
-		cfg:       cfg,
-		configDir: configDir,
-		state:     NewStateStore(filepath.Join(configDir, "state.json")),
-		notifier:  buildNotifier(cfg, logger),
+		logger:     logger,
+		cfg:        cfg,
+		configPath: configPath,
+		configDir:  configDir,
+		state:      NewStateStore(filepath.Join(configDir, "state.json")),
+		notifier:   buildNotifier(cfg, logger),
+		reloadCh:   make(chan struct{}, 1),
 	}
 }
 
 func (a *App) Run(ctx context.Context) error {
-	client := syncclient.New(a.cfg, a.logger, a)
 	a.logger.Printf("桌面同步客户端启动，服务端: %s 房间: %s 设备: %s", a.cfg.ServerBase, a.cfg.Room, a.cfg.DeviceName)
 	_ = a.state.Save(StateSnapshot{Status: "starting"})
-	return client.Run(ctx)
+
+	panelServer := panel.New(a.cfg.PanelAddress, a)
+	a.panel = panelServer
+	if err := panelServer.Start(); err != nil {
+		return err
+	}
+	defer func() {
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		_ = panelServer.Shutdown(shutdownCtx)
+	}()
+	a.logger.Printf("本地控制面板已启动: %s", panelServer.URL())
+
+	for {
+		client := syncclient.New(a.currentConfig(), a.logger, a)
+		sessionCtx, cancel := context.WithCancel(ctx)
+		errCh := make(chan error, 1)
+		go func() {
+			errCh <- client.Run(sessionCtx)
+		}()
+
+		select {
+		case <-ctx.Done():
+			cancel()
+			<-errCh
+			return ctx.Err()
+		case <-a.reloadCh:
+			a.logger.Printf("检测到配置更新，正在重连同步客户端")
+			cancel()
+			<-errCh
+		case err := <-errCh:
+			cancel()
+			if ctx.Err() != nil {
+				return ctx.Err()
+			}
+			return err
+		}
+	}
 }
 
 func buildNotifier(cfg config.Config, logger *log.Logger) Notifier {
@@ -110,4 +154,43 @@ func (a *App) OnError(err error) {
 		Status:    "error",
 		LastError: err.Error(),
 	})
+}
+
+func (a *App) Status() panel.StatusView {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return panel.StatusView{
+		Config: a.cfg,
+		State:  panel.StateSnapshot(a.state.Current()),
+	}
+}
+
+func (a *App) UpdateConfig(cfg config.Config) error {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	cfg.DeviceID = a.cfg.DeviceID
+	cfg.Normalize()
+	if err := config.Save(a.configPath, cfg); err != nil {
+		return err
+	}
+	a.cfg = cfg
+	a.notifier = buildNotifier(cfg, a.logger)
+	select {
+	case a.reloadCh <- struct{}{}:
+	default:
+	}
+	return nil
+}
+
+func (a *App) RequestReconnect() {
+	select {
+	case a.reloadCh <- struct{}{}:
+	default:
+	}
+}
+
+func (a *App) currentConfig() config.Config {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.cfg
 }

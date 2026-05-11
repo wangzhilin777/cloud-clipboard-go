@@ -1,0 +1,317 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cloud Clipboard Desktop</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f4f7fb;
+      --panel: #ffffff;
+      --text: #16324f;
+      --muted: #6b7a90;
+      --line: #d8e1ec;
+      --accent: #2d6cdf;
+      --good: #1f8f5f;
+      --warn: #cc7a00;
+      --bad: #d64545;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Microsoft YaHei UI", "Segoe UI", sans-serif;
+      background: linear-gradient(180deg, #eef4ff 0%, var(--bg) 100%);
+      color: var(--text);
+    }
+    .wrap {
+      max-width: 920px;
+      margin: 0 auto;
+      padding: 28px 20px 40px;
+    }
+    .hero {
+      margin-bottom: 18px;
+      padding: 24px;
+      border-radius: 20px;
+      background: linear-gradient(135deg, #183a70 0%, #2d6cdf 60%, #80b3ff 100%);
+      color: #fff;
+      box-shadow: 0 16px 40px rgba(20, 55, 110, 0.22);
+    }
+    .hero h1 {
+      margin: 0 0 6px;
+      font-size: 28px;
+    }
+    .hero p {
+      margin: 0;
+      opacity: 0.92;
+    }
+    .grid {
+      display: grid;
+      gap: 16px;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      margin-bottom: 16px;
+    }
+    .card, .form-card {
+      background: var(--panel);
+      border: 1px solid rgba(216, 225, 236, 0.9);
+      border-radius: 18px;
+      box-shadow: 0 10px 24px rgba(42, 66, 112, 0.08);
+    }
+    .card {
+      padding: 18px;
+    }
+    .label {
+      display: block;
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+    .value {
+      font-size: 18px;
+      font-weight: 700;
+      word-break: break-all;
+    }
+    .status-connected { color: var(--good); }
+    .status-pending { color: var(--warn); }
+    .status-error { color: var(--bad); }
+    .form-card {
+      padding: 22px;
+    }
+    .form-title {
+      margin: 0 0 16px;
+      font-size: 20px;
+    }
+    .form-grid {
+      display: grid;
+      gap: 14px 16px;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    }
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .field.full {
+      grid-column: 1 / -1;
+    }
+    input, select, button {
+      font: inherit;
+    }
+    input, select {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 10px 12px;
+      background: #fbfdff;
+      color: var(--text);
+    }
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 18px;
+    }
+    button {
+      border: 0;
+      border-radius: 12px;
+      padding: 11px 16px;
+      cursor: pointer;
+      transition: transform 0.15s ease, opacity 0.15s ease;
+    }
+    button:hover {
+      transform: translateY(-1px);
+    }
+    .primary {
+      background: var(--accent);
+      color: #fff;
+    }
+    .secondary {
+      background: #eaf1ff;
+      color: var(--accent);
+    }
+    .message {
+      min-height: 24px;
+      margin-top: 12px;
+      color: var(--muted);
+    }
+    .footer {
+      margin-top: 20px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="hero">
+      <h1>Cloud Clipboard Desktop</h1>
+      <p>本地控制面板已经接入，后续桌面端配置与状态都从这里统一收口。</p>
+    </section>
+
+    <section class="grid">
+      <article class="card">
+        <span class="label">连接状态</span>
+        <div id="statusText" class="value">加载中</div>
+      </article>
+      <article class="card">
+        <span class="label">设备名称</span>
+        <div id="deviceNameText" class="value">-</div>
+      </article>
+      <article class="card">
+        <span class="label">最近远端文件通知</span>
+        <div id="payloadText" class="value">-</div>
+      </article>
+      <article class="card">
+        <span class="label">最近错误</span>
+        <div id="errorText" class="value">-</div>
+      </article>
+    </section>
+
+    <section class="form-card">
+      <h2 class="form-title">同步配置</h2>
+      <div class="form-grid">
+        <label class="field full">
+          <span class="label">服务端地址</span>
+          <input id="serverBase" placeholder="http://192.168.31.136:9501">
+        </label>
+        <label class="field">
+          <span class="label">房间名</span>
+          <input id="room" placeholder="default">
+        </label>
+        <label class="field">
+          <span class="label">房间密码</span>
+          <input id="roomPassword" type="password" placeholder="room password">
+        </label>
+        <label class="field">
+          <span class="label">设备名称</span>
+          <input id="deviceName" placeholder="Desktop">
+        </label>
+        <label class="field">
+          <span class="label">轮询间隔（毫秒）</span>
+          <input id="pollIntervalMs" type="number" min="200" max="3000">
+        </label>
+        <label class="field">
+          <span class="label">通知模式</span>
+          <select id="noticeMode">
+            <option value="popup">系统通知</option>
+            <option value="log">仅日志</option>
+            <option value="off">关闭通知</option>
+          </select>
+        </label>
+        <label class="field full">
+          <span class="label">面板监听地址</span>
+          <input id="panelAddress" placeholder="127.0.0.1:9530">
+        </label>
+      </div>
+      <div class="actions">
+        <button class="primary" id="saveButton" type="button">保存并重连</button>
+        <button class="secondary" id="reconnectButton" type="button">仅重连</button>
+      </div>
+      <div class="message" id="message"></div>
+      <div class="footer">配置保存后会立即触发桌面客户端重连。若修改了面板监听地址，本页面需要手动用新地址重新打开。</div>
+    </section>
+  </div>
+
+  <script>
+    const fields = {
+      serverBase: document.getElementById('serverBase'),
+      room: document.getElementById('room'),
+      roomPassword: document.getElementById('roomPassword'),
+      deviceName: document.getElementById('deviceName'),
+      pollIntervalMs: document.getElementById('pollIntervalMs'),
+      noticeMode: document.getElementById('noticeMode'),
+      panelAddress: document.getElementById('panelAddress'),
+    };
+    const statusText = document.getElementById('statusText');
+    const deviceNameText = document.getElementById('deviceNameText');
+    const payloadText = document.getElementById('payloadText');
+    const errorText = document.getElementById('errorText');
+    const message = document.getElementById('message');
+    let refreshTimer = null;
+
+    function statusClass(status) {
+      const normalized = String(status || '').toLowerCase();
+      if (normalized === 'trusted' || normalized === 'connected') return 'status-connected';
+      if (normalized === 'pending' || normalized === 'connecting' || normalized === 'starting') return 'status-pending';
+      if (normalized === 'error') return 'status-error';
+      return '';
+    }
+
+    function fillConfig(cfg) {
+      Object.keys(fields).forEach((key) => {
+        if (cfg[key] !== undefined && cfg[key] !== null) {
+          fields[key].value = cfg[key];
+        }
+      });
+      deviceNameText.textContent = cfg.deviceName || '-';
+    }
+
+    function fillState(state) {
+      const status = state.status || 'idle';
+      statusText.textContent = state.connected ? `${status} / 已连接` : status;
+      statusText.className = `value ${statusClass(status)}`;
+      payloadText.textContent = state.lastPayloadTitle ? `${state.lastPayloadKind || 'file'} / ${state.lastPayloadTitle}` : '-';
+      errorText.textContent = state.lastError || '-';
+    }
+
+    async function loadStatus(silent = false) {
+      try {
+        const resp = await fetch('/api/status', { cache: 'no-store' });
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const data = await resp.json();
+        fillConfig(data.config || {});
+        fillState(data.state || {});
+        if (!silent) message.textContent = '状态已刷新';
+      } catch (err) {
+        message.textContent = `状态读取失败：${err.message}`;
+      }
+    }
+
+    async function saveConfig() {
+      message.textContent = '正在保存配置...';
+      const payload = {
+        serverBase: fields.serverBase.value,
+        room: fields.room.value,
+        roomPassword: fields.roomPassword.value,
+        deviceName: fields.deviceName.value,
+        pollIntervalMs: Number(fields.pollIntervalMs.value || 0),
+        noticeMode: fields.noticeMode.value,
+        panelAddress: fields.panelAddress.value,
+      };
+      try {
+        const resp = await fetch('/api/config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        const text = await resp.text();
+        if (!resp.ok) throw new Error(text || `HTTP ${resp.status}`);
+        const data = JSON.parse(text);
+        fillConfig(data.config || {});
+        fillState(data.state || {});
+        message.textContent = '配置已保存，客户端正在重连。';
+      } catch (err) {
+        message.textContent = `保存失败：${err.message}`;
+      }
+    }
+
+    async function reconnect() {
+      message.textContent = '正在触发重连...';
+      try {
+        const resp = await fetch('/api/reconnect', { method: 'POST' });
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        message.textContent = '已触发重连。';
+      } catch (err) {
+        message.textContent = `重连失败：${err.message}`;
+      }
+    }
+
+    document.getElementById('saveButton').addEventListener('click', saveConfig);
+    document.getElementById('reconnectButton').addEventListener('click', reconnect);
+
+    loadStatus();
+    refreshTimer = setInterval(() => loadStatus(true), 2000);
+    window.addEventListener('beforeunload', () => clearInterval(refreshTimer));
+  </script>
+</body>
+</html>

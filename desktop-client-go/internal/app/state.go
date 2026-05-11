@@ -9,8 +9,9 @@ import (
 )
 
 type StateStore struct {
-	path string
-	mu   sync.Mutex
+	path    string
+	mu      sync.Mutex
+	current StateSnapshot
 }
 
 type StateSnapshot struct {
@@ -26,13 +27,17 @@ type StateSnapshot struct {
 }
 
 func NewStateStore(path string) *StateStore {
-	return &StateStore{path: path}
+	return &StateStore{
+		path:    path,
+		current: StateSnapshot{Status: "idle"},
+	}
 }
 
 func (s *StateStore) Save(snapshot StateSnapshot) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	snapshot.LastUpdatedAt = time.Now().UnixMilli()
+	s.current = snapshot
 	if err := os.MkdirAll(filepath.Dir(s.path), 0o755); err != nil {
 		return err
 	}
@@ -41,4 +46,10 @@ func (s *StateStore) Save(snapshot StateSnapshot) error {
 		return err
 	}
 	return os.WriteFile(s.path, data, 0o644)
+}
+
+func (s *StateStore) Current() StateSnapshot {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.current
 }
