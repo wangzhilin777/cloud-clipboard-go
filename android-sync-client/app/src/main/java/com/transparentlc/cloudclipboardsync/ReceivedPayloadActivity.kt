@@ -24,6 +24,7 @@ import android.content.Context
 class ReceivedPayloadActivity : AppCompatActivity() {
     private lateinit var titleText: TextView
     private lateinit var metaText: TextView
+    private lateinit var expiryText: TextView
     private lateinit var statusText: TextView
     private lateinit var indexText: TextView
     private lateinit var imagePreview: ImageView
@@ -65,6 +66,7 @@ class ReceivedPayloadActivity : AppCompatActivity() {
 
         titleText = findViewById(R.id.payloadTitleText)
         metaText = findViewById(R.id.payloadMetaText)
+        expiryText = findViewById(R.id.payloadExpiryText)
         statusText = findViewById(R.id.payloadStatusText)
         indexText = findViewById(R.id.payloadIndexText)
         imagePreview = findViewById(R.id.payloadImagePreview)
@@ -147,6 +149,7 @@ class ReceivedPayloadActivity : AppCompatActivity() {
         if (entry == null) {
             titleText.text = getString(R.string.payload_empty_title)
             metaText.text = getString(R.string.payload_empty_text)
+            expiryText.text = getString(R.string.payload_cache_empty_hint)
             statusText.text = getString(R.string.payload_empty_text)
             indexText.text = getString(R.string.payload_index_format, 0, 0)
             imagePreview.visibility = View.GONE
@@ -162,6 +165,10 @@ class ReceivedPayloadActivity : AppCompatActivity() {
         currentPayloadId = entry.payloadId
         titleText.text = entry.title
         metaText.text = buildMeta(entry)
+        expiryText.text = getString(
+            R.string.payload_cache_expires_format,
+            DateFormat.getDateTimeInstance().format(entry.expiresAt),
+        )
         statusText.text = buildStatus(entry)
         val currentIndex = entries.indexOfFirst { it.payloadId == entry.payloadId }.takeIf { it >= 0 } ?: 0
         indexText.text = getString(R.string.payload_index_format, currentIndex + 1, entries.size.coerceAtLeast(1))

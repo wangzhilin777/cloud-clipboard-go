@@ -40,13 +40,21 @@
                 android:textColor="@android:color/white"
                 android:textStyle="bold" />
 
+                <TextView
+                    android:id="@+id/payloadMetaText"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:textAppearance="@style/TextAppearance.MaterialComponents.Body2"
+                    android:textColor="#E8F1FF" />
+
             <TextView
-                android:id="@+id/payloadMetaText"
+                android:id="@+id/payloadExpiryText"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="10dp"
-                android:textAppearance="@style/TextAppearance.MaterialComponents.Body2"
-                android:textColor="#E8F1FF" />
+                android:textAppearance="@style/TextAppearance.MaterialComponents.Caption"
+                android:textColor="#D4E5FF" />
 
             <TextView
                 android:id="@+id/payloadStatusText"
