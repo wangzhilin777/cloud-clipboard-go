@@ -78,6 +78,7 @@ type ClipboardServer struct {
 	roomStats         map[string]*RoomStat `json:"-"` // 房间统计信息，不序列化
 	roomStatsMutex    sync.RWMutex         `json:"-"` // 房间统计读写锁
 	roomCleanupTicker *time.Ticker         `json:"-"` // 房间清理定时器
+	syncHub           *SyncHub             `json:"-"`
 }
 
 // file item in File[]
@@ -157,4 +158,39 @@ type RoomStat struct {
 	MessageCount int             `json:"messageCount"`
 	LastActive   int64           `json:"lastActive"`
 	DeviceIDs    map[string]bool `json:"-"` // 当前连接的设备ID集合
+}
+
+type SyncDevice struct {
+	DeviceID   string                 `json:"deviceId"`
+	Name       string                 `json:"name"`
+	Room       string                 `json:"room"`
+	Platform   string                 `json:"platform"`
+	ClientType string                 `json:"clientType"`
+	Trusted    bool                   `json:"trusted"`
+	CreatedAt  int64                  `json:"createdAt"`
+	LastSeenAt int64                  `json:"lastSeenAt"`
+	Status     string                 `json:"status"`
+	Meta       map[string]interface{} `json:"meta,omitempty"`
+}
+
+type SyncMessageRecord struct {
+	MessageID      string `json:"messageId"`
+	SourceDeviceID string `json:"sourceDeviceId"`
+	Room           string `json:"room"`
+	Mime           string `json:"mime"`
+	Text           string `json:"text"`
+	CreatedAt      int64  `json:"createdAt"`
+}
+
+type SyncPayloadNotice struct {
+	PayloadID      string `json:"payloadId"`
+	SourceDeviceID string `json:"sourceDeviceId"`
+	Room           string `json:"room"`
+	Kind           string `json:"kind"`
+	Title          string `json:"title"`
+	Mime           string `json:"mime"`
+	Size           int64  `json:"size"`
+	ActionURL      string `json:"actionUrl,omitempty"`
+	DownloadURL    string `json:"downloadUrl,omitempty"`
+	CreatedAt      int64  `json:"createdAt"`
 }

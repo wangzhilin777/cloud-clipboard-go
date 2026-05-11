@@ -138,6 +138,12 @@ func NewClipboardServer(cfg *Config) (*ClipboardServer, error) {
 		roomStatsMutex: sync.RWMutex{},
 	}
 
+	syncStatePath := filepath.Join(storageFolder, "sync-state.json")
+	s.syncHub, err = NewSyncHub(logger, syncStatePath, mqHistoryLen, cfg.Text.Limit)
+	if err != nil {
+		return nil, fmt.Errorf("初始化同步状态失败: %w", err)
+	}
+
 	if err := s.loadHistoryData(); err != nil {
 		s.logger.Printf("警告: 加载历史记录失败: %v. 将以空历史记录启动。", err)
 	}
@@ -312,7 +318,9 @@ func (s *ClipboardServer) setupRoutes() {
 
 	// HTTP 路由
 	mux.HandleFunc(prefix+"/server", s.handle_server)
+	mux.HandleFunc(prefix+"/sync/server", s.handleSyncServer)
 	mux.HandleFunc(prefix+"/push", s.handle_push)
+	mux.HandleFunc(prefix+"/sync/ws", s.handleSyncWebSocket)
 	mux.HandleFunc(prefix+"/rooms", s.handleRooms)
 	mux.HandleFunc(prefix+"/file/", s.authMiddleware(s.handle_file))
 	mux.HandleFunc(prefix+"/text", s.authMiddleware(s.handle_text))
@@ -320,6 +328,12 @@ func (s *ClipboardServer) setupRoutes() {
 	mux.HandleFunc(prefix+"/upload/chunk", s.authMiddleware(s.handle_upload))
 	mux.HandleFunc(prefix+"/upload/chunk/", s.authMiddleware(s.handle_chunk))
 	mux.HandleFunc(prefix+"/upload/finish/", s.authMiddleware(s.handle_finish))
+	mux.HandleFunc(prefix+"/api/sync/devices", s.handleSyncDevices)
+	mux.HandleFunc(prefix+"/api/sync/bootstrap", s.handleSyncBootstrap)
+	mux.HandleFunc(prefix+"/api/sync/pair/request", s.handleSyncPairRequest)
+	mux.HandleFunc(prefix+"/api/sync/pair/approve", s.handleSyncPairApprove)
+	mux.HandleFunc(prefix+"/api/sync/device/", s.handleSyncDeviceTrust)
+	mux.HandleFunc(prefix+"/api/sync/payload-notice", s.handleSyncPayloadNotice)
 	mux.HandleFunc(prefix+"/revoke/", s.handle_revoke)
 	mux.HandleFunc(prefix+"/revoke/all", s.handleClearAll)
 	mux.HandleFunc(prefix+"/content/", s.handleContent)
