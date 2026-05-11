@@ -11,6 +11,13 @@ object PayloadCacheStore {
     private const val KEY_PAYLOADS = "payloads"
     private const val CACHE_DIR = "received-payloads"
 
+    data class Summary(
+        val totalCount: Int,
+        val pendingCount: Int,
+        val downloadedCount: Int,
+        val totalSizeBytes: Long,
+    )
+
     fun list(context: Context): List<PayloadEntry> = loadEntries(context)
         .sortedByDescending { maxOf(it.downloadedAt ?: 0L, it.createdAt) }
 
@@ -114,6 +121,16 @@ object PayloadCacheStore {
             .trim()
             .ifBlank { payloadId }
         return File(dir, "${payloadId}_$safeName")
+    }
+
+    fun summary(context: Context): Summary {
+        val entries = list(context)
+        return Summary(
+            totalCount = entries.size,
+            pendingCount = entries.count { it.processedAt == null },
+            downloadedCount = entries.count { it.isDownloaded },
+            totalSizeBytes = entries.filter { it.isDownloaded }.sumOf { it.size.coerceAtLeast(0L) },
+        )
     }
 
     private fun cacheDir(context: Context): File = File(context.cacheDir, CACHE_DIR)

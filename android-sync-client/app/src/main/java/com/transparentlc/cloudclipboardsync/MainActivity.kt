@@ -53,6 +53,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var floatingLayoutSummaryText: TextView
     private lateinit var receiveOverlayBadgeText: TextView
     private lateinit var receiveOverlaySummaryText: TextView
+    private lateinit var receiveCacheSummaryText: TextView
     private lateinit var cacheRetentionInput: EditText
     private lateinit var permissionSummaryText: TextView
     private lateinit var permissionGuideText: TextView
@@ -106,6 +107,7 @@ class MainActivity : AppCompatActivity() {
         floatingLayoutSummaryText = findViewById(R.id.floatingLayoutSummaryText)
         receiveOverlayBadgeText = findViewById(R.id.receiveOverlayBadgeText)
         receiveOverlaySummaryText = findViewById(R.id.receiveOverlaySummaryText)
+        receiveCacheSummaryText = findViewById(R.id.receiveCacheSummaryText)
         cacheRetentionInput = findViewById(R.id.cacheRetentionInput)
         permissionSummaryText = findViewById(R.id.permissionSummaryText)
         permissionGuideText = findViewById(R.id.permissionGuideText)
@@ -150,6 +152,7 @@ class MainActivity : AppCompatActivity() {
         findViewById<Button>(R.id.clearCacheButton).setOnClickListener {
             PayloadCacheStore.clearAll(this)
             lastSyncText.text = getString(R.string.cache_cleared_toast)
+            refreshRuntimeHints()
             Toast.makeText(this, R.string.cache_cleared_toast, Toast.LENGTH_SHORT).show()
         }
         findViewById<Button>(R.id.resetFloatingPositionButton).setOnClickListener {
@@ -381,6 +384,7 @@ class MainActivity : AppCompatActivity() {
             !status.overlayEnabled -> getString(R.string.receive_overlay_permission_summary)
             else -> getString(R.string.receive_overlay_ready_summary)
         }
+        receiveCacheSummaryText.text = buildReceiveCacheSummary()
     }
 
     private fun handleRuntimeModeQuickAction() {
@@ -563,6 +567,24 @@ class MainActivity : AppCompatActivity() {
             return "当前常用权限都已到位：通知、悬浮窗、无障碍和电池优化都已具备。"
         }
         return steps.joinToString("\n")
+    }
+
+    private fun buildReceiveCacheSummary(): String {
+        val summary = PayloadCacheStore.summary(this)
+        return getString(
+            R.string.receive_cache_summary_format,
+            summary.totalCount,
+            summary.pendingCount,
+            summary.downloadedCount,
+            formatBytes(summary.totalSizeBytes),
+        )
+    }
+
+    private fun formatBytes(value: Long): String = when {
+        value >= 1024L * 1024L * 1024L -> getString(R.string.receive_cache_size_gb, value / (1024f * 1024f * 1024f))
+        value >= 1024L * 1024L -> getString(R.string.receive_cache_size_mb, value / (1024f * 1024f))
+        value >= 1024L -> getString(R.string.receive_cache_size_kb, value / 1024f)
+        else -> getString(R.string.receive_cache_size_bytes, value)
     }
 
     companion object {

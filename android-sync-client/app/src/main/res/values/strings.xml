@@ -49,6 +49,12 @@
     <string name="floating_position_reset_toast">悬浮位置已恢复默认</string>
     <string name="cache_retention_hint">缓存保留小时数，默认 24</string>
     <string name="cache_retention_tip">缓存会在启动 App、回前台、下载前和同步服务启动时做过期清理。</string>
+    <string name="receive_cache_summary_placeholder">正在整理当前接收内容…</string>
+    <string name="receive_cache_summary_format">当前接收 %1$d 条，其中待处理 %2$d 条，已缓存 %3$d 条，本地缓存占用 %4$s。</string>
+    <string name="receive_cache_size_bytes">%1$d B</string>
+    <string name="receive_cache_size_kb">%.1f KB</string>
+    <string name="receive_cache_size_mb">%.1f MB</string>
+    <string name="receive_cache_size_gb">%.1f GB</string>
     <string name="clear_cache_button">立即清空本地缓存</string>
     <string name="permission_section_label">权限与系统配置检查</string>
     <string name="permission_summary_placeholder">正在读取当前权限状态…</string>
