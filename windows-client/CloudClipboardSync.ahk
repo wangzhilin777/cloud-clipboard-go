@@ -61,6 +61,7 @@ global EditCopyConfirmEnabled := 1
 global EditPasteConfirmEnabled := 1
 global EditShellMenuEnabled := 1
 global EditShellMenuPersistent := 0
+global EditNoticeMode := "popup"
 global CaptureHotkeyValue := ""
 global CaptureHotkeyTarget := ""
 global PendingPayloadSignature := ""
@@ -100,14 +101,6 @@ HandleClipboardChange(Type) {
     global ApplyingRemoteClipboard, SyncPaused, HelperActive
     if (ApplyingRemoteClipboard || SyncPaused || !HelperActive)
         return
-    if (Type = 1) {
-        ClipWait, 0.2
-        text := Clipboard
-        if (text = "")
-            return
-        AppendCommand("publish", text)
-        return
-    }
     if (ClipboardContainsFiles()) {
         paths := GetClipboardFileList()
         if (paths != "") {
@@ -115,7 +108,16 @@ HandleClipboardChange(Type) {
                 RequestPayloadConfirmation(paths, "upload", "已复制文件到剪贴板")
             else
                 ExecutePayloadAction("upload", paths)
+            return
         }
+    }
+    if (Type = 1) {
+        ClipWait, 0.2
+        text := Clipboard
+        if (text = "")
+            return
+        AppendCommand("publish", text)
+        return
     }
 }
 
@@ -215,7 +217,7 @@ return
 
 SaveConfig:
     global ConfigPath, EditServerBase, EditRoom, EditRoomPassword, EditDeviceName, EditDeviceId, EditRuntimeDir
-    global EditPanelHotkey, EditSyncToggleHotkey, EditTrayIconHotkey, EditDirectSendHotkey, EditDirectPasteHotkey, EditAutoConnectEnabled, EditStartupEnabled, EditFileConfirmSeconds, EditCopyConfirmEnabled, EditPasteConfirmEnabled, EditShellMenuEnabled, EditShellMenuPersistent, LastSyncResult, HelperActive
+    global EditPanelHotkey, EditSyncToggleHotkey, EditTrayIconHotkey, EditDirectSendHotkey, EditDirectPasteHotkey, EditAutoConnectEnabled, EditStartupEnabled, EditFileConfirmSeconds, EditCopyConfirmEnabled, EditPasteConfirmEnabled, EditShellMenuEnabled, EditShellMenuPersistent, EditNoticeMode, LastSyncResult, HelperActive
     Gui, Status:Submit, NoHide
     Gui, Advanced:Submit, NoHide
     autoConnectValue := EditAutoConnectEnabled ? 1 : 0
@@ -224,6 +226,7 @@ SaveConfig:
     pasteConfirmValue := EditPasteConfirmEnabled ? 1 : 0
     shellMenuValue := EditShellMenuEnabled ? 1 : 0
     shellMenuPersistentValue := EditShellMenuPersistent ? 1 : 0
+    normalizedNoticeMode := NormalizeNoticeMode(EditNoticeMode)
     normalizedHotkey := NormalizeHotkey(EditPanelHotkey)
     normalizedSyncToggleHotkey := NormalizeHotkey(EditSyncToggleHotkey)
     normalizedTrayIconHotkey := NormalizeHotkey(EditTrayIconHotkey)
@@ -253,6 +256,7 @@ SaveConfig:
     IniWrite, %pasteConfirmValue%, %ConfigPath%, sync, pasteConfirmEnabled
     IniWrite, %shellMenuValue%, %ConfigPath%, sync, shellMenuEnabled
     IniWrite, %shellMenuPersistentValue%, %ConfigPath%, sync, shellMenuPersistent
+    IniWrite, %normalizedNoticeMode%, %ConfigPath%, sync, noticeMode
     RefreshRuntimePaths()
     RegisterPanelHotkey()
     RegisterSyncToggleHotkey()
@@ -610,6 +614,7 @@ EnsureConfig() {
     IniWrite, 1, %ConfigPath%, sync, pasteConfirmEnabled
     IniWrite, 1, %ConfigPath%, sync, shellMenuEnabled
     IniWrite, 0, %ConfigPath%, sync, shellMenuPersistent
+    IniWrite, popup, %ConfigPath%, sync, noticeMode
     IniWrite, stopped, %ConfigPath%, sync, lastDesiredRunningState
     IniWrite, 0, %ConfigPath%, sync, hasConnectedOnce
 }
@@ -660,6 +665,9 @@ MigrateConfig() {
     IniRead, ShellMenuPersistent, %ConfigPath%, sync, shellMenuPersistent, %missingValue%
     if (ShellMenuPersistent = missingValue || ShellMenuPersistent = "")
         IniWrite, 0, %ConfigPath%, sync, shellMenuPersistent
+    IniRead, NoticeMode, %ConfigPath%, sync, noticeMode, %missingValue%
+    if (NoticeMode = missingValue || NoticeMode = "")
+        IniWrite, popup, %ConfigPath%, sync, noticeMode
     IniRead, LastDesiredRunningState, %ConfigPath%, sync, lastDesiredRunningState, %missingValue%
     if (LastDesiredRunningState = missingValue || LastDesiredRunningState = "")
         IniWrite, stopped, %ConfigPath%, sync, lastDesiredRunningState
@@ -731,7 +739,7 @@ InitGui() {
 
 InitAdvancedGui() {
     global EditDeviceId, EditRuntimeDir, EditPanelHotkey, EditSyncToggleHotkey, EditTrayIconHotkey, EditDirectSendHotkey, EditDirectPasteHotkey
-    global EditAutoConnectEnabled, EditStartupEnabled, EditFileConfirmSeconds, EditCopyConfirmEnabled, EditPasteConfirmEnabled, EditShellMenuEnabled, EditShellMenuPersistent
+    global EditAutoConnectEnabled, EditStartupEnabled, EditFileConfirmSeconds, EditCopyConfirmEnabled, EditPasteConfirmEnabled, EditShellMenuEnabled, EditShellMenuPersistent, EditNoticeMode
     Gui, Advanced:New, +OwnerStatus +ToolWindow +OwnDialogs, Cloud Clipboard 高级设置
     Gui, Advanced:Margin, 18, 18
     Gui, Advanced:Color, F6F8FC
@@ -781,6 +789,8 @@ InitAdvancedGui() {
     Gui, Advanced:Add, CheckBox, xm y+8 w470 vEditPasteConfirmEnabled, 收到远端文件后启用二次粘贴确认下载
     Gui, Advanced:Add, CheckBox, xm y+8 w470 vEditShellMenuEnabled, 同步可用时自动挂上资源管理器右键菜单
     Gui, Advanced:Add, CheckBox, xm y+8 w470 vEditShellMenuPersistent, 始终保留右键菜单入口，不随同步状态自动摘除
+    Gui, Advanced:Add, Text, xm y+14 w92, 通知方式
+    Gui, Advanced:Add, DropDownList, x+10 yp-3 w170 vEditNoticeMode Choose1, 轻弹窗|右下角Tip|都显示
     Gui, Advanced:Add, CheckBox, xm y+8 w470 vEditAutoConnectEnabled, 启动客户端后按上次状态自动恢复同步
     Gui, Advanced:Add, CheckBox, xm y+8 w470 vEditStartupEnabled, 跟随 Windows 开机启动本客户端
     Gui, Advanced:Add, Button, xm y+18 w104 h30 gSaveConfig Default, 保存配置
@@ -822,9 +832,11 @@ UpdateGui() {
     IniRead, PasteConfirmEnabled, %ConfigPath%, sync, pasteConfirmEnabled, 1
     IniRead, ShellMenuEnabled, %ConfigPath%, sync, shellMenuEnabled, 1
     IniRead, ShellMenuPersistent, %ConfigPath%, sync, shellMenuPersistent, 0
+    IniRead, NoticeMode, %ConfigPath%, sync, noticeMode, popup
     masked := RoomPassword = "" ? "未设置" : "已设置"
     autoResumeText := AutoConnectEnabled = 1 ? "开启" : "关闭"
     shellMenuText := ShellMenuEnabled = 1 ? (ShellMenuPersistent = 1 ? "始终保留" : "自动管理") : "关闭"
+    noticeModeText := FormatNoticeModeForDisplay(NoticeMode)
     displayHotkey := FormatHotkeyForDisplay(PanelHotkey)
     displaySyncToggleHotkey := FormatHotkeyForDisplay(SyncToggleHotkey)
     displayTrayIconHotkey := FormatHotkeyForDisplay(TrayIconHotkey)
@@ -849,11 +861,12 @@ UpdateGui() {
     GuiControl, Advanced:, EditPasteConfirmEnabled, % PasteConfirmEnabled = 1 ? 1 : 0
     GuiControl, Advanced:, EditShellMenuEnabled, % ShellMenuEnabled = 1 ? 1 : 0
     GuiControl, Advanced:, EditShellMenuPersistent, % ShellMenuPersistent = 1 ? 1 : 0
+    GuiControl, Advanced:ChooseString, EditNoticeMode, %noticeModeText%
     GuiControl, Status:, StatusText, 状态：%ClientStatus%
     GuiControl, Status:, RoomText, 房间：%RoomName%
     GuiControl, Status:, DeviceText, 设备：%DeviceName%（%DeviceId%） 面板热键：%displayHotkey%
     GuiControl, Status:, PasswordText, 房间密码：%masked% 自动恢复：%autoResumeText% 右键菜单：%shellMenuText%
-    GuiControl, Status:, ResultText, 最近结果：%LastSyncResult% 同步开关键：%displaySyncToggleHotkey% 直发热键：%displayDirectSendHotkey% 直贴热键：%displayDirectPasteHotkey% 运行目录：%runtimeDirText%
+    GuiControl, Status:, ResultText, 最近结果：%LastSyncResult% 同步开关键：%displaySyncToggleHotkey% 直发热键：%displayDirectSendHotkey% 直贴热键：%displayDirectPasteHotkey% 通知：%noticeModeText% 运行目录：%runtimeDirText%
     SyncShellMenuRegistration()
 }
 
@@ -1347,6 +1360,40 @@ BuildShellMenuCommand() {
     return "powershell.exe -NoProfile -ExecutionPolicy Bypass -File """ . ShellMenuScriptPath . """"
 }
 
+NormalizeNoticeMode(value) {
+    value := Trim(value)
+    if (value = "轻弹窗" || value = "popup" || value = "")
+        return "popup"
+    if (value = "右下角Tip" || value = "tip")
+        return "tip"
+    if (value = "都显示" || value = "both")
+        return "both"
+    return "popup"
+}
+
+FormatNoticeModeForDisplay(value) {
+    value := NormalizeNoticeMode(value)
+    if (value = "tip")
+        return "右下角Tip"
+    if (value = "both")
+        return "都显示"
+    return "轻弹窗"
+}
+
+ShouldUsePopupNotice() {
+    global ConfigPath
+    IniRead, value, %ConfigPath%, sync, noticeMode, popup
+    value := NormalizeNoticeMode(value)
+    return (value = "popup" || value = "both")
+}
+
+ShouldUseTipNotice() {
+    global ConfigPath
+    IniRead, value, %ConfigPath%, sync, noticeMode, popup
+    value := NormalizeNoticeMode(value)
+    return (value = "tip" || value = "both")
+}
+
 AppendCommand(type, payload) {
     global CommandPath
     line := type . "|" . Base64Encode(payload) . "`n"
@@ -1686,6 +1733,8 @@ GetActiveExplorerSelection() {
 }
 
 ShowActionTip(title, message) {
+    if (!ShouldUseTipNotice())
+        return
     MouseGetPos, mouseX, mouseY
     ToolTip, %message%, % mouseX + 16, % mouseY + 20
     TrayTip, %title%, %message%, 3, 1
@@ -1695,6 +1744,10 @@ ShowActionTip(title, message) {
 
 ShowNoticePopup(title, body, primaryLabel := "", primaryAction := "", secondaryLabel := "", secondaryAction := "", tertiaryLabel := "", tertiaryAction := "", timeoutMs := 8000, category := "general") {
     global NoticePopupVisible, NoticeCategory, NoticePrimaryAction, NoticeSecondaryAction, NoticeTertiaryAction, NoticeAutoHideAt
+    if (!ShouldUsePopupNotice()) {
+        ShowActionTip(title, body)
+        return
+    }
     NoticeCategory := category
     NoticePrimaryAction := primaryAction
     NoticeSecondaryAction := secondaryAction

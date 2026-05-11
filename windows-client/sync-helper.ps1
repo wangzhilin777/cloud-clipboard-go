@@ -9,6 +9,13 @@ $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Net.Http
 Add-Type -AssemblyName System.Windows.Forms
 
+$mutexName = 'Local\CloudClipboardSyncHelper_' + ([Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($CommandPath)) -replace '[^A-Za-z0-9]', '')
+$mutexCreated = $false
+$helperMutex = [System.Threading.Mutex]::new($false, $mutexName, [ref]$mutexCreated)
+if (-not $mutexCreated) {
+    exit 0
+}
+
 function Get-IniValue {
     param(
         [string]$Path,
@@ -612,5 +619,9 @@ try {
     } catch {}
     $httpClient.Dispose()
     $client.Dispose()
+    try {
+        $helperMutex.ReleaseMutex() | Out-Null
+    } catch {}
+    $helperMutex.Dispose()
     Write-Status '已断开'
 }
