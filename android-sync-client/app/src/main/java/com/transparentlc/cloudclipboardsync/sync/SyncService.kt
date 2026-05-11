@@ -33,6 +33,8 @@ class SyncService : Service() {
     private var lastRemoteText = ""
     private var lastRemoteAt = 0L
     private var lastRemoteMessageId = ""
+    private var lastPublishedText = ""
+    private var lastPublishedAt = 0L
     private var serviceStarted = false
     private val downloadingPayloads = mutableSetOf<String>()
 
@@ -41,7 +43,11 @@ class SyncService : Service() {
         val clip = clipboardManager.primaryClip ?: return@OnPrimaryClipChangedListener
         val text = clip.getItemAt(0).coerceToText(this)?.toString().orEmpty()
         if (text.isBlank()) return@OnPrimaryClipChangedListener
-        if (text == lastRemoteText && System.currentTimeMillis() - lastRemoteAt < 5_000) return@OnPrimaryClipChangedListener
+        val now = System.currentTimeMillis()
+        if (text == lastRemoteText && now - lastRemoteAt < 5_000) return@OnPrimaryClipChangedListener
+        if (text == lastPublishedText && now - lastPublishedAt < 2_000) return@OnPrimaryClipChangedListener
+        lastPublishedText = text
+        lastPublishedAt = now
         client?.publishText(text)
         broadcastStatus(getString(R.string.status_trusted), "已推送本地文本到服务端")
     }

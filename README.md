@@ -123,6 +123,7 @@ cloud-clipboard-go.exe -port 9501
 - `android/` 仍表示原仓库自带的 Android 服务器端 App
 - `android-sync-client/` 是新增的安卓同步客户端，不与服务器 APK 混用
 - 同步客户端配置使用“房间密码或全局密码 + 网页端设备批准”的双层校验模型
+- Android 文本剪贴板同步以前台场景最可靠；在 Android 10+ 或部分 ROM 上，后台读取系统剪贴板可能被系统限制
 
 ### 4️⃣ 使用 Homebrew（macOS）
 
