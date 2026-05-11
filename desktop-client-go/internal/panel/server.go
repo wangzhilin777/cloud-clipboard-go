@@ -23,6 +23,8 @@ type Backend interface {
 	OpenPanel() error
 	SendFiles(paths []string) ([]string, error)
 	SendText(text string, fromClipboard bool) (string, error)
+	FetchLatestText() (string, error)
+	DownloadLatestFile() (string, error)
 }
 
 type Server struct {
@@ -66,6 +68,7 @@ type configView struct {
 	NoticeMode           string `json:"noticeMode"`
 	PanelAddress         string `json:"panelAddress"`
 	OpenPanelOnLaunch    bool   `json:"openPanelOnLaunch"`
+	DownloadDir          string `json:"downloadDir"`
 	ReconnectDelayMs     int64  `json:"reconnectDelayMs"`
 	MaxReconnectAttempts int    `json:"maxReconnectAttempts"`
 }
@@ -88,6 +91,8 @@ func New(address string, backend Backend) *Server {
 	mux.HandleFunc("/api/open-panel", s.handleOpenPanel)
 	mux.HandleFunc("/api/send-file", s.handleSendFile)
 	mux.HandleFunc("/api/send-text", s.handleSendText)
+	mux.HandleFunc("/api/fetch-latest-text", s.handleFetchLatestText)
+	mux.HandleFunc("/api/download-latest-file", s.handleDownloadLatestFile)
 	mux.Handle("/", http.FileServer(http.FS(staticRoot)))
 	return s
 }
@@ -146,6 +151,7 @@ func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
 		NoticeMode:           payload.NoticeMode,
 		PanelAddress:         payload.PanelAddress,
 		OpenPanelOnLaunch:    payload.OpenPanelOnLaunch,
+		DownloadDir:          payload.DownloadDir,
 		ReconnectDelay:       time.Duration(payload.ReconnectDelayMs) * time.Millisecond,
 		MaxReconnectAttempts: payload.MaxReconnectAttempts,
 	}
@@ -222,6 +228,32 @@ func (s *Server) handleSendText(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"text": result})
 }
 
+func (s *Server) handleFetchLatestText(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	text, err := s.backend.FetchLatestText()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"text": text})
+}
+
+func (s *Server) handleDownloadLatestFile(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	path, err := s.backend.DownloadLatestFile()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"path": path})
+}
+
 func toConfigView(cfg config.Config) configView {
 	return configView{
 		ServerBase:           cfg.ServerBase,
@@ -232,6 +264,7 @@ func toConfigView(cfg config.Config) configView {
 		NoticeMode:           cfg.NoticeMode,
 		PanelAddress:         cfg.PanelAddress,
 		OpenPanelOnLaunch:    cfg.OpenPanelOnLaunch,
+		DownloadDir:          cfg.DownloadDir,
 		ReconnectDelayMs:     cfg.ReconnectDelay.Milliseconds(),
 		MaxReconnectAttempts: cfg.MaxReconnectAttempts,
 	}

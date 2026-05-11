@@ -21,6 +21,7 @@ type Config struct {
 	NoticeMode           string        `json:"noticeMode"`
 	PanelAddress         string        `json:"panelAddress"`
 	OpenPanelOnLaunch    bool          `json:"openPanelOnLaunch"`
+	DownloadDir          string        `json:"downloadDir"`
 	ReconnectDelay       time.Duration `json:"reconnectDelay"`
 	MaxReconnectAttempts int           `json:"maxReconnectAttempts"`
 }
@@ -40,6 +41,7 @@ func Default() Config {
 		NoticeMode:           "popup",
 		PanelAddress:         "127.0.0.1:9530",
 		OpenPanelOnLaunch:    true,
+		DownloadDir:          defaultDownloadDir(),
 		ReconnectDelay:       2 * time.Second,
 		MaxReconnectAttempts: 3,
 	}
@@ -106,6 +108,10 @@ func (c *Config) normalize() {
 	if c.PanelAddress == "" {
 		c.PanelAddress = def.PanelAddress
 	}
+	c.DownloadDir = strings.TrimSpace(c.DownloadDir)
+	if c.DownloadDir == "" {
+		c.DownloadDir = def.DownloadDir
+	}
 	if c.ReconnectDelay <= 0 {
 		c.ReconnectDelay = def.ReconnectDelay
 	}
@@ -136,4 +142,12 @@ func normalizeNoticeMode(value string) string {
 	default:
 		return "popup"
 	}
+}
+
+func defaultDownloadDir() string {
+	home, err := os.UserHomeDir()
+	if err != nil || strings.TrimSpace(home) == "" {
+		return ".\\downloads"
+	}
+	return filepath.Join(home, "Downloads", "CloudClipboard")
 }

@@ -221,12 +221,18 @@
           <span class="label">面板监听地址</span>
           <input id="panelAddress" placeholder="127.0.0.1:9530">
         </label>
+        <label class="field full">
+          <span class="label">下载目录</span>
+          <input id="downloadDir" placeholder="C:\\Users\\用户名\\Downloads\\CloudClipboard">
+        </label>
       </div>
       <div class="actions">
         <button class="primary" id="saveButton" type="button">保存并重连</button>
         <button class="secondary" id="reconnectButton" type="button">仅重连</button>
         <button class="secondary" id="openPanelButton" type="button">系统浏览器打开</button>
         <button class="secondary" id="sendFileButton" type="button">选择文件并发送</button>
+        <button class="secondary" id="fetchLatestTextButton" type="button">拉取最新文本到剪贴板</button>
+        <button class="secondary" id="downloadLatestFileButton" type="button">下载最新文件到本机</button>
       </div>
       <div class="message" id="message"></div>
       <div class="footer">配置保存后会立即触发桌面客户端重连。若修改了面板监听地址，本页面需要手动用新地址重新打开。</div>
@@ -259,6 +265,7 @@
       maxReconnectAttempts: document.getElementById('maxReconnectAttempts'),
       openPanelOnLaunch: document.getElementById('openPanelOnLaunch'),
       panelAddress: document.getElementById('panelAddress'),
+      downloadDir: document.getElementById('downloadDir'),
     };
     const manualText = document.getElementById('manualText');
     const statusText = document.getElementById('statusText');
@@ -323,6 +330,7 @@
         maxReconnectAttempts: Number(fields.maxReconnectAttempts.value || 0),
         openPanelOnLaunch: fields.openPanelOnLaunch.value === 'true',
         panelAddress: fields.panelAddress.value,
+        downloadDir: fields.downloadDir.value,
       };
       try {
         const resp = await fetch('/api/config', {
@@ -403,12 +411,40 @@
       }
     }
 
+    async function fetchLatestText() {
+      message.textContent = '正在拉取最新文本...';
+      try {
+        const resp = await fetch('/api/fetch-latest-text', { method: 'POST' });
+        const text = await resp.text();
+        if (!resp.ok) throw new Error(text || `HTTP ${resp.status}`);
+        const data = JSON.parse(text || '{}');
+        message.textContent = `已写入剪贴板：${data.text || ''}`;
+      } catch (err) {
+        message.textContent = `拉取文本失败：${err.message}`;
+      }
+    }
+
+    async function downloadLatestFile() {
+      message.textContent = '正在下载最新文件...';
+      try {
+        const resp = await fetch('/api/download-latest-file', { method: 'POST' });
+        const text = await resp.text();
+        if (!resp.ok) throw new Error(text || `HTTP ${resp.status}`);
+        const data = JSON.parse(text || '{}');
+        message.textContent = `下载成功：${data.path || ''}`;
+      } catch (err) {
+        message.textContent = `下载文件失败：${err.message}`;
+      }
+    }
+
     document.getElementById('saveButton').addEventListener('click', saveConfig);
     document.getElementById('reconnectButton').addEventListener('click', reconnect);
     document.getElementById('openPanelButton').addEventListener('click', openPanelInBrowser);
     document.getElementById('sendFileButton').addEventListener('click', sendFile);
     document.getElementById('sendTextButton').addEventListener('click', () => sendText(false));
     document.getElementById('sendClipboardTextButton').addEventListener('click', () => sendText(true));
+    document.getElementById('fetchLatestTextButton').addEventListener('click', fetchLatestText);
+    document.getElementById('downloadLatestFileButton').addEventListener('click', downloadLatestFile);
 
     loadStatus();
     refreshTimer = setInterval(() => loadStatus(true), 2000);

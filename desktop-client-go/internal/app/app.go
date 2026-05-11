@@ -334,3 +334,49 @@ func (a *App) SendText(text string, fromClipboard bool) (string, error) {
 	})
 	return result.Text, nil
 }
+
+func (a *App) FetchLatestText() (string, error) {
+	sender := transfer.NewSender(a.currentConfig(), a.logger)
+	result, err := sender.FetchLatestTextToClipboard(context.Background())
+	if err != nil {
+		return "", err
+	}
+	current := a.state.Current()
+	_ = a.state.Save(StateSnapshot{
+		Status:           current.Status,
+		Connected:        current.Connected,
+		Trusted:          current.Trusted,
+		LastError:        current.LastError,
+		LastRemoteTextAt: current.LastRemoteTextAt,
+		LastPayloadTitle: current.LastPayloadTitle,
+		LastPayloadKind:  current.LastPayloadKind,
+		LastPayloadAt:    current.LastPayloadAt,
+		LastActionType:   "fetch-latest-text",
+		LastActionDetail: result.Text,
+		LastActionAt:     time.Now().UnixMilli(),
+	})
+	return result.Text, nil
+}
+
+func (a *App) DownloadLatestFile() (string, error) {
+	sender := transfer.NewSender(a.currentConfig(), a.logger)
+	result, err := sender.DownloadLatestFile(context.Background())
+	if err != nil {
+		return "", err
+	}
+	current := a.state.Current()
+	_ = a.state.Save(StateSnapshot{
+		Status:           current.Status,
+		Connected:        current.Connected,
+		Trusted:          current.Trusted,
+		LastError:        current.LastError,
+		LastRemoteTextAt: current.LastRemoteTextAt,
+		LastPayloadTitle: current.LastPayloadTitle,
+		LastPayloadKind:  current.LastPayloadKind,
+		LastPayloadAt:    current.LastPayloadAt,
+		LastActionType:   "download-latest-file",
+		LastActionDetail: result.Path,
+		LastActionAt:     time.Now().UnixMilli(),
+	})
+	return result.Path, nil
+}

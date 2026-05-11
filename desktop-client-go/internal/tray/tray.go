@@ -16,6 +16,8 @@ type Backend interface {
 	OpenPanel() error
 	SendFiles(paths []string) ([]string, error)
 	SendText(text string, fromClipboard bool) (string, error)
+	FetchLatestText() (string, error)
+	DownloadLatestFile() (string, error)
 }
 
 func Run(ctx context.Context, logger *log.Logger, backend Backend, stop func()) error {
@@ -57,6 +59,23 @@ func Run(ctx context.Context, logger *log.Logger, backend Backend, stop func()) 
 			return
 		}
 		logger.Printf("托盘发送剪贴板文本成功: %s", previewText(text))
+	})
+	tray.AppendSeparator()
+	tray.AppendMenu("拉取最新文本到剪贴板", func() {
+		text, err := backend.FetchLatestText()
+		if err != nil {
+			logger.Printf("托盘拉取最新文本失败: %v", err)
+			return
+		}
+		logger.Printf("托盘拉取最新文本成功: %s", previewText(text))
+	})
+	tray.AppendMenu("下载最新文件到本机", func() {
+		path, err := backend.DownloadLatestFile()
+		if err != nil {
+			logger.Printf("托盘下载最新文件失败: %v", err)
+			return
+		}
+		logger.Printf("托盘下载最新文件成功: %s", path)
 	})
 	tray.AppendSeparator()
 	tray.AppendMenu("发送文件到同步房间", func() {
