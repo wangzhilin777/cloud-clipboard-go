@@ -25,15 +25,19 @@ class ReceivedPayloadActivity : AppCompatActivity() {
     private lateinit var titleText: TextView
     private lateinit var metaText: TextView
     private lateinit var statusText: TextView
+    private lateinit var indexText: TextView
     private lateinit var imagePreview: ImageView
     private lateinit var downloadButton: Button
     private lateinit var openButton: Button
     private lateinit var shareButton: Button
     private lateinit var saveButton: Button
     private lateinit var markProcessedButton: Button
+    private lateinit var previousButton: Button
+    private lateinit var nextButton: Button
 
     private var currentPayloadId: String? = null
     private var pendingSaveEntry: PayloadEntry? = null
+    private var entries: List<PayloadEntry> = emptyList()
 
     private val payloadUpdateReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -62,16 +66,20 @@ class ReceivedPayloadActivity : AppCompatActivity() {
         titleText = findViewById(R.id.payloadTitleText)
         metaText = findViewById(R.id.payloadMetaText)
         statusText = findViewById(R.id.payloadStatusText)
+        indexText = findViewById(R.id.payloadIndexText)
         imagePreview = findViewById(R.id.payloadImagePreview)
         downloadButton = findViewById(R.id.downloadButton)
         openButton = findViewById(R.id.openButton)
         shareButton = findViewById(R.id.shareButton)
         saveButton = findViewById(R.id.saveButton)
         markProcessedButton = findViewById(R.id.markProcessedButton)
+        previousButton = findViewById(R.id.previousButton)
+        nextButton = findViewById(R.id.nextButton)
 
+        entries = PayloadCacheStore.list(this)
         currentPayloadId = intent.getStringExtra(SyncService.EXTRA_PAYLOAD_ID)
         if (currentPayloadId == null) {
-            currentPayloadId = PayloadCacheStore.list(this).firstOrNull()?.payloadId
+            currentPayloadId = entries.firstOrNull()?.payloadId
         }
 
         downloadButton.setOnClickListener {
@@ -95,11 +103,17 @@ class ReceivedPayloadActivity : AppCompatActivity() {
                 bindEntry(PayloadCacheStore.get(this, payloadId))
             }
         }
+        previousButton.setOnClickListener { showRelativeEntry(-1) }
+        nextButton.setOnClickListener { showRelativeEntry(1) }
     }
 
     override fun onResume() {
         super.onResume()
         PayloadCacheStore.pruneExpired(this)
+        entries = PayloadCacheStore.list(this)
+        if (currentPayloadId == null) {
+            currentPayloadId = entries.firstOrNull()?.payloadId
+        }
         bindEntry(currentEntry())
     }
 
@@ -120,29 +134,45 @@ class ReceivedPayloadActivity : AppCompatActivity() {
 
     private fun currentEntry(): PayloadEntry? = currentPayloadId?.let { PayloadCacheStore.get(this, it) }
 
+    private fun showRelativeEntry(offset: Int) {
+        if (entries.isEmpty()) return
+        val currentIndex = entries.indexOfFirst { it.payloadId == currentPayloadId }.takeIf { it >= 0 } ?: 0
+        val nextIndex = (currentIndex + offset).coerceIn(0, entries.lastIndex)
+        currentPayloadId = entries[nextIndex].payloadId
+        bindEntry(entries[nextIndex])
+    }
+
     private fun bindEntry(entry: PayloadEntry?) {
+        entries = PayloadCacheStore.list(this)
         if (entry == null) {
             titleText.text = getString(R.string.payload_empty_title)
             metaText.text = getString(R.string.payload_empty_text)
             statusText.text = getString(R.string.payload_empty_text)
+            indexText.text = getString(R.string.payload_index_format, 0, 0)
             imagePreview.visibility = View.GONE
             downloadButton.isEnabled = false
             openButton.isEnabled = false
             shareButton.isEnabled = false
             saveButton.isEnabled = false
             markProcessedButton.isEnabled = false
+            previousButton.isEnabled = false
+            nextButton.isEnabled = false
             return
         }
         currentPayloadId = entry.payloadId
         titleText.text = entry.title
         metaText.text = buildMeta(entry)
         statusText.text = buildStatus(entry)
+        val currentIndex = entries.indexOfFirst { it.payloadId == entry.payloadId }.takeIf { it >= 0 } ?: 0
+        indexText.text = getString(R.string.payload_index_format, currentIndex + 1, entries.size.coerceAtLeast(1))
         downloadButton.isEnabled = true
         downloadButton.text = if (entry.isDownloaded) getString(R.string.payload_redownload_button) else getString(R.string.payload_download_button)
         openButton.isEnabled = entry.isDownloaded
         shareButton.isEnabled = entry.isDownloaded
         saveButton.isEnabled = entry.isDownloaded
         markProcessedButton.isEnabled = true
+        previousButton.isEnabled = currentIndex > 0
+        nextButton.isEnabled = currentIndex < entries.lastIndex
 
         val file = entry.localPath?.let(::File)
         if (entry.isImage && file?.exists() == true) {

@@ -105,6 +105,9 @@
     <string name="payload_preview">内容预览</string>
     <string name="payload_size_unknown">大小未知</string>
     <string name="payload_meta_format">%1$s · %2$s · %3$s · %4$s</string>
+    <string name="payload_index_format">第 %1$d / %2$d 条</string>
+    <string name="payload_previous_button">上一条</string>
+    <string name="payload_next_button">下一条</string>
     <string name="payload_status_processed">已处理</string>
     <string name="payload_status_pending">待处理</string>
     <string name="payload_status_cached">已缓存</string>
