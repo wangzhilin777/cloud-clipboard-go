@@ -1,6 +1,7 @@
 package com.transparentlc.cloudclipboardsync
 
 import android.content.Intent
+import android.content.IntentFilter
 import android.graphics.BitmapFactory
 import android.net.Uri
 import android.os.Bundle
@@ -10,12 +11,15 @@ import android.widget.ImageView
 import android.widget.TextView
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import com.transparentlc.cloudclipboardsync.sync.PayloadCacheStore
 import com.transparentlc.cloudclipboardsync.sync.PayloadEntry
 import com.transparentlc.cloudclipboardsync.sync.SyncService
 import java.io.File
 import java.text.DateFormat
+import android.content.BroadcastReceiver
+import android.content.Context
 
 class ReceivedPayloadActivity : AppCompatActivity() {
     private lateinit var titleText: TextView
@@ -30,6 +34,15 @@ class ReceivedPayloadActivity : AppCompatActivity() {
 
     private var currentPayloadId: String? = null
     private var pendingSaveEntry: PayloadEntry? = null
+
+    private val payloadUpdateReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            val payloadId = intent?.getStringExtra(SyncService.EXTRA_PAYLOAD_ID) ?: return
+            if (currentPayloadId == payloadId) {
+                bindEntry(PayloadCacheStore.get(this@ReceivedPayloadActivity, payloadId))
+            }
+        }
+    }
 
     private val saveFileLauncher = registerForActivityResult(
         ActivityResultContracts.CreateDocument("*/*"),
@@ -88,6 +101,21 @@ class ReceivedPayloadActivity : AppCompatActivity() {
         super.onResume()
         PayloadCacheStore.pruneExpired(this)
         bindEntry(currentEntry())
+    }
+
+    override fun onStart() {
+        super.onStart()
+        ContextCompat.registerReceiver(
+            this,
+            payloadUpdateReceiver,
+            IntentFilter(SyncService.ACTION_PAYLOAD_UPDATED),
+            ContextCompat.RECEIVER_NOT_EXPORTED,
+        )
+    }
+
+    override fun onStop() {
+        super.onStop()
+        unregisterReceiver(payloadUpdateReceiver)
     }
 
     private fun currentEntry(): PayloadEntry? = currentPayloadId?.let { PayloadCacheStore.get(this, it) }

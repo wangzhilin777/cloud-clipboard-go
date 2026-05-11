@@ -208,6 +208,7 @@ class SyncService : Service() {
                 val entry = PayloadCacheStore.get(this, payloadId) ?: error("未找到待接收内容")
                 broadcastStatus(currentStatus(), "开始下载 ${entry.title}")
                 val downloaded = PayloadDownloader.download(this, config, entry)
+                broadcastPayloadUpdated(downloaded.payloadId)
                 showPayloadReadyNotification(downloaded)
                 broadcastStatus(currentStatus(), "已下载到缓存：${downloaded.title}")
             } catch (error: Exception) {
@@ -296,6 +297,13 @@ class SyncService : Service() {
         })
     }
 
+    private fun broadcastPayloadUpdated(payloadId: String) {
+        sendBroadcast(Intent(ACTION_PAYLOAD_UPDATED).apply {
+            setPackage(packageName)
+            putExtra(EXTRA_PAYLOAD_ID, payloadId)
+        })
+    }
+
     private fun createChannel() {
         createChannels()
     }
@@ -332,6 +340,7 @@ class SyncService : Service() {
 
     companion object {
         const val ACTION_STATUS = "com.transparentlc.cloudclipboardsync.STATUS"
+        const val ACTION_PAYLOAD_UPDATED = "com.transparentlc.cloudclipboardsync.PAYLOAD_UPDATED"
         const val EXTRA_STATUS = "extra_status"
         const val EXTRA_LAST_RESULT = "extra_last_result"
         const val EXTRA_PAYLOAD_ID = "extra_payload_id"
