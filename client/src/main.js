@@ -3,6 +3,7 @@ import App from './App.vue';
 import router from './router';
 import vuetify from './plugins/vuetify';
 import websocket from './websocket';
+import sync from './sync';
 import axios from 'axios';
 import VueAxios from 'vue-axios';
 import linkify from 'vue-linkify';
@@ -25,7 +26,7 @@ Vue.filter('percentage', percentage);
 Vue.filter('formatTimestamp', formatTimestamp);
 
 const app = new Vue({
-    mixins: [websocket],
+    mixins: [websocket, sync],
     data() {
         return {
             date: new Date,

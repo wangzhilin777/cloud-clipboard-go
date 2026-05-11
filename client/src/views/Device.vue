@@ -1,7 +1,7 @@
 <template>
     <v-container>
-        <v-responsive max-width="640" class="mx-auto">
-            <div class="headline text--primary my-4">{{ $t('connectedDevices') }}</div>
+        <v-responsive max-width="900" class="mx-auto">
+            <div class="headline text--primary my-4">在线浏览器设备</div>
             <template v-if="$root.websocket">
                 {{ $t('devicesConnected', { count: $root.device.length, desktop: desktopDeviceCount, mobile: mobileDeviceCount }) }}
                 <v-divider class="my-2"></v-divider>
@@ -10,7 +10,7 @@
                 {{ $t('notConnectedToServer') }}
             </template>
 
-            <v-list rounded two-line>
+            <v-list rounded two-line class="mb-6">
                 <v-list-item-group color="primary">
                     <v-list-item v-for="item in $root.device" :key="item.id">
                         <v-list-item-avatar tile>
@@ -38,6 +38,73 @@
                     </v-list-item>
                 </v-list-item-group>
             </v-list>
+
+            <div class="headline text--primary my-4">同步设备管理</div>
+
+            <v-alert
+                v-if="$root.sync.pendingRemoteText"
+                outlined
+                dense
+                type="info"
+                class="mb-4"
+            >
+                <div class="font-weight-medium mb-1">最近一次远端文本</div>
+                <div class="text-body-2 mb-2 sync-preview">{{ $root.sync.pendingRemoteText }}</div>
+                <v-btn small color="primary" @click="$root.syncCopyPendingText()">一键复制</v-btn>
+            </v-alert>
+
+            <v-card class="mb-4">
+                <v-card-title>当前网页同步设备</v-card-title>
+                <v-card-text>
+                    <v-text-field v-model="$root.sync.deviceName" label="设备名称"></v-text-field>
+                    <v-switch v-model="$root.sync.enableSend" label="允许监听本地文本剪贴板"></v-switch>
+                    <v-switch v-model="$root.sync.enableReceive" label="允许自动写入本地剪贴板"></v-switch>
+                    <div class="caption text--secondary mb-3">
+                        当前状态：<strong>{{ statusText }}</strong>
+                    </div>
+                    <v-btn color="primary" @click="refreshSyncDevices">刷新同步设备列表</v-btn>
+                </v-card-text>
+            </v-card>
+
+            <v-list rounded two-line>
+                <v-list-item v-for="item in $root.sync.devices" :key="`${item.room}-${item.deviceId}`">
+                    <v-list-item-avatar tile>
+                        <v-icon>{{ iconFor(item.platform) }}</v-icon>
+                    </v-list-item-avatar>
+                    <v-list-item-content>
+                        <v-list-item-title>{{ item.name }}</v-list-item-title>
+                        <v-list-item-subtitle>
+                            {{ platformLabel(item) }} / {{ item.clientType }} / {{ item.online ? '在线' : '离线' }} / {{ item.trusted ? '已信任' : '待批准' }}
+                        </v-list-item-subtitle>
+                    </v-list-item-content>
+                    <v-list-item-action>
+                        <v-btn
+                            v-if="!item.trusted"
+                            color="primary"
+                            small
+                            @click="$root.syncApproveDevice(item.deviceId, item.name)"
+                        >批准</v-btn>
+                        <v-btn
+                            v-else
+                            text
+                            small
+                            @click="$root.syncToggleTrust(item)"
+                        >取消信任</v-btn>
+                    </v-list-item-action>
+                </v-list-item>
+            </v-list>
+
+            <v-card class="mt-4">
+                <v-card-title>最近同步日志</v-card-title>
+                <v-list dense>
+                    <v-list-item v-for="entry in $root.sync.logs" :key="entry.id">
+                        <v-list-item-content>
+                            <v-list-item-title>{{ entry.message }}</v-list-item-title>
+                            <v-list-item-subtitle>{{ entry.at }}</v-list-item-subtitle>
+                        </v-list-item-content>
+                    </v-list-item>
+                </v-list>
+            </v-card>
         </v-responsive>
     </v-container>
 </template>
@@ -74,6 +141,58 @@ export default {
         mobileDeviceCount() {
             return this.$root.device.filter(e => (e.type === 'smartphone' || e.type === 'tablet')).length;
         },
+        statusText() {
+            switch (this.$root.sync.status) {
+                case 'trusted':
+                    return '已信任';
+                case 'pending':
+                    return '等待批准';
+                case 'connecting':
+                    return '连接中';
+                case 'forbidden':
+                    return '房间认证失败';
+                case 'failed':
+                    return '连接失败';
+                default:
+                    return '未连接';
+            }
+        },
+    },
+    methods: {
+        refreshSyncDevices() {
+            this.$root.syncLoadDevices();
+            this.$root.syncRefreshBootstrap();
+        },
+        iconFor(platform) {
+            switch ((platform || '').toLowerCase()) {
+                case 'windows':
+                    return mdiMicrosoftWindows;
+                case 'android':
+                    return mdiAndroid;
+                case 'linux':
+                    return mdiLinux;
+                case 'macos':
+                case 'ios':
+                    return mdiApple;
+                case 'web':
+                    return mdiDevices;
+                default:
+                    return mdiLaptop;
+            }
+        },
+        platformLabel(item) {
+            return (item.platform || 'unknown').toLowerCase() === 'web' ? '网页' : item.platform;
+        },
+    },
+    mounted() {
+        this.refreshSyncDevices();
     },
 }
 </script>
+
+<style scoped>
+.sync-preview {
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+</style>

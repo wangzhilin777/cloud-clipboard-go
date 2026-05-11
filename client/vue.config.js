@@ -4,6 +4,7 @@ module.exports = {
     integrity: true,
     transpileDependencies: [
         'vuetify',
+        'axios',
     ],
     pluginOptions: {
         webpackBundleAnalyzer: {
