@@ -165,6 +165,10 @@
         <span class="label">最近错误</span>
         <div id="errorText" class="value">-</div>
       </article>
+      <article class="card">
+        <span class="label">最近手动发送</span>
+        <div id="actionText" class="value">-</div>
+      </article>
     </section>
 
     <section class="form-card">
@@ -261,6 +265,7 @@
     const deviceNameText = document.getElementById('deviceNameText');
     const payloadText = document.getElementById('payloadText');
     const errorText = document.getElementById('errorText');
+    const actionText = document.getElementById('actionText');
     const message = document.getElementById('message');
     let refreshTimer = null;
 
@@ -289,6 +294,7 @@
       statusText.className = `value ${statusClass(status)}`;
       payloadText.textContent = state.lastPayloadTitle ? `${state.lastPayloadKind || 'file'} / ${state.lastPayloadTitle}` : '-';
       errorText.textContent = state.lastError || '-';
+      actionText.textContent = state.lastActionDetail ? `${state.lastActionType || 'action'} / ${state.lastActionDetail}` : '-';
     }
 
     async function loadStatus(silent = false) {

@@ -286,6 +286,19 @@ func (a *App) SendFiles(paths []string) ([]string, error) {
 	for _, result := range results {
 		names = append(names, result.Name)
 	}
+	_ = a.state.Save(StateSnapshot{
+		Status:           a.state.Current().Status,
+		Connected:        a.state.Current().Connected,
+		Trusted:          a.state.Current().Trusted,
+		LastError:        a.state.Current().LastError,
+		LastRemoteTextAt: a.state.Current().LastRemoteTextAt,
+		LastPayloadTitle: a.state.Current().LastPayloadTitle,
+		LastPayloadKind:  a.state.Current().LastPayloadKind,
+		LastPayloadAt:    a.state.Current().LastPayloadAt,
+		LastActionType:   "file-send",
+		LastActionDetail: strings.Join(names, "，"),
+		LastActionAt:     time.Now().UnixMilli(),
+	})
 	return names, nil
 }
 
@@ -301,5 +314,23 @@ func (a *App) SendText(text string, fromClipboard bool) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	label := "manual-text"
+	if fromClipboard {
+		label = "clipboard-text"
+	}
+	current := a.state.Current()
+	_ = a.state.Save(StateSnapshot{
+		Status:           current.Status,
+		Connected:        current.Connected,
+		Trusted:          current.Trusted,
+		LastError:        current.LastError,
+		LastRemoteTextAt: current.LastRemoteTextAt,
+		LastPayloadTitle: current.LastPayloadTitle,
+		LastPayloadKind:  current.LastPayloadKind,
+		LastPayloadAt:    current.LastPayloadAt,
+		LastActionType:   label,
+		LastActionDetail: result.Text,
+		LastActionAt:     time.Now().UnixMilli(),
+	})
 	return result.Text, nil
 }

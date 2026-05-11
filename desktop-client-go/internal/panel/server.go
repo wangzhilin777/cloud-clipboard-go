@@ -41,6 +41,9 @@ type StateSnapshot struct {
 	LastPayloadTitle string `json:"lastPayloadTitle,omitempty"`
 	LastPayloadKind  string `json:"lastPayloadKind,omitempty"`
 	LastPayloadAt    int64  `json:"lastPayloadAt,omitempty"`
+	LastActionType   string `json:"lastActionType,omitempty"`
+	LastActionDetail string `json:"lastActionDetail,omitempty"`
+	LastActionAt     int64  `json:"lastActionAt,omitempty"`
 	LastUpdatedAt    int64  `json:"lastUpdatedAt"`
 }
 
