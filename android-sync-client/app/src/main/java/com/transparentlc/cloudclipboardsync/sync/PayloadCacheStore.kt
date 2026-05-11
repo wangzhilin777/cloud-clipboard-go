@@ -22,6 +22,7 @@ object PayloadCacheStore {
         val entries = loadEntries(context).toMutableList()
         val index = entries.indexOfFirst { it.payloadId == notice.payloadId }
         val existing = entries.getOrNull(index)
+        val retentionMs = retentionMs(context)
         val updated = PayloadEntry(
             payloadId = notice.payloadId,
             sourceDeviceId = notice.sourceDeviceId,
@@ -35,7 +36,7 @@ object PayloadCacheStore {
             createdAt = notice.createdAt,
             localPath = existing?.localPath,
             downloadedAt = existing?.downloadedAt,
-            expiresAt = existing?.expiresAt ?: (notice.createdAt + DEFAULT_RETENTION_MS),
+            expiresAt = existing?.expiresAt ?: (notice.createdAt + retentionMs),
             processedAt = existing?.processedAt,
         )
         if (index >= 0) {
@@ -51,12 +52,13 @@ object PayloadCacheStore {
         val entries = loadEntries(context).toMutableList()
         val index = entries.indexOfFirst { it.payloadId == payloadId }
         if (index == -1) return null
+        val now = System.currentTimeMillis()
         val updated = entries[index].copy(
             localPath = localPath,
             size = size ?: entries[index].size,
             mime = mime ?: entries[index].mime,
-            downloadedAt = System.currentTimeMillis(),
-            expiresAt = System.currentTimeMillis() + DEFAULT_RETENTION_MS,
+            downloadedAt = now,
+            expiresAt = now + retentionMs(context),
         )
         entries[index] = updated
         saveEntries(context, entries)
@@ -95,6 +97,14 @@ object PayloadCacheStore {
         cacheDir(context).mkdirs()
     }
 
+    fun clearAll(context: Context) {
+        loadEntries(context).forEach { entry ->
+            entry.localPath?.let(::File)?.takeIf { it.exists() }?.delete()
+        }
+        cacheDir(context).deleteRecursively()
+        saveEntries(context, emptyList())
+    }
+
     fun createCacheFile(context: Context, payloadId: String, title: String): File {
         val dir = cacheDir(context)
         dir.mkdirs()
@@ -107,6 +117,11 @@ object PayloadCacheStore {
     }
 
     private fun cacheDir(context: Context): File = File(context.cacheDir, CACHE_DIR)
+
+    private fun retentionMs(context: Context): Long {
+        val hours = SettingsStore.load(context).cacheRetentionHours.coerceAtLeast(1)
+        return hours * 60L * 60L * 1000L
+    }
 
     private fun loadEntries(context: Context): List<PayloadEntry> {
         val raw = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)

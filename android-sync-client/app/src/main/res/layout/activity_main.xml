@@ -51,6 +51,142 @@
             android:layout_marginTop="12dp"
             android:hint="@string/device_name_hint" />
 
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:text="@string/clipboard_mode_label"
+            android:textStyle="bold" />
+
+        <RadioGroup
+            android:id="@+id/clipboardModeGroup"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp">
+
+            <RadioButton
+                android:id="@+id/clipboardModeForeground"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/clipboard_mode_foreground" />
+
+            <RadioButton
+                android:id="@+id/clipboardModeAccessibility"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/clipboard_mode_accessibility" />
+
+            <RadioButton
+                android:id="@+id/clipboardModeShizuku"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/clipboard_mode_shizuku" />
+        </RadioGroup>
+
+        <Switch
+            android:id="@+id/autoConnectSwitch"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="@string/auto_connect_switch" />
+
+        <Switch
+            android:id="@+id/startOnBootSwitch"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/start_on_boot_switch" />
+
+        <Switch
+            android:id="@+id/closeAfterStartSwitch"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/close_after_start_switch" />
+
+        <Switch
+            android:id="@+id/removeTaskSwitch"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/remove_task_switch" />
+
+        <Switch
+            android:id="@+id/floatingConfirmSwitch"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/floating_confirm_switch" />
+
+        <EditText
+            android:id="@+id/cacheRetentionInput"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:hint="@string/cache_retention_hint"
+            android:inputType="number" />
+
+        <Button
+            android:id="@+id/clearCacheButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="@string/clear_cache_button" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:text="@string/permission_section_label"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/permissionSummaryText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="@string/permission_summary_placeholder" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/openNotificationSettingsButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/open_notification_settings_button" />
+
+            <Button
+                android:id="@+id/openOverlaySettingsButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:layout_weight="1"
+                android:text="@string/open_overlay_settings_button" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/openAccessibilitySettingsButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/open_accessibility_settings_button" />
+
+            <Button
+                android:id="@+id/openBatterySettingsButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:layout_weight="1"
+                android:text="@string/open_battery_settings_button" />
+        </LinearLayout>
+
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"

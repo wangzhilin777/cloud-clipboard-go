@@ -15,8 +15,10 @@ import android.os.IBinder
 import android.os.Looper
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
+import com.transparentlc.cloudclipboardsync.FloatingConfirmService
 import com.transparentlc.cloudclipboardsync.ReceivedPayloadActivity
 import com.transparentlc.cloudclipboardsync.MainActivity
+import com.transparentlc.cloudclipboardsync.PermissionStatusHelper
 import com.transparentlc.cloudclipboardsync.R
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -114,7 +116,11 @@ class SyncService : Service() {
                 val existing = PayloadCacheStore.get(this@SyncService, notice.payloadId)
                 val entry = PayloadCacheStore.upsertNotice(this@SyncService, notice)
                 if (existing?.isDownloaded != true) {
-                    showPayloadNoticeNotification(entry)
+                    if (shouldUseFloatingConfirm()) {
+                        FloatingConfirmService.show(this@SyncService, entry.payloadId)
+                    } else {
+                        showPayloadNoticeNotification(entry)
+                    }
                 }
                 broadcastStatus(currentStatus(), "收到${describeKind(entry.kind)}：${entry.title}")
             }
@@ -186,6 +192,11 @@ class SyncService : Service() {
     private fun currentStatus(): String = when {
         trusted -> getString(R.string.status_trusted)
         else -> getString(R.string.status_pending)
+    }
+
+    private fun shouldUseFloatingConfirm(): Boolean {
+        val config = SettingsStore.load(this)
+        return config.floatingEnabled && PermissionStatusHelper.read(this).overlayEnabled
     }
 
     private fun confirmPayloadDownload(payloadId: String) {
@@ -332,6 +343,7 @@ class SyncService : Service() {
         private const val NOTIFICATION_ID = 1001
 
         fun start(context: Context) {
+            SettingsStore.setDesiredRunningState(context, true)
             ContextCompat.startForegroundService(context, Intent(context, SyncService::class.java))
         }
 
@@ -345,6 +357,7 @@ class SyncService : Service() {
         }
 
         fun stop(context: Context) {
+            SettingsStore.setDesiredRunningState(context, false)
             context.stopService(Intent(context, SyncService::class.java))
         }
     }

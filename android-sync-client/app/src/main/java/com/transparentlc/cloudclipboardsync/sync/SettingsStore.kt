@@ -11,6 +11,25 @@ object SettingsStore {
     private const val KEY_AUTH_CODE_LEGACY = "auth_code"
     private const val KEY_DEVICE_NAME = "device_name"
     private const val KEY_DEVICE_ID = "device_id"
+    private const val KEY_AUTO_CONNECT_ENABLED = "auto_connect_enabled"
+    private const val KEY_START_ON_BOOT_ENABLED = "start_on_boot_enabled"
+    private const val KEY_CLOSE_ACTIVITY_AFTER_START = "close_activity_after_start"
+    private const val KEY_REMOVE_TASK_FROM_RECENTS = "remove_task_from_recents"
+    private const val KEY_FLOATING_ENABLED = "floating_enabled"
+    private const val KEY_FLOATING_WIDTH_DP = "floating_width_dp"
+    private const val KEY_FLOATING_HEIGHT_DP = "floating_height_dp"
+    private const val KEY_FLOATING_POS_X = "floating_pos_x"
+    private const val KEY_FLOATING_POS_Y = "floating_pos_y"
+    private const val KEY_FLOATING_SHOW_SECONDS = "floating_show_seconds"
+    private const val KEY_CACHE_RETENTION_HOURS = "cache_retention_hours"
+    private const val KEY_LAST_DESIRED_RUNNING_STATE = "last_desired_running_state"
+    private const val KEY_CLIPBOARD_MODE = "clipboard_mode"
+
+    const val CLIPBOARD_MODE_FOREGROUND = "foreground"
+    const val CLIPBOARD_MODE_ACCESSIBILITY = "accessibility"
+    const val CLIPBOARD_MODE_SHIZUKU = "shizuku"
+    const val RUNNING_STATE_STOPPED = "stopped"
+    const val RUNNING_STATE_RUNNING = "running"
 
     data class Config(
         val serverBase: String,
@@ -18,6 +37,19 @@ object SettingsStore {
         val roomPassword: String,
         val deviceName: String,
         val deviceId: String,
+        val autoConnectEnabled: Boolean,
+        val startOnBootEnabled: Boolean,
+        val closeActivityAfterStart: Boolean,
+        val removeTaskFromRecents: Boolean,
+        val floatingEnabled: Boolean,
+        val floatingWidthDp: Int,
+        val floatingHeightDp: Int,
+        val floatingPosX: Int,
+        val floatingPosY: Int,
+        val floatingShowSeconds: Int,
+        val cacheRetentionHours: Int,
+        val clipboardMode: String,
+        val lastDesiredRunningState: String,
     )
 
     fun load(context: Context): Config {
@@ -31,6 +63,23 @@ object SettingsStore {
             roomPassword = prefs.getString(KEY_ROOM_PASSWORD, prefs.getString(KEY_AUTH_CODE_LEGACY, "")) ?: "",
             deviceName = prefs.getString(KEY_DEVICE_NAME, "Android 同步端") ?: "Android 同步端",
             deviceId = deviceId,
+            autoConnectEnabled = prefs.getBoolean(KEY_AUTO_CONNECT_ENABLED, true),
+            startOnBootEnabled = prefs.getBoolean(KEY_START_ON_BOOT_ENABLED, false),
+            closeActivityAfterStart = prefs.getBoolean(KEY_CLOSE_ACTIVITY_AFTER_START, false),
+            removeTaskFromRecents = prefs.getBoolean(KEY_REMOVE_TASK_FROM_RECENTS, false),
+            floatingEnabled = prefs.getBoolean(KEY_FLOATING_ENABLED, true),
+            floatingWidthDp = prefs.getInt(KEY_FLOATING_WIDTH_DP, 280),
+            floatingHeightDp = prefs.getInt(KEY_FLOATING_HEIGHT_DP, 110),
+            floatingPosX = prefs.getInt(KEY_FLOATING_POS_X, 48),
+            floatingPosY = prefs.getInt(KEY_FLOATING_POS_Y, 220),
+            floatingShowSeconds = prefs.getInt(KEY_FLOATING_SHOW_SECONDS, 20),
+            cacheRetentionHours = prefs.getInt(KEY_CACHE_RETENTION_HOURS, 24),
+            clipboardMode = prefs.getString(KEY_CLIPBOARD_MODE, CLIPBOARD_MODE_FOREGROUND)
+                ?.takeIf { it == CLIPBOARD_MODE_FOREGROUND || it == CLIPBOARD_MODE_ACCESSIBILITY || it == CLIPBOARD_MODE_SHIZUKU }
+                ?: CLIPBOARD_MODE_FOREGROUND,
+            lastDesiredRunningState = prefs.getString(KEY_LAST_DESIRED_RUNNING_STATE, RUNNING_STATE_STOPPED)
+                ?.takeIf { it == RUNNING_STATE_RUNNING || it == RUNNING_STATE_STOPPED }
+                ?: RUNNING_STATE_STOPPED,
         )
     }
 
@@ -42,7 +91,40 @@ object SettingsStore {
             .putString(KEY_ROOM_PASSWORD, config.roomPassword)
             .putString(KEY_DEVICE_NAME, config.deviceName)
             .putString(KEY_DEVICE_ID, config.deviceId)
+            .putBoolean(KEY_AUTO_CONNECT_ENABLED, config.autoConnectEnabled)
+            .putBoolean(KEY_START_ON_BOOT_ENABLED, config.startOnBootEnabled)
+            .putBoolean(KEY_CLOSE_ACTIVITY_AFTER_START, config.closeActivityAfterStart)
+            .putBoolean(KEY_REMOVE_TASK_FROM_RECENTS, config.removeTaskFromRecents)
+            .putBoolean(KEY_FLOATING_ENABLED, config.floatingEnabled)
+            .putInt(KEY_FLOATING_WIDTH_DP, config.floatingWidthDp)
+            .putInt(KEY_FLOATING_HEIGHT_DP, config.floatingHeightDp)
+            .putInt(KEY_FLOATING_POS_X, config.floatingPosX)
+            .putInt(KEY_FLOATING_POS_Y, config.floatingPosY)
+            .putInt(KEY_FLOATING_SHOW_SECONDS, config.floatingShowSeconds)
+            .putInt(KEY_CACHE_RETENTION_HOURS, config.cacheRetentionHours)
+            .putString(KEY_CLIPBOARD_MODE, config.clipboardMode)
+            .putString(KEY_LAST_DESIRED_RUNNING_STATE, config.lastDesiredRunningState)
             .remove(KEY_AUTH_CODE_LEGACY)
+            .apply()
+    }
+
+    fun setDesiredRunningState(context: Context, running: Boolean) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putString(KEY_LAST_DESIRED_RUNNING_STATE, if (running) RUNNING_STATE_RUNNING else RUNNING_STATE_STOPPED)
+            .apply()
+    }
+
+    fun shouldResumeSync(context: Context): Boolean {
+        val config = load(context)
+        return config.autoConnectEnabled && config.lastDesiredRunningState == RUNNING_STATE_RUNNING
+    }
+
+    fun updateFloatingPosition(context: Context, x: Int, y: Int) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putInt(KEY_FLOATING_POS_X, x)
+            .putInt(KEY_FLOATING_POS_Y, y)
             .apply()
     }
 }
