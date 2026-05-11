@@ -20,6 +20,7 @@ global PanelVisible := false
 global HelperActive := false
 global HelperRestartFailures := 0
 global RegisteredPanelHotkey := ""
+global RegisteredSyncToggleHotkey := ""
 global StatusText := ""
 global RoomText := ""
 global DeviceText := ""
@@ -31,14 +32,17 @@ global EditRoomPassword := ""
 global EditDeviceName := ""
 global EditDeviceId := ""
 global EditPanelHotkey := ""
+global EditSyncToggleHotkey := ""
 global EditAutoConnectEnabled := 0
 global EditStartupEnabled := 0
 global CaptureHotkeyValue := ""
+global CaptureHotkeyTarget := ""
 
 EnsureConfig()
 InitGui()
 InitTray()
 RegisterPanelHotkey()
+RegisterSyncToggleHotkey()
 if (ShouldShowInitialPanel())
     ShowStatusPanel()
 OnClipboardChange("HandleClipboardChange")
@@ -131,20 +135,23 @@ return
 
 SaveConfig:
     global ConfigPath, EditServerBase, EditRoom, EditRoomPassword, EditDeviceName, EditDeviceId
-    global EditPanelHotkey, EditAutoConnectEnabled, EditStartupEnabled, LastSyncResult, HelperActive
+    global EditPanelHotkey, EditSyncToggleHotkey, EditAutoConnectEnabled, EditStartupEnabled, LastSyncResult, HelperActive
     Gui, Status:Submit, NoHide
     autoConnectValue := EditAutoConnectEnabled ? 1 : 0
     startupValue := EditStartupEnabled ? 1 : 0
     normalizedHotkey := NormalizeHotkey(EditPanelHotkey)
+    normalizedSyncToggleHotkey := NormalizeHotkey(EditSyncToggleHotkey)
     IniWrite, %EditServerBase%, %ConfigPath%, sync, serverBase
     IniWrite, %EditRoom%, %ConfigPath%, sync, room
     IniWrite, %EditRoomPassword%, %ConfigPath%, sync, roomPassword
     IniWrite, % ResolveDeviceNameForSave(EditDeviceName), %ConfigPath%, sync, deviceName
     IniWrite, % ResolveDeviceIdForSave(EditDeviceId), %ConfigPath%, sync, deviceId
     IniWrite, %normalizedHotkey%, %ConfigPath%, sync, panelHotkey
+    IniWrite, %normalizedSyncToggleHotkey%, %ConfigPath%, sync, syncToggleHotkey
     IniWrite, %autoConnectValue%, %ConfigPath%, sync, autoConnectEnabled
     IniWrite, %startupValue%, %ConfigPath%, sync, startupEnabled
     RegisterPanelHotkey()
+    RegisterSyncToggleHotkey()
     SyncStartupShortcut()
     LastSyncResult := "配置已保存"
     if (HelperActive) {
@@ -155,7 +162,8 @@ SaveConfig:
 return
 
 OpenHotkeyCapture:
-    global CaptureHotkeyValue, EditPanelHotkey
+    global CaptureHotkeyValue, CaptureHotkeyTarget, EditPanelHotkey
+    CaptureHotkeyTarget := "panel"
     CaptureHotkeyValue := NormalizeHotkey(EditPanelHotkey)
     Gui, HotkeyCapture:Destroy
     Gui, HotkeyCapture:New, +OwnerStatus +AlwaysOnTop +ToolWindow, 录制面板热键
@@ -168,11 +176,29 @@ OpenHotkeyCapture:
     Gui, HotkeyCapture:Show, AutoSize, 录制面板热键
 return
 
+OpenSyncToggleHotkeyCapture:
+    global CaptureHotkeyValue, CaptureHotkeyTarget, EditSyncToggleHotkey
+    CaptureHotkeyTarget := "syncToggle"
+    CaptureHotkeyValue := NormalizeHotkey(EditSyncToggleHotkey)
+    Gui, HotkeyCapture:Destroy
+    Gui, HotkeyCapture:New, +OwnerStatus +AlwaysOnTop +ToolWindow, 录制同步开关热键
+    Gui, HotkeyCapture:Margin, 16, 16
+    Gui, HotkeyCapture:Add, Text, w280, 按下要用于一键启动/停止同步的快捷键；也可以清空为不设置。
+    Gui, HotkeyCapture:Add, Hotkey, xm y+12 w280 vCaptureHotkeyValue, %CaptureHotkeyValue%
+    Gui, HotkeyCapture:Add, Button, xm y+14 w84 gSaveCapturedHotkey Default, 确认
+    Gui, HotkeyCapture:Add, Button, x+8 w84 gClearCapturedHotkey, 清空
+    Gui, HotkeyCapture:Add, Button, x+8 w84 gCancelCapturedHotkey, 取消
+    Gui, HotkeyCapture:Show, AutoSize, 录制同步开关热键
+return
+
 SaveCapturedHotkey:
-    global CaptureHotkeyValue
+    global CaptureHotkeyValue, CaptureHotkeyTarget
     Gui, HotkeyCapture:Submit, NoHide
     displayHotkey := FormatHotkeyForDisplay(CaptureHotkeyValue)
-    GuiControl, Status:, EditPanelHotkey, %displayHotkey%
+    if (CaptureHotkeyTarget = "syncToggle")
+        GuiControl, Status:, EditSyncToggleHotkey, %displayHotkey%
+    else
+        GuiControl, Status:, EditPanelHotkey, %displayHotkey%
     Gui, HotkeyCapture:Destroy
 return
 
@@ -223,6 +249,14 @@ return
 
 StopSync:
     StopSyncSession()
+return
+
+ToggleSyncSession:
+    global HelperActive
+    if (HelperActive)
+        StopSyncSession()
+    else
+        StartSyncSession()
 return
 
 EnsureHelperRunning:
@@ -292,6 +326,7 @@ EnsureConfig() {
     IniWrite, %A_ComputerName%, %ConfigPath%, sync, deviceName
     IniWrite, %A_Now%%suffix%, %ConfigPath%, sync, deviceId
     IniWrite, ^!v, %ConfigPath%, sync, panelHotkey
+    IniWrite, %emptyValue%, %ConfigPath%, sync, syncToggleHotkey
     IniWrite, 1, %ConfigPath%, sync, autoConnectEnabled
     IniWrite, 0, %ConfigPath%, sync, startupEnabled
     IniWrite, stopped, %ConfigPath%, sync, lastDesiredRunningState
@@ -301,12 +336,16 @@ EnsureConfig() {
 MigrateConfig() {
     global ConfigPath
     missingValue := "__missing__"
+    emptyValue := ""
     IniRead, DeviceName, %ConfigPath%, sync, deviceName, %missingValue%
     if (DeviceName = missingValue || DeviceName = "" || RegExMatch(DeviceName, "^Windows"))
         IniWrite, %A_ComputerName%, %ConfigPath%, sync, deviceName
     IniRead, PanelHotkey, %ConfigPath%, sync, panelHotkey, %missingValue%
     if (PanelHotkey = missingValue)
         IniWrite, ^!v, %ConfigPath%, sync, panelHotkey
+    IniRead, SyncToggleHotkey, %ConfigPath%, sync, syncToggleHotkey, %missingValue%
+    if (SyncToggleHotkey = missingValue)
+        IniWrite, %emptyValue%, %ConfigPath%, sync, syncToggleHotkey
     IniRead, AutoConnectEnabled, %ConfigPath%, sync, autoConnectEnabled, %missingValue%
     if (AutoConnectEnabled = missingValue || AutoConnectEnabled = "")
         IniWrite, 1, %ConfigPath%, sync, autoConnectEnabled
@@ -328,7 +367,7 @@ InitGui() {
     global EditPanelHotkey, EditAutoConnectEnabled, EditStartupEnabled
     Gui, Status:New, +AlwaysOnTop +ToolWindow, Cloud Clipboard 同步面板
     Gui, Status:Margin, 16, 16
-    Gui, Status:Add, GroupBox, w460 h274, 同步配置
+    Gui, Status:Add, GroupBox, w460 h326, 同步配置
     Gui, Status:Add, Text, xm+14 yp+28 w90, 服务端地址
     Gui, Status:Add, Edit, x+8 yp-3 w330 vEditServerBase, http://127.0.0.1:9501
     Gui, Status:Add, Text, xm+14 y+14 w90, 房间名
@@ -342,6 +381,9 @@ InitGui() {
     Gui, Status:Add, Text, xm+14 y+14 w90, 面板热键
     Gui, Status:Add, Edit, x+8 yp-3 w220 vEditPanelHotkey,
     Gui, Status:Add, Button, x+8 yp-1 w102 h28 gOpenHotkeyCapture, 录制快捷键
+    Gui, Status:Add, Text, xm+14 y+14 w90, 同步开关键
+    Gui, Status:Add, Edit, x+8 yp-3 w220 vEditSyncToggleHotkey,
+    Gui, Status:Add, Button, x+8 yp-1 w102 h28 gOpenSyncToggleHotkeyCapture, 录制快捷键
     Gui, Status:Add, CheckBox, xm+14 y+16 vEditAutoConnectEnabled, 启动客户端后按上次状态自动恢复同步
     Gui, Status:Add, CheckBox, xm+14 y+8 vEditStartupEnabled, 跟随 Windows 开机启动本客户端
 
@@ -369,24 +411,27 @@ UpdateGui() {
     IniRead, DeviceId, %ConfigPath%, sync, deviceId,
     IniRead, RoomPassword, %ConfigPath%, sync, roomPassword,
     IniRead, PanelHotkey, %ConfigPath%, sync, panelHotkey,
+    IniRead, SyncToggleHotkey, %ConfigPath%, sync, syncToggleHotkey,
     IniRead, AutoConnectEnabled, %ConfigPath%, sync, autoConnectEnabled, 1
     IniRead, StartupEnabled, %ConfigPath%, sync, startupEnabled, 0
     masked := RoomPassword = "" ? "未设置" : "已设置"
     autoResumeText := AutoConnectEnabled = 1 ? "开启" : "关闭"
     displayHotkey := FormatHotkeyForDisplay(PanelHotkey)
+    displaySyncToggleHotkey := FormatHotkeyForDisplay(SyncToggleHotkey)
     GuiControl, Status:, EditServerBase, %ServerBase%
     GuiControl, Status:, EditRoom, %RoomName%
     GuiControl, Status:, EditRoomPassword, %RoomPassword%
     GuiControl, Status:, EditDeviceName, %DeviceName%
     GuiControl, Status:, EditDeviceId, %DeviceId%
     GuiControl, Status:, EditPanelHotkey, %displayHotkey%
+    GuiControl, Status:, EditSyncToggleHotkey, %displaySyncToggleHotkey%
     GuiControl, Status:, EditAutoConnectEnabled, % AutoConnectEnabled = 1 ? 1 : 0
     GuiControl, Status:, EditStartupEnabled, % StartupEnabled = 1 ? 1 : 0
     GuiControl, Status:, StatusText, 状态：%ClientStatus%
     GuiControl, Status:, RoomText, 房间：%RoomName%
     GuiControl, Status:, DeviceText, 设备：%DeviceName%（%DeviceId%） 面板热键：%displayHotkey%
     GuiControl, Status:, PasswordText, 房间密码：%masked% 自动恢复：%autoResumeText%
-    GuiControl, Status:, ResultText, 最近结果：%LastSyncResult%
+    GuiControl, Status:, ResultText, 最近结果：%LastSyncResult% 同步开关键：%displaySyncToggleHotkey%
 }
 
 InitTray() {
@@ -492,6 +537,17 @@ RegisterPanelHotkey() {
     if (NextHotkey != "")
         Hotkey, %NextHotkey%, ToggleStatusPanel, On
     RegisteredPanelHotkey := NextHotkey
+}
+
+RegisterSyncToggleHotkey() {
+    global RegisteredSyncToggleHotkey, ConfigPath
+    IniRead, NextHotkey, %ConfigPath%, sync, syncToggleHotkey,
+    NextHotkey := NormalizeHotkey(NextHotkey)
+    if (RegisteredSyncToggleHotkey != "")
+        Hotkey, %RegisteredSyncToggleHotkey%, ToggleSyncSession, Off
+    if (NextHotkey != "")
+        Hotkey, %NextHotkey%, ToggleSyncSession, On
+    RegisteredSyncToggleHotkey := NextHotkey
 }
 
 NormalizeHotkey(value) {
