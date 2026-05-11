@@ -47,6 +47,8 @@
     <string name="status_forbidden">房间认证失败</string>
     <string name="status_disconnected">已断开</string>
     <string name="last_result_idle">暂无</string>
+    <string name="auto_resume_restored">已按上次运行状态自动恢复同步</string>
+    <string name="auto_resume_loopback_hint">已跳过自动续连：当前服务地址仍是 127.0.0.1/localhost，请改成 Windows 局域网 IP</string>
     <string name="payload_notice_title">收到远端%s</string>
     <string name="payload_notice_text">%1$s，确认后下载到本地缓存</string>
     <string name="payload_ready_title">远端内容已缓存</string>

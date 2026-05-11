@@ -63,6 +63,7 @@ class SyncService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+        isRunning = true
         clipboardManager = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
         clipboardManager.addPrimaryClipChangedListener(clipboardListener)
         PayloadCacheStore.pruneExpired(this)
@@ -88,6 +89,7 @@ class SyncService : Service() {
         handler.removeCallbacksAndMessages(null)
         clipboardManager.removePrimaryClipChangedListener(clipboardListener)
         client?.disconnect()
+        isRunning = false
         super.onDestroy()
     }
 
@@ -350,6 +352,10 @@ class SyncService : Service() {
         private const val CHANNEL_ID = "cloud_clipboard_sync"
         private const val RECEIVE_CHANNEL_ID = "cloud_clipboard_receive"
         private const val NOTIFICATION_ID = 1001
+        @Volatile
+        private var isRunning = false
+
+        fun isRunning(): Boolean = isRunning
 
         fun start(context: Context) {
             SettingsStore.setDesiredRunningState(context, true)

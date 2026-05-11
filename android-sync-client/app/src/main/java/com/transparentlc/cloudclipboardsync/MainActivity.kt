@@ -51,6 +51,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var lastSyncText: TextView
 
     private var selectedTabIndex = TAB_CONNECTION
+    private var autoResumeAttempted = false
 
     private val notificationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -92,6 +93,7 @@ class MainActivity : AppCompatActivity() {
 
         bindBottomNav()
         bindConfig()
+        maybeResumeSyncOnLaunch()
         findViewById<Button>(R.id.saveButton).setOnClickListener {
             val config = saveConfig()
             if (isLoopbackServerBase(config.serverBase)) {
@@ -156,6 +158,7 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         refreshPermissionSummary()
+        maybeResumeSyncOnLaunch()
     }
 
     override fun onStop() {
@@ -183,6 +186,26 @@ class MainActivity : AppCompatActivity() {
         statusText.text = getString(R.string.status_idle)
         lastSyncText.text = getString(R.string.last_result_idle)
         refreshPermissionSummary()
+    }
+
+    private fun maybeResumeSyncOnLaunch() {
+        if (autoResumeAttempted || SyncService.isRunning()) {
+            return
+        }
+        val config = SettingsStore.load(this)
+        if (!SettingsStore.shouldResumeSync(this)) {
+            return
+        }
+        if (isLoopbackServerBase(config.serverBase)) {
+            statusText.text = getString(R.string.status_idle)
+            lastSyncText.text = getString(R.string.auto_resume_loopback_hint)
+            autoResumeAttempted = true
+            return
+        }
+        autoResumeAttempted = true
+        statusText.text = getString(R.string.status_connecting)
+        lastSyncText.text = getString(R.string.auto_resume_restored)
+        SyncService.start(this)
     }
 
     private fun bindBottomNav() {
