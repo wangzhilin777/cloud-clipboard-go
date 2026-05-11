@@ -220,6 +220,14 @@
                         android:text="@string/clipboard_mode_shizuku" />
                 </RadioGroup>
 
+                <TextView
+                    android:id="@+id/runtimeAdviceText"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:textAppearance="@style/TextAppearance.MaterialComponents.Body2"
+                    android:textColor="@color/cc_text_muted" />
+
                 <Switch
                     android:id="@+id/autoConnectSwitch"
                     android:layout_width="match_parent"
@@ -244,6 +252,14 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:text="@string/remove_task_switch" />
+
+                <TextView
+                    android:id="@+id/autoResumeSummaryText"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:textAppearance="@style/TextAppearance.MaterialComponents.Body2"
+                    android:textColor="@color/cc_text_muted" />
             </LinearLayout>
 
             <LinearLayout
@@ -265,6 +281,14 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
                     android:text="@string/permission_summary_placeholder" />
+
+                <TextView
+                    android:id="@+id/permissionGuideText"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:textAppearance="@style/TextAppearance.MaterialComponents.Body2"
+                    android:textColor="@color/cc_text_muted" />
 
                 <LinearLayout
                     android:layout_width="match_parent"

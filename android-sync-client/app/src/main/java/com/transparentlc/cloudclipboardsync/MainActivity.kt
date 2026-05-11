@@ -47,6 +47,9 @@ class MainActivity : AppCompatActivity() {
     private lateinit var floatingConfirmSwitch: Switch
     private lateinit var cacheRetentionInput: EditText
     private lateinit var permissionSummaryText: TextView
+    private lateinit var permissionGuideText: TextView
+    private lateinit var runtimeAdviceText: TextView
+    private lateinit var autoResumeSummaryText: TextView
     private lateinit var statusText: TextView
     private lateinit var lastSyncText: TextView
 
@@ -88,6 +91,9 @@ class MainActivity : AppCompatActivity() {
         floatingConfirmSwitch = findViewById(R.id.floatingConfirmSwitch)
         cacheRetentionInput = findViewById(R.id.cacheRetentionInput)
         permissionSummaryText = findViewById(R.id.permissionSummaryText)
+        permissionGuideText = findViewById(R.id.permissionGuideText)
+        runtimeAdviceText = findViewById(R.id.runtimeAdviceText)
+        autoResumeSummaryText = findViewById(R.id.autoResumeSummaryText)
         statusText = findViewById(R.id.statusText)
         lastSyncText = findViewById(R.id.lastSyncText)
 
@@ -186,6 +192,7 @@ class MainActivity : AppCompatActivity() {
         statusText.text = getString(R.string.status_idle)
         lastSyncText.text = getString(R.string.last_result_idle)
         refreshPermissionSummary()
+        refreshRuntimeHints()
     }
 
     private fun maybeResumeSyncOnLaunch() {
@@ -284,6 +291,15 @@ class MainActivity : AppCompatActivity() {
             stateLabel(status.batteryOptimizationIgnored),
             stateLabel(status.shizukuInstalled),
         )
+        permissionGuideText.text = buildPermissionGuide(status)
+        refreshRuntimeHints()
+    }
+
+    private fun refreshRuntimeHints() {
+        val config = SettingsStore.load(this)
+        val status = PermissionStatusHelper.read(this)
+        runtimeAdviceText.text = buildClipboardModeAdvice(config, status)
+        autoResumeSummaryText.text = buildAutoResumeSummary(config, status)
     }
 
     private fun openNotificationSettings() {
@@ -307,6 +323,78 @@ class MainActivity : AppCompatActivity() {
     private fun stateLabel(enabled: Boolean): String = getString(
         if (enabled) R.string.permission_state_enabled else R.string.permission_state_disabled,
     )
+
+    private fun buildClipboardModeAdvice(
+        config: SettingsStore.Config,
+        status: PermissionStatus,
+    ): String = when (config.clipboardMode) {
+        SettingsStore.CLIPBOARD_MODE_ACCESSIBILITY -> {
+            if (status.accessibilityEnabled) {
+                "当前是无障碍增强模式：后台文本监听更稳，但会比前台模式更耗电。"
+            } else {
+                "当前选了无障碍增强模式：推荐开启无障碍后再长期使用，后台复制会更稳，但耗电略高。"
+            }
+        }
+
+        SettingsStore.CLIPBOARD_MODE_SHIZUKU -> {
+            when {
+                !status.shizukuInstalled -> "当前选了 Shizuku 模式：请先安装并授权 Shizuku；它能力更强，但重启后通常要重新授权。"
+                else -> "当前是 Shizuku 模式：能力更强，适合受系统限制明显的设备，但重启后通常要重新授权。"
+            }
+        }
+
+        else -> {
+            "当前是前台服务模式：最省事、最适合先联调；如果后台复制经常丢失，再切到无障碍或 Shizuku。"
+        }
+    }
+
+    private fun buildAutoResumeSummary(
+        config: SettingsStore.Config,
+        status: PermissionStatus,
+    ): String {
+        if (!config.autoConnectEnabled) {
+            return "自动续连已关闭：每次都需要你手动点启动同步。"
+        }
+        if (isLoopbackServerBase(config.serverBase)) {
+            return "自动续连暂不可用：当前服务地址还是 127.0.0.1/localhost，请改成 Windows 局域网 IP。"
+        }
+        if (config.lastDesiredRunningState != SettingsStore.RUNNING_STATE_RUNNING) {
+            return "上次是手动停止状态：后续即使重新打开 App，也不会自动恢复同步。"
+        }
+        val warnings = mutableListOf<String>()
+        if (!status.batteryOptimizationIgnored) {
+            warnings += "建议忽略电池优化，否则系统可能后台回收同步服务"
+        }
+        if (config.startOnBootEnabled) {
+            warnings += "已开启开机/更新后自动恢复"
+        } else {
+            warnings += "未开启开机自动恢复，当前仅在你打开 App 时自动续连"
+        }
+        return "自动续连已就绪：${warnings.joinToString("；")}。"
+    }
+
+    private fun buildPermissionGuide(status: PermissionStatus): String {
+        val steps = mutableListOf<String>()
+        if (!status.notificationsEnabled) {
+            steps += "先开通知权限，否则前台同步状态和接收确认提示都不完整。"
+        }
+        if (!status.batteryOptimizationIgnored) {
+            steps += "建议忽略电池优化，尤其是澎湃 / MIUI 一类系统，否则后台容易被杀。"
+        }
+        if (!status.accessibilityEnabled) {
+            steps += "想要更稳的后台文本同步，优先开启无障碍；它更省心，但耗电会略高。"
+        }
+        if (!status.shizukuInstalled) {
+            steps += "如果无障碍场景仍受限，再考虑 Shizuku；能力更强，但重启后通常要重授权。"
+        }
+        if (!status.overlayEnabled) {
+            steps += "想用图片/文件悬浮确认，再补开悬浮窗权限。"
+        }
+        if (steps.isEmpty()) {
+            return "当前常用权限都已到位：通知、悬浮窗、无障碍/电池优化都具备，适合继续做后台稳定性联调。"
+        }
+        return steps.joinToString("\n")
+    }
 
     companion object {
         private const val TAB_CONNECTION = 0
