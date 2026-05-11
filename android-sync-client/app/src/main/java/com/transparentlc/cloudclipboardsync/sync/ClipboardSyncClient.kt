@@ -15,7 +15,7 @@ class ClipboardSyncClient(
     interface Callbacks {
         fun onConnected()
         fun onTrustedChanged(trusted: Boolean)
-        fun onRemoteText(text: String)
+        fun onRemoteText(messageId: String, text: String)
         fun onPayloadNotice(notice: PayloadNotice)
         fun onLog(message: String)
         fun onForbidden()
@@ -57,6 +57,9 @@ class ClipboardSyncClient(
                         val data = event.getJSONObject("data")
                         trusted = data.getJSONObject("device").optBoolean("trusted", false)
                         callbacks.onTrustedChanged(trusted)
+                        if (trusted) {
+                            emitLatestRecentMessage(data.optJSONArray("recentMessages"))
+                        }
                         val payloads = data.optJSONArray("recentPayloads")
                         if (payloads != null) {
                             for (index in 0 until payloads.length()) {
@@ -66,7 +69,8 @@ class ClipboardSyncClient(
                         callbacks.onLog(if (trusted) "安卓同步已连接" else "安卓设备等待批准")
                     }
                     "clipboardSync" -> {
-                        callbacks.onRemoteText(event.getJSONObject("data").getString("text"))
+                        val data = event.getJSONObject("data")
+                        callbacks.onRemoteText(data.optString("messageId"), data.getString("text"))
                     }
                     "payloadNotice" -> {
                         callbacks.onPayloadNotice(PayloadNotice.fromJson(event.getJSONObject("data")))
@@ -108,5 +112,16 @@ class ClipboardSyncClient(
                 .put("text", text)
                 .put("createdAt", System.currentTimeMillis()))
         webSocket?.send(payload.toString())
+    }
+
+    private fun emitLatestRecentMessage(messages: org.json.JSONArray?) {
+        if (messages == null) return
+        for (index in messages.length() - 1 downTo 0) {
+            val item = messages.optJSONObject(index) ?: continue
+            val text = item.optString("text").trim()
+            if (text.isBlank()) continue
+            callbacks.onRemoteText(item.optString("messageId"), text)
+            return
+        }
     }
 }

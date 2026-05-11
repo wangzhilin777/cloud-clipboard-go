@@ -20,6 +20,7 @@ import com.transparentlc.cloudclipboardsync.MainActivity
 import com.transparentlc.cloudclipboardsync.R
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import org.json.JSONObject
 import kotlin.math.abs
 
 class SyncService : Service() {
@@ -31,6 +32,7 @@ class SyncService : Service() {
     private var trusted = false
     private var lastRemoteText = ""
     private var lastRemoteAt = 0L
+    private var lastRemoteMessageId = ""
     private var serviceStarted = false
     private val downloadingPayloads = mutableSetOf<String>()
 
@@ -98,13 +100,8 @@ class SyncService : Service() {
                 updateNotification(status)
             }
 
-            override fun onRemoteText(text: String) {
-                applyingRemoteText = true
-                lastRemoteText = text
-                lastRemoteAt = System.currentTimeMillis()
-                clipboardManager.setPrimaryClip(ClipData.newPlainText("cloud-clipboard", text))
-                broadcastStatus(getString(R.string.status_trusted), "已接收远端文本并写入剪贴板")
-                handler.postDelayed({ applyingRemoteText = false }, 1500)
+            override fun onRemoteText(messageId: String, text: String) {
+                applyRemoteText(messageId, text, "已接收远端文本并写入剪贴板")
             }
 
             override fun onPayloadNotice(notice: PayloadNotice) {
@@ -144,11 +141,40 @@ class SyncService : Service() {
             }
             http.newCall(requestBuilder.build()).execute().use { response ->
                 val body = response.body?.string().orEmpty()
-                val trusted = body.contains("\"trusted\":true")
+                val json = JSONObject(body)
+                val trusted = json.optJSONObject("device")?.optBoolean("trusted", false) == true
                 client?.refreshTrusted(trusted)
+                if (trusted) {
+                    applyLatestRecentMessage(json, "已从最近同步恢复文本到剪贴板")
+                }
             }
         } catch (_: Exception) {
         }
+    }
+
+    private fun applyLatestRecentMessage(json: JSONObject, resultText: String) {
+        val messages = json.optJSONArray("recentMessages") ?: return
+        for (index in messages.length() - 1 downTo 0) {
+            val item = messages.optJSONObject(index) ?: continue
+            val text = item.optString("text").trim()
+            if (text.isBlank()) continue
+            applyRemoteText(item.optString("messageId"), text, resultText)
+            return
+        }
+    }
+
+    private fun applyRemoteText(messageId: String, text: String, resultText: String) {
+        if (text.isBlank()) return
+        if (messageId.isNotBlank() && messageId == lastRemoteMessageId) return
+        applyingRemoteText = true
+        if (messageId.isNotBlank()) {
+            lastRemoteMessageId = messageId
+        }
+        lastRemoteText = text
+        lastRemoteAt = System.currentTimeMillis()
+        clipboardManager.setPrimaryClip(ClipData.newPlainText("cloud-clipboard", text))
+        broadcastStatus(getString(R.string.status_trusted), resultText)
+        handler.postDelayed({ applyingRemoteText = false }, 1500)
     }
 
     private fun currentStatus(): String = when {
