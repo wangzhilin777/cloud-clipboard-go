@@ -60,10 +60,7 @@ object SettingsStore {
         val deviceId = prefs.getString(KEY_DEVICE_ID, null) ?: UUID.randomUUID().toString().also {
             prefs.edit().putString(KEY_DEVICE_ID, it).apply()
         }
-        val resolvedDeviceName = prefs.getString(KEY_DEVICE_NAME, null)
-            ?.trim()
-            ?.takeUnless { it.isBlank() || it == LEGACY_DEFAULT_DEVICE_NAME }
-            ?: detectLocalDeviceName(context)
+        val resolvedDeviceName = resolveStoredDeviceName(context, prefs)
         return Config(
             serverBase = prefs.getString(KEY_SERVER_BASE, "http://127.0.0.1:9501") ?: "http://127.0.0.1:9501",
             room = prefs.getString(KEY_ROOM, "") ?: "",
@@ -115,6 +112,17 @@ object SettingsStore {
             .apply()
     }
 
+    fun resolveDeviceNameForSave(context: Context, inputValue: String): String {
+        val trimmedInput = inputValue.trim()
+        if (trimmedInput.isNotBlank()) {
+            return trimmedInput
+        }
+
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val storedValue = prefs.getString(KEY_DEVICE_NAME, null).normalizeStoredDeviceName()
+        return storedValue ?: detectLocalDeviceName(context)
+    }
+
     fun setDesiredRunningState(context: Context, running: Boolean) {
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .edit()
@@ -152,5 +160,27 @@ object SettingsStore {
             return model.ifBlank { LEGACY_DEFAULT_DEVICE_NAME }
         }
         return "$manufacturer $model".trim()
+    }
+
+    private fun resolveStoredDeviceName(context: Context, prefs: android.content.SharedPreferences): String {
+        val storedValue = prefs.getString(KEY_DEVICE_NAME, null).normalizeStoredDeviceName()
+        if (storedValue != null) {
+            return storedValue
+        }
+
+        val detectedName = detectLocalDeviceName(context)
+        prefs.edit().putString(KEY_DEVICE_NAME, detectedName).apply()
+        return detectedName
+    }
+
+    private fun String?.normalizeStoredDeviceName(): String? {
+        val trimmed = this?.trim()
+        if (trimmed.isNullOrBlank()) {
+            return null
+        }
+        if (trimmed == LEGACY_DEFAULT_DEVICE_NAME) {
+            return null
+        }
+        return trimmed
     }
 }
