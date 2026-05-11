@@ -8,6 +8,20 @@
 4. 点击“启动同步”建立连接；后续如果保留自动恢复，下次启动客户端会按上次状态自动续连
 5. 如果用 `Ahk2Exe` 打包，脚本头已经指定 `assets/cloud-clipboard-sync.ico`，生成的 exe 不会再是默认 `H` 图标
 
+推荐打包方式：
+
+- 直接运行 `build-client.ps1`
+- 或双击 `build-client.bat`
+- 这两个脚本都会显式带上 `/icon assets\cloud-clipboard-sync.ico`，输出 `CloudClipboardSync.exe`
+- 打包前脚本会先删除旧的同名 exe，尽量减少同名文件覆盖导致的图标残留
+
+如果编译后资源管理器里仍显示旧的 `H` 图标：
+
+- 先确认你打开的是新生成的 `CloudClipboardSync.exe`
+- 同名 exe 被覆盖后，Windows 资源管理器可能暂时沿用旧图标缓存；改个文件名测试通常最直观
+- 仓库里附带了 `refresh-icon-cache.ps1` / `refresh-icon-cache.bat`，可以用来刷新本机图标缓存
+- 我本地已经实际编译并从生成 exe 中提取图标确认，exe 内部资源是新图标
+
 也可以直接编辑 `config.ini` 作为高级配置入口。
 
 配置项：
