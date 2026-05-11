@@ -62,7 +62,6 @@ global PendingReceivePayloadTitle := ""
 global PendingReceivePayloadExpiresAt := 0
 global PendingReceiveSourceDevice := ""
 global PendingReceiveKind := ""
-global SuppressPasteHotkey := false
 
 EnsureConfig()
 RefreshRuntimePaths()
@@ -1355,15 +1354,14 @@ HandleIncomingPayloadDownloaded(jsonText) {
 }
 
 HandleIncomingPayloadClipboardReady(jsonText) {
-    global LastSyncResult, SuppressPasteHotkey
+    global LastSyncResult
     title := ReadJsonValue(jsonText, "title")
     pasteFlag := ReadJsonValue(jsonText, "paste")
     LastSyncResult := "已准备好粘贴远端文件：" . title
     UpdateGui()
     ClearPendingReceiveState()
     if (pasteFlag = "true") {
-        SuppressPasteHotkey := true
-        SendInput, ^v
+        ForwardNativePaste()
     }
 }
 
@@ -1514,14 +1512,13 @@ Base64Decode(text) {
     return StrGet(&bin, size, "UTF-8")
 }
 InterceptPasteHotkey:
-    global SuppressPasteHotkey
-    if (SuppressPasteHotkey) {
-        SuppressPasteHotkey := false
-        SendInput, ^v
-        return
-    }
     if (TriggerPendingReceiveDownload(true))
         return
-    SuppressPasteHotkey := true
-    SendInput, ^v
+    ForwardNativePaste()
 return
+
+ForwardNativePaste() {
+    Suspend, On
+    SendInput, ^v
+    Suspend, Off
+}
