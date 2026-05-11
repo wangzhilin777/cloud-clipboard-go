@@ -52,13 +52,15 @@ type statusResponse struct {
 }
 
 type configView struct {
-	ServerBase     string `json:"serverBase"`
-	Room           string `json:"room"`
-	RoomPassword   string `json:"roomPassword"`
-	DeviceName     string `json:"deviceName"`
-	PollIntervalMs int64  `json:"pollIntervalMs"`
-	NoticeMode     string `json:"noticeMode"`
-	PanelAddress   string `json:"panelAddress"`
+	ServerBase           string `json:"serverBase"`
+	Room                 string `json:"room"`
+	RoomPassword         string `json:"roomPassword"`
+	DeviceName           string `json:"deviceName"`
+	PollIntervalMs       int64  `json:"pollIntervalMs"`
+	NoticeMode           string `json:"noticeMode"`
+	PanelAddress         string `json:"panelAddress"`
+	ReconnectDelayMs     int64  `json:"reconnectDelayMs"`
+	MaxReconnectAttempts int    `json:"maxReconnectAttempts"`
 }
 
 func New(address string, backend Backend) *Server {
@@ -125,14 +127,16 @@ func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	cfg := config.Config{
-		ServerBase:   payload.ServerBase,
-		Room:         payload.Room,
-		RoomPassword: payload.RoomPassword,
-		DeviceName:   payload.DeviceName,
-		DeviceID:     s.backend.Status().Config.DeviceID,
-		PollInterval: time.Duration(payload.PollIntervalMs) * time.Millisecond,
-		NoticeMode:   payload.NoticeMode,
-		PanelAddress: payload.PanelAddress,
+		ServerBase:           payload.ServerBase,
+		Room:                 payload.Room,
+		RoomPassword:         payload.RoomPassword,
+		DeviceName:           payload.DeviceName,
+		DeviceID:             s.backend.Status().Config.DeviceID,
+		PollInterval:         time.Duration(payload.PollIntervalMs) * time.Millisecond,
+		NoticeMode:           payload.NoticeMode,
+		PanelAddress:         payload.PanelAddress,
+		ReconnectDelay:       time.Duration(payload.ReconnectDelayMs) * time.Millisecond,
+		MaxReconnectAttempts: payload.MaxReconnectAttempts,
 	}
 	if err := s.backend.UpdateConfig(cfg); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -156,13 +160,15 @@ func (s *Server) handleReconnect(w http.ResponseWriter, r *http.Request) {
 
 func toConfigView(cfg config.Config) configView {
 	return configView{
-		ServerBase:     cfg.ServerBase,
-		Room:           cfg.Room,
-		RoomPassword:   cfg.RoomPassword,
-		DeviceName:     cfg.DeviceName,
-		PollIntervalMs: cfg.PollInterval.Milliseconds(),
-		NoticeMode:     cfg.NoticeMode,
-		PanelAddress:   cfg.PanelAddress,
+		ServerBase:           cfg.ServerBase,
+		Room:                 cfg.Room,
+		RoomPassword:         cfg.RoomPassword,
+		DeviceName:           cfg.DeviceName,
+		PollIntervalMs:       cfg.PollInterval.Milliseconds(),
+		NoticeMode:           cfg.NoticeMode,
+		PanelAddress:         cfg.PanelAddress,
+		ReconnectDelayMs:     cfg.ReconnectDelay.Milliseconds(),
+		MaxReconnectAttempts: cfg.MaxReconnectAttempts,
 	}
 }
 

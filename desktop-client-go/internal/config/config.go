@@ -12,14 +12,16 @@ import (
 )
 
 type Config struct {
-	ServerBase   string        `json:"serverBase"`
-	Room         string        `json:"room"`
-	RoomPassword string        `json:"roomPassword"`
-	DeviceName   string        `json:"deviceName"`
-	DeviceID     string        `json:"deviceId"`
-	PollInterval time.Duration `json:"pollInterval"`
-	NoticeMode   string        `json:"noticeMode"`
-	PanelAddress string        `json:"panelAddress"`
+	ServerBase           string        `json:"serverBase"`
+	Room                 string        `json:"room"`
+	RoomPassword         string        `json:"roomPassword"`
+	DeviceName           string        `json:"deviceName"`
+	DeviceID             string        `json:"deviceId"`
+	PollInterval         time.Duration `json:"pollInterval"`
+	NoticeMode           string        `json:"noticeMode"`
+	PanelAddress         string        `json:"panelAddress"`
+	ReconnectDelay       time.Duration `json:"reconnectDelay"`
+	MaxReconnectAttempts int           `json:"maxReconnectAttempts"`
 }
 
 func Default() Config {
@@ -28,14 +30,16 @@ func Default() Config {
 		host = "Desktop Client"
 	}
 	return Config{
-		ServerBase:   "http://127.0.0.1:9501",
-		Room:         "",
-		RoomPassword: "",
-		DeviceName:   host,
-		DeviceID:     uuid.NewString(),
-		PollInterval: 800 * time.Millisecond,
-		NoticeMode:   "popup",
-		PanelAddress: "127.0.0.1:9530",
+		ServerBase:           "http://127.0.0.1:9501",
+		Room:                 "",
+		RoomPassword:         "",
+		DeviceName:           host,
+		DeviceID:             uuid.NewString(),
+		PollInterval:         800 * time.Millisecond,
+		NoticeMode:           "popup",
+		PanelAddress:         "127.0.0.1:9530",
+		ReconnectDelay:       2 * time.Second,
+		MaxReconnectAttempts: 3,
 	}
 }
 
@@ -99,6 +103,21 @@ func (c *Config) normalize() {
 	c.PanelAddress = strings.TrimSpace(c.PanelAddress)
 	if c.PanelAddress == "" {
 		c.PanelAddress = def.PanelAddress
+	}
+	if c.ReconnectDelay <= 0 {
+		c.ReconnectDelay = def.ReconnectDelay
+	}
+	if c.ReconnectDelay < 500*time.Millisecond {
+		c.ReconnectDelay = 500 * time.Millisecond
+	}
+	if c.ReconnectDelay > 30*time.Second {
+		c.ReconnectDelay = 30 * time.Second
+	}
+	if c.MaxReconnectAttempts <= 0 {
+		c.MaxReconnectAttempts = def.MaxReconnectAttempts
+	}
+	if c.MaxReconnectAttempts > 20 {
+		c.MaxReconnectAttempts = 20
 	}
 }
 

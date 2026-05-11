@@ -198,6 +198,14 @@
             <option value="off">关闭通知</option>
           </select>
         </label>
+        <label class="field">
+          <span class="label">失败重连间隔（毫秒）</span>
+          <input id="reconnectDelayMs" type="number" min="500" max="30000">
+        </label>
+        <label class="field">
+          <span class="label">最大自动重连次数</span>
+          <input id="maxReconnectAttempts" type="number" min="1" max="20">
+        </label>
         <label class="field full">
           <span class="label">面板监听地址</span>
           <input id="panelAddress" placeholder="127.0.0.1:9530">
@@ -220,6 +228,8 @@
       deviceName: document.getElementById('deviceName'),
       pollIntervalMs: document.getElementById('pollIntervalMs'),
       noticeMode: document.getElementById('noticeMode'),
+      reconnectDelayMs: document.getElementById('reconnectDelayMs'),
+      maxReconnectAttempts: document.getElementById('maxReconnectAttempts'),
       panelAddress: document.getElementById('panelAddress'),
     };
     const statusText = document.getElementById('statusText');
@@ -233,7 +243,9 @@
       const normalized = String(status || '').toLowerCase();
       if (normalized === 'trusted' || normalized === 'connected') return 'status-connected';
       if (normalized === 'pending' || normalized === 'connecting' || normalized === 'starting') return 'status-pending';
+      if (normalized === 'retrying') return 'status-pending';
       if (normalized === 'error') return 'status-error';
+      if (normalized === 'stopped') return 'status-error';
       return '';
     }
 
@@ -276,6 +288,8 @@
         deviceName: fields.deviceName.value,
         pollIntervalMs: Number(fields.pollIntervalMs.value || 0),
         noticeMode: fields.noticeMode.value,
+        reconnectDelayMs: Number(fields.reconnectDelayMs.value || 0),
+        maxReconnectAttempts: Number(fields.maxReconnectAttempts.value || 0),
         panelAddress: fields.panelAddress.value,
       };
       try {

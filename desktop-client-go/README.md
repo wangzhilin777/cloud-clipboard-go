@@ -13,6 +13,7 @@
 - 本地 `state.json` 记录连接状态与最近一次远端内容
 - 支持桌面通知模式：`popup / log / off`
 - 内置本地控制面板，可查看状态、修改配置、保存后触发重连
+- 支持失败自动重连次数与重连间隔控制，超过上限后停止自动重连
 
 后续会继续补：
 
@@ -35,5 +36,6 @@ C:\Program Files\Go\bin\go.exe run ./cmd/cloud-clipboard-desktop
 
 - 地址默认是 `http://127.0.0.1:9530/`
 - 可在面板内修改 `serverBase / room / roomPassword / deviceName / pollInterval / noticeMode`
+- 可在面板内修改失败自动重连次数与重连间隔
 - 保存后会立即触发同步客户端重连
 - 如果修改了 `panelAddress`，需要用新地址重新打开页面

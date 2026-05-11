@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"errors"
 	"log"
 	"path/filepath"
 	"strings"
@@ -79,6 +80,16 @@ func (a *App) Run(ctx context.Context) error {
 			if ctx.Err() != nil {
 				return ctx.Err()
 			}
+			if errors.Is(err, syncclient.ErrReconnectStopped) {
+				a.logger.Printf("自动重连已暂停，等待手动重连")
+				select {
+				case <-ctx.Done():
+					return ctx.Err()
+				case <-a.reloadCh:
+					a.logger.Printf("收到手动重连请求，重新启动同步客户端")
+					continue
+				}
+			}
 			return err
 		}
 	}
@@ -153,6 +164,30 @@ func (a *App) OnError(err error) {
 	_ = a.state.Save(StateSnapshot{
 		Status:    "error",
 		LastError: err.Error(),
+	})
+}
+
+func (a *App) OnRetrying(attempt int, maxAttempts int, delay time.Duration, err error) {
+	message := ""
+	if err != nil {
+		message = err.Error()
+	}
+	_ = a.state.Save(StateSnapshot{
+		Status:    "retrying",
+		LastError: message,
+	})
+	a.logger.Printf("同步失败，%d/%d 次后将在 %s 后重试", attempt, maxAttempts, delay.String())
+}
+
+func (a *App) OnReconnectStopped(lastErr error) {
+	message := "自动重连次数已达上限，请检查服务后在面板手动重连。"
+	if lastErr != nil && strings.TrimSpace(lastErr.Error()) != "" {
+		message = message + " 最近错误：" + lastErr.Error()
+	}
+	a.notifier.Notify("Cloud Clipboard", "自动重连已暂停，请打开面板检查后手动重连。")
+	_ = a.state.Save(StateSnapshot{
+		Status:    "stopped",
+		LastError: message,
 	})
 }
 

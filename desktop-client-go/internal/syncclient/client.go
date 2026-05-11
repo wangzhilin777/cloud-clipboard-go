@@ -98,6 +98,7 @@ func (c *Client) Run(ctx context.Context) error {
 		return fmt.Errorf("初始化系统剪贴板失败: %w", err)
 	}
 
+	attempt := 0
 	for {
 		err := c.runSession(ctx)
 		if ctx.Err() != nil {
@@ -106,10 +107,16 @@ func (c *Client) Run(ctx context.Context) error {
 		if err != nil && !errors.Is(err, context.Canceled) {
 			c.logger.Printf("同步连接断开: %v", err)
 		}
+		attempt++
+		if c.cfg.MaxReconnectAttempts > 0 && attempt >= c.cfg.MaxReconnectAttempts {
+			c.events.OnReconnectStopped(err)
+			return ErrReconnectStopped
+		}
+		c.events.OnRetrying(attempt, c.cfg.MaxReconnectAttempts, c.cfg.ReconnectDelay, err)
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case <-time.After(2 * time.Second):
+		case <-time.After(c.cfg.ReconnectDelay):
 		}
 	}
 }
