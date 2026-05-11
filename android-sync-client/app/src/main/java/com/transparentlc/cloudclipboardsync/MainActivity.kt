@@ -9,8 +9,10 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
+import android.view.View
 import android.widget.Button
 import android.widget.EditText
+import android.widget.LinearLayout
 import android.widget.RadioButton
 import android.widget.RadioGroup
 import android.widget.Switch
@@ -19,11 +21,17 @@ import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import com.google.android.material.tabs.TabLayout
 import com.transparentlc.cloudclipboardsync.sync.PayloadCacheStore
 import com.transparentlc.cloudclipboardsync.sync.SettingsStore
 import com.transparentlc.cloudclipboardsync.sync.SyncService
 
 class MainActivity : AppCompatActivity() {
+    private lateinit var settingsTabLayout: TabLayout
+    private lateinit var connectionSection: LinearLayout
+    private lateinit var runtimeSection: LinearLayout
+    private lateinit var permissionSection: LinearLayout
+    private lateinit var receiveSection: LinearLayout
     private lateinit var serverBaseInput: EditText
     private lateinit var roomInput: EditText
     private lateinit var roomPasswordInput: EditText
@@ -42,6 +50,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var statusText: TextView
     private lateinit var lastSyncText: TextView
 
+    private var selectedTabIndex = TAB_CONNECTION
+
     private val notificationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { }
@@ -57,6 +67,11 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
+        settingsTabLayout = findViewById(R.id.settingsTabLayout)
+        connectionSection = findViewById(R.id.connectionSection)
+        runtimeSection = findViewById(R.id.runtimeSection)
+        permissionSection = findViewById(R.id.permissionSection)
+        receiveSection = findViewById(R.id.receiveSection)
         serverBaseInput = findViewById(R.id.serverBaseInput)
         roomInput = findViewById(R.id.roomInput)
         roomPasswordInput = findViewById(R.id.roomPasswordInput)
@@ -75,6 +90,7 @@ class MainActivity : AppCompatActivity() {
         statusText = findViewById(R.id.statusText)
         lastSyncText = findViewById(R.id.lastSyncText)
 
+        bindTabs()
         bindConfig()
         findViewById<Button>(R.id.saveButton).setOnClickListener {
             val config = saveConfig()
@@ -169,6 +185,28 @@ class MainActivity : AppCompatActivity() {
         refreshPermissionSummary()
     }
 
+    private fun bindTabs() {
+        settingsTabLayout.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
+            override fun onTabSelected(tab: TabLayout.Tab) {
+                selectedTabIndex = tab.position
+                updateVisibleSection()
+            }
+
+            override fun onTabUnselected(tab: TabLayout.Tab) = Unit
+
+            override fun onTabReselected(tab: TabLayout.Tab) = Unit
+        })
+        settingsTabLayout.getTabAt(selectedTabIndex)?.select()
+        updateVisibleSection()
+    }
+
+    private fun updateVisibleSection() {
+        connectionSection.visibility = if (selectedTabIndex == TAB_CONNECTION) View.VISIBLE else View.GONE
+        runtimeSection.visibility = if (selectedTabIndex == TAB_RUNTIME) View.VISIBLE else View.GONE
+        permissionSection.visibility = if (selectedTabIndex == TAB_PERMISSIONS) View.VISIBLE else View.GONE
+        receiveSection.visibility = if (selectedTabIndex == TAB_RECEIVE) View.VISIBLE else View.GONE
+    }
+
     private fun saveConfig(): SettingsStore.Config {
         val previous = SettingsStore.load(this)
         val config = SettingsStore.Config(
@@ -246,4 +284,11 @@ class MainActivity : AppCompatActivity() {
     private fun stateLabel(enabled: Boolean): String = getString(
         if (enabled) R.string.permission_state_enabled else R.string.permission_state_disabled,
     )
+
+    companion object {
+        private const val TAB_CONNECTION = 0
+        private const val TAB_RUNTIME = 1
+        private const val TAB_PERMISSIONS = 2
+        private const val TAB_RECEIVE = 3
+    }
 }

@@ -3,6 +3,10 @@
     <string name="server_base_hint">服务端地址，例如 http://192.168.1.10:9501</string>
     <string name="server_base_tip">如果 Go 服务跑在 Windows 上，这里要填 Windows 的局域网 IP，不要填 127.0.0.1。</string>
     <string name="server_base_loopback_hint">当前地址指向安卓设备自己；如果服务端在 Windows，请改成 http://Windows局域网IP:9501</string>
+    <string name="tab_connection">连接</string>
+    <string name="tab_runtime">运行</string>
+    <string name="tab_permissions">权限</string>
+    <string name="tab_receive">接收</string>
     <string name="room_hint">房间名称（可留空）</string>
     <string name="room_password_hint">房间密码或全局密码（可留空）</string>
     <string name="device_name_hint">设备名称</string>
