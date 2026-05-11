@@ -42,6 +42,21 @@
                 <v-progress-linear :value="uploadProgress * 100"></v-progress-linear>
             </div>
 
+            <div v-if="$root.send.files.length" class="px-1 pb-2">
+                <v-checkbox
+                    v-model="notifyAndroid"
+                    class="ma-0"
+                    color="primary"
+                    dense
+                    hide-details
+                    :disabled="!canNotifyAndroid || progress"
+                    label="上传后通知已信任安卓端确认接收"
+                ></v-checkbox>
+                <div v-if="notifyHint" class="caption text--secondary mt-1 unified-composer__notify-hint">
+                    {{ notifyHint }}
+                </div>
+            </div>
+
             <div class="unified-composer__footer pt-1">
                 <div class="unified-composer__footer-main d-flex align-center flex-wrap">
                     <v-btn icon small color="grey darken-1" @click="openFilePicker">
@@ -92,6 +107,7 @@ export default {
         return {
             progress: false,
             uploadedSizes: [],
+            notifyAndroid: true,
             mdiPaperclip,
             mdiQrcode,
             mdiSend,
@@ -109,6 +125,21 @@ export default {
         },
         sendDisabled() {
             return !this.$root.websocket || this.progress || (!this.$root.send.text && !this.$root.send.files.length) || this.$root.send.text.length > this.$root.config.text.limit;
+        },
+        canNotifyAndroid() {
+            return !!(this.$root.sync?.device?.trusted && this.$root.sync?.deviceId);
+        },
+        notifyHint() {
+            if (!this.$root.send.files.length) {
+                return '';
+            }
+            if (this.canNotifyAndroid) {
+                return '仅向同房间、已信任且不是当前网页本机的同步客户端广播通知。';
+            }
+            if (this.$root.sync?.status === 'pending') {
+                return '当前网页同步设备尚未获批，暂时不能发送接收通知。';
+            }
+            return '需要先连上同步协议并让当前网页设备处于已信任状态。';
         },
         footerHint() {
             if (this.$root.send.files.length) {
@@ -189,16 +220,19 @@ export default {
             this.uploadedSizes.splice(0);
             this.uploadedSizes.push(...Array(this.$root.send.files.length).fill(0));
             this.progress = true;
-
-            await Promise.all(this.$root.send.files.map(async (file, index) => {
+            const uploadResults = await Promise.all(this.$root.send.files.map(async (file, index) => {
                 if (file.size < chunkSize) {
                     const formData = new FormData;
                     formData.set('file', file);
-                    await this.$http.postForm('upload', formData, {
+                    const response = await this.$http.postForm('upload', formData, {
                         params: new URLSearchParams([['room', this.$root.room]]),
                         onUploadProgress: event => this.$set(this.uploadedSizes, index, event.loaded),
                     });
-                    return;
+                    return {
+                        file,
+                        result: response.data.result,
+                        notice: this.buildPayloadNotice(file, response.data.result),
+                    };
                 }
 
                 const response = await this.$http.post('upload/chunk', file.name, {
@@ -217,22 +251,66 @@ export default {
                     uploadedSize += chunkSize;
                 }
 
-                await this.$http.post(`upload/finish/${uuid}`, null, {
+                const finishResponse = await this.$http.post(`upload/finish/${uuid}`, null, {
                     params: new URLSearchParams([['room', this.$root.room]]),
                 });
+                return {
+                    file,
+                    result: finishResponse.data.result,
+                    notice: this.buildPayloadNotice(file, finishResponse.data.result),
+                };
             }));
 
+            let noticeSent = false;
+            let noticeError = null;
+            try {
+                noticeSent = await this.broadcastPayloadNotice(uploadResults);
+            } catch (error) {
+                noticeError = error;
+            }
             this.$root.send.files.splice(0);
+            return {
+                noticeSent,
+                noticeError,
+            };
+        },
+        buildPayloadNotice(file, uploadResult) {
+            const result = uploadResult || {};
+            return {
+                sourceDeviceId: this.$root.sync.deviceId,
+                room: this.$root.room || '',
+                kind: result.kind || (file.type.startsWith('image/') ? 'image' : 'file'),
+                title: result.name || file.name,
+                mime: file.type || 'application/octet-stream',
+                size: result.size || file.size,
+                actionUrl: result.actionUrl || result.url || null,
+                downloadUrl: result.downloadUrl || null,
+                createdAt: Date.now(),
+            };
+        },
+        async broadcastPayloadNotice(uploadResults) {
+            if (!(this.notifyAndroid && this.canNotifyAndroid)) {
+                return false;
+            }
+            await Promise.all(uploadResults.map(result => this.$http.post('api/sync/payload-notice', result.notice)));
+            return true;
         },
         async sendAll() {
             try {
+                let fileSendResult = null;
                 if (this.$root.send.text) {
                     await this.sendText();
                 }
                 if (this.$root.send.files.length) {
-                    await this.sendFiles();
+                    fileSendResult = await this.sendFiles();
                 }
-                this.$toast(this.$t('sendSuccess'));
+                if (fileSendResult?.noticeSent) {
+                    this.$toast('发送成功，已通知安卓端确认接收');
+                } else if (fileSendResult?.noticeError) {
+                    this.$toast(`发送成功，但通知安卓端失败：${fileSendResult.noticeError.response?.data?.message || fileSendResult.noticeError.message}`);
+                } else {
+                    this.$toast(this.$t('sendSuccess'));
+                }
                 this.focus();
             } catch (error) {
                 if (error.response && error.response.data.msg) {
@@ -335,6 +413,11 @@ export default {
 .unified-composer__hint {
     line-height: 1.4;
     min-width: 0;
+    word-break: break-word;
+}
+
+.unified-composer__notify-hint {
+    line-height: 1.4;
     word-break: break-word;
 }
 
