@@ -32,6 +32,12 @@ global ShellMenuRegistered := false
 global HotkeyCaptureSuspended := false
 global TrayIconVisible := true
 global AdvancedPanelVisible := false
+global NoticePopupVisible := false
+global NoticeCategory := ""
+global NoticePrimaryAction := ""
+global NoticeSecondaryAction := ""
+global NoticeTertiaryAction := ""
+global NoticeAutoHideAt := 0
 global StatusText := ""
 global RoomText := ""
 global DeviceText := ""
@@ -74,6 +80,7 @@ EnsureConfig()
 RefreshRuntimePaths()
 InitGui()
 InitAdvancedGui()
+InitNoticePopup()
 InitTray()
 RegisterPanelHotkey()
 RegisterSyncToggleHotkey()
@@ -165,6 +172,23 @@ ToggleStatusPanel:
         HideStatusPanel()
     else
         ShowStatusPanel()
+return
+
+NoticePrimaryActionLabel:
+    HandleNoticePopupAction(NoticePrimaryAction)
+return
+
+NoticeSecondaryActionLabel:
+    HandleNoticePopupAction(NoticeSecondaryAction)
+return
+
+NoticeTertiaryActionLabel:
+    HandleNoticePopupAction(NoticeTertiaryAction)
+return
+
+NoticeGuiEscape:
+NoticeGuiClose:
+    HideNoticePopup()
 return
 
 ShowStatusPanel() {
@@ -459,6 +483,7 @@ EnsureHelperRunning:
             ClientStatus := "重连失败"
             LastSyncResult := "连续 3 次连接失败，已停止自动重连，请检查服务端状态后手动点“启动同步”或“重新连接”"
             TrayTip, Cloud Clipboard, 连续 3 次重连失败，请检查服务端后手动重试, 5, 17
+            ShowNoticePopup("连接已暂停", "连续 3 次连接失败，已停止自动重连。你可以点开面板检查地址、房间密码或服务端状态。", "打开面板", "openPanel", "稍后再说", "dismiss", "", "", 12000, "connectFailure")
             UpdateGui()
             return
         }
@@ -760,6 +785,21 @@ InitAdvancedGui() {
     Gui, Advanced:Add, CheckBox, xm y+8 w470 vEditStartupEnabled, 跟随 Windows 开机启动本客户端
     Gui, Advanced:Add, Button, xm y+18 w104 h30 gSaveConfig Default, 保存配置
     Gui, Advanced:Add, Button, x+8 w104 h30 gAdvancedGuiClose, 关闭
+}
+
+InitNoticePopup() {
+    global NoticeTitleLabel, NoticeBodyLabel, NoticePrimaryButton, NoticeSecondaryButton, NoticeTertiaryButton
+    Gui, Notice:New, -Caption +ToolWindow +AlwaysOnTop +Border +HwndNoticeGuiHwnd, Cloud Clipboard 提示
+    Gui, Notice:Margin, 16, 14
+    Gui, Notice:Color, F8FAFC
+    Gui, Notice:Font, s10 Bold c1F3A5F, Segoe UI
+    Gui, Notice:Add, Text, xm w332 vNoticeTitleLabel, Cloud Clipboard
+    Gui, Notice:Font, s9 Norm c344054, Segoe UI
+    Gui, Notice:Add, Text, xm y+8 w332 r3 vNoticeBodyLabel, 提示内容
+    Gui, Notice:Add, Button, xm y+14 w98 h28 gNoticePrimaryActionLabel vNoticePrimaryButton, 确认
+    Gui, Notice:Add, Button, x+8 w98 h28 gNoticeSecondaryActionLabel vNoticeSecondaryButton, 稍后
+    Gui, Notice:Add, Button, x+8 w98 h28 gNoticeTertiaryActionLabel vNoticeTertiaryButton, 打开面板
+    Gui, Notice:Hide
 }
 
 UpdateGui() {
@@ -1354,11 +1394,12 @@ TriggerPendingReceiveDownload(pasteAfterCopy := true, force := false) {
         ShowActionTip("Cloud Clipboard", "再次按 Ctrl+V 可确认下载远端文件：" . PendingReceivePayloadTitle)
         return true
     }
-    payload := "{""payloadId"":""" . EscapeJsonString(PendingReceivePayloadId) . """,""mode"":""clipboardPaste"",""paste"":" . (pasteAfterCopy ? "true" : "false") . "}"
+    mode := pasteAfterCopy ? "clipboardPaste" : "download"
+    payload := "{""payloadId"":""" . EscapeJsonString(PendingReceivePayloadId) . """,""mode"":""" . mode . """,""paste"":" . (pasteAfterCopy ? "true" : "false") . "}"
     AppendCommand("payloadReceive", payload)
-    LastSyncResult := "已开始接收远端文件：" . PendingReceivePayloadTitle
+    LastSyncResult := pasteAfterCopy ? "已开始接收远端文件：" . PendingReceivePayloadTitle : "已开始下载远端文件：" . PendingReceivePayloadTitle
     UpdateGui()
-    ShowActionTip("Cloud Clipboard", "正在下载并准备粘贴：" . PendingReceivePayloadTitle)
+    ShowActionTip("Cloud Clipboard", pasteAfterCopy ? "正在下载并准备粘贴：" . PendingReceivePayloadTitle : "正在下载到本地缓存：" . PendingReceivePayloadTitle)
     return true
 }
 
@@ -1375,6 +1416,9 @@ ArmPendingPayload(action, paths, signature, reason) {
     LastSyncResult := reason . "；请在 " . seconds . " 秒内再次复制同一批文件，才会真正发送到安卓"
     UpdateGui()
     ShowActionTip("Cloud Clipboard", reason . "，" . seconds . " 秒内再次复制同一批文件即可发送到安卓")
+    title := "准备发送文件"
+    body := reason . "。`n" . "共 " . PendingPayloadCount . " 个文件；你可以再次复制确认，也可以直接点“立即发送”。"
+    ShowNoticePopup(title, body, "立即发送", "sendPendingPayload", "稍后再说", "dismissSendPending", "打开面板", "openPanel", seconds * 1000, "sendConfirm")
     delayMs := seconds * 1000
     SetTimer, ClearPendingPayloadTimer, Off
     SetTimer, ClearPendingPayloadTimer, % -delayMs
@@ -1418,13 +1462,15 @@ ClearPendingReceiveState() {
 }
 
 ClearPendingPayloadTimer:
-    global PendingPayloadSignature, PendingPayloadExpiresAt, PendingPayloadDescription, LastSyncResult
+    global PendingPayloadSignature, PendingPayloadExpiresAt, PendingPayloadDescription, LastSyncResult, NoticeCategory
     if (PendingPayloadSignature = "")
         return
     if (A_TickCount < PendingPayloadExpiresAt)
         return
     LastSyncResult := PendingPayloadDescription . "已过期；刚才那批文件未发送，如需继续请重新复制一次"
     ClearPendingPayloadState()
+    if (NoticeCategory = "sendConfirm")
+        HideNoticePopup()
     UpdateGui()
 return
 
@@ -1509,6 +1555,9 @@ HandleIncomingPayloadNotice(jsonText) {
     LastSyncResult := "收到远端" . DescribePayloadKind(kind) . "：" . PendingReceivePayloadTitle . "；可用拖拽、直贴热键，或按 Ctrl+V 进入下载确认"
     UpdateGui()
     ShowActionTip("Cloud Clipboard", "收到远端" . DescribePayloadKind(kind) . "“" . PendingReceivePayloadTitle . "”，按 Ctrl+V 可进入下载确认，直贴热键可直接下载并粘贴")
+    title := "收到远端" . DescribePayloadKind(kind)
+    body := PendingReceivePayloadTitle . "`n你可以直接下载并准备粘贴，也可以先下载到本地缓存。"
+    ShowNoticePopup(title, body, "下载并粘贴", "receivePaste", "下载到缓存", "receiveDownload", "忽略", "dismissReceive", seconds * 1000, "receiveConfirm")
     SetTimer, ClearPendingReceiveTimer, Off
     delayMs := seconds * 1000
     SetTimer, ClearPendingReceiveTimer, % -delayMs
@@ -1521,6 +1570,7 @@ HandleIncomingPayloadDownloaded(jsonText) {
     LastSyncResult := "已下载远端文件到本地：" . title
     UpdateGui()
     ShowActionTip("Cloud Clipboard", "已下载到本地：" . path)
+    ShowNoticePopup("文件已下载", title . "`n已保存到：" . path, "打开面板", "openPanel", "知道了", "dismiss", "", "", 7000, "downloaded")
     ClearPendingReceiveState()
 }
 
@@ -1537,13 +1587,15 @@ HandleIncomingPayloadClipboardReady(jsonText) {
 }
 
 ClearPendingReceiveTimer:
-    global PendingReceivePayloadId, PendingReceivePayloadExpiresAt, PendingReceivePayloadTitle, LastSyncResult
+    global PendingReceivePayloadId, PendingReceivePayloadExpiresAt, PendingReceivePayloadTitle, LastSyncResult, NoticeCategory
     if (PendingReceivePayloadId = "")
         return
     if (A_TickCount < PendingReceivePayloadExpiresAt)
         return
     LastSyncResult := "远端文件“" . PendingReceivePayloadTitle . "”的接收确认已过期"
     ClearPendingReceiveState()
+    if (NoticeCategory = "receiveConfirm")
+        HideNoticePopup()
     UpdateGui()
 return
 
@@ -1640,6 +1692,86 @@ ShowActionTip(title, message) {
     SetTimer, HideActionToolTip, Off
     SetTimer, HideActionToolTip, -3500
 }
+
+ShowNoticePopup(title, body, primaryLabel := "", primaryAction := "", secondaryLabel := "", secondaryAction := "", tertiaryLabel := "", tertiaryAction := "", timeoutMs := 8000, category := "general") {
+    global NoticePopupVisible, NoticeCategory, NoticePrimaryAction, NoticeSecondaryAction, NoticeTertiaryAction, NoticeAutoHideAt
+    NoticeCategory := category
+    NoticePrimaryAction := primaryAction
+    NoticeSecondaryAction := secondaryAction
+    NoticeTertiaryAction := tertiaryAction
+    GuiControl, Notice:, NoticeTitleLabel, %title%
+    GuiControl, Notice:, NoticeBodyLabel, %body%
+    UpdateNoticePopupButton("NoticePrimaryButton", primaryLabel)
+    UpdateNoticePopupButton("NoticeSecondaryButton", secondaryLabel)
+    UpdateNoticePopupButton("NoticeTertiaryButton", tertiaryLabel)
+    Gui, Notice:Show, AutoSize NA, Cloud Clipboard 提示
+    PositionNoticePopup()
+    NoticePopupVisible := true
+    NoticeAutoHideAt := A_TickCount + timeoutMs
+    SetTimer, HideNoticePopupTimer, Off
+    delayMs := -timeoutMs
+    SetTimer, HideNoticePopupTimer, %delayMs%
+}
+
+UpdateNoticePopupButton(controlName, label) {
+    if (label = "") {
+        GuiControl, Notice:Hide, %controlName%
+        return
+    }
+    GuiControl, Notice:, %controlName%, %label%
+    GuiControl, Notice:Show, %controlName%
+}
+
+PositionNoticePopup() {
+    SysGet, WorkArea, MonitorWorkArea
+    WinGetPos, , , popupW, popupH, Cloud Clipboard 提示 ahk_class AutoHotkeyGUI
+    if (popupW = "")
+        return
+    x := WorkAreaRight - popupW - 20
+    y := WorkAreaBottom - popupH - 20
+    Gui, Notice:Show, x%x% y%y% NA
+}
+
+HideNoticePopup() {
+    global NoticePopupVisible, NoticeCategory, NoticePrimaryAction, NoticeSecondaryAction, NoticeTertiaryAction, NoticeAutoHideAt
+    SetTimer, HideNoticePopupTimer, Off
+    Gui, Notice:Hide
+    NoticePopupVisible := false
+    NoticeCategory := ""
+    NoticePrimaryAction := ""
+    NoticeSecondaryAction := ""
+    NoticeTertiaryAction := ""
+    NoticeAutoHideAt := 0
+}
+
+HandleNoticePopupAction(action) {
+    global PendingPayloadPaths, PendingPayloadAction
+    if (action = "")
+        return
+    if (action = "sendPendingPayload") {
+        if (PendingPayloadPaths != "")
+            ExecutePayloadAction(PendingPayloadAction, PendingPayloadPaths)
+        ClearPendingPayloadState()
+    } else if (action = "dismissSendPending") {
+        ClearPendingPayloadState()
+    } else if (action = "receivePaste") {
+        TriggerPendingReceiveDownload(true, true)
+    } else if (action = "receiveDownload") {
+        TriggerPendingReceiveDownload(false, true)
+    } else if (action = "dismissReceive") {
+        ClearPendingReceiveState()
+    } else if (action = "openPanel") {
+        ShowStatusPanel()
+    }
+    HideNoticePopup()
+}
+
+HideNoticePopupTimer:
+    global NoticeAutoHideAt
+    if (NoticeAutoHideAt != 0 && A_TickCount < NoticeAutoHideAt)
+        return
+    HideNoticePopup()
+return
 
 HideActionToolTip:
     ToolTip
