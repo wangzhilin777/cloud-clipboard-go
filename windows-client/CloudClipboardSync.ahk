@@ -25,6 +25,7 @@ global NextHelperRestartAt := 0
 global RegisteredPanelHotkey := ""
 global RegisteredSyncToggleHotkey := ""
 global RegisteredTrayIconHotkey := ""
+global RegisteredDirectSendHotkey := ""
 global HotkeyCaptureSuspended := false
 global TrayIconVisible := true
 global AdvancedPanelVisible := false
@@ -42,10 +43,18 @@ global EditRuntimeDir := ""
 global EditPanelHotkey := ""
 global EditSyncToggleHotkey := ""
 global EditTrayIconHotkey := ""
+global EditDirectSendHotkey := ""
 global EditAutoConnectEnabled := 0
 global EditStartupEnabled := 0
+global EditFileConfirmSeconds := 8
 global CaptureHotkeyValue := ""
 global CaptureHotkeyTarget := ""
+global PendingPayloadSignature := ""
+global PendingPayloadPaths := ""
+global PendingPayloadExpiresAt := 0
+global PendingPayloadAction := ""
+global PendingPayloadDescription := ""
+global PendingPayloadCount := 0
 
 EnsureConfig()
 RefreshRuntimePaths()
@@ -55,6 +64,7 @@ InitTray()
 RegisterPanelHotkey()
 RegisterSyncToggleHotkey()
 RegisterTrayIconHotkey()
+RegisterDirectSendHotkey()
 if (ShouldShowInitialPanel())
     ShowStatusPanel()
 OnClipboardChange("HandleClipboardChange")
@@ -65,13 +75,21 @@ return
 
 HandleClipboardChange(Type) {
     global ApplyingRemoteClipboard, SyncPaused, HelperActive
-    if (Type != 1 || ApplyingRemoteClipboard || SyncPaused || !HelperActive)
+    if (ApplyingRemoteClipboard || SyncPaused || !HelperActive)
         return
-    ClipWait, 0.2
-    text := Clipboard
-    if (text = "")
+    if (Type = 1) {
+        ClipWait, 0.2
+        text := Clipboard
+        if (text = "")
+            return
+        AppendCommand("publish", text)
         return
-    AppendCommand("publish", text)
+    }
+    if (ClipboardContainsFiles()) {
+        paths := GetClipboardFileList()
+        if (paths != "")
+            RequestPayloadConfirmation(paths, "upload", "已复制文件到剪贴板")
+    }
 }
 
 PollEvents:
@@ -147,7 +165,7 @@ return
 
 SaveConfig:
     global ConfigPath, EditServerBase, EditRoom, EditRoomPassword, EditDeviceName, EditDeviceId, EditRuntimeDir
-    global EditPanelHotkey, EditSyncToggleHotkey, EditTrayIconHotkey, EditAutoConnectEnabled, EditStartupEnabled, LastSyncResult, HelperActive
+    global EditPanelHotkey, EditSyncToggleHotkey, EditTrayIconHotkey, EditDirectSendHotkey, EditAutoConnectEnabled, EditStartupEnabled, EditFileConfirmSeconds, LastSyncResult, HelperActive
     Gui, Status:Submit, NoHide
     Gui, Advanced:Submit, NoHide
     autoConnectValue := EditAutoConnectEnabled ? 1 : 0
@@ -155,7 +173,13 @@ SaveConfig:
     normalizedHotkey := NormalizeHotkey(EditPanelHotkey)
     normalizedSyncToggleHotkey := NormalizeHotkey(EditSyncToggleHotkey)
     normalizedTrayIconHotkey := NormalizeHotkey(EditTrayIconHotkey)
+    normalizedDirectSendHotkey := NormalizeHotkey(EditDirectSendHotkey)
     normalizedRuntimeDir := NormalizeRuntimeDirForSave(EditRuntimeDir)
+    normalizedFileConfirmSeconds := EditFileConfirmSeconds + 0
+    if (normalizedFileConfirmSeconds < 3)
+        normalizedFileConfirmSeconds := 3
+    if (normalizedFileConfirmSeconds > 30)
+        normalizedFileConfirmSeconds := 30
     IniWrite, %EditServerBase%, %ConfigPath%, sync, serverBase
     IniWrite, %EditRoom%, %ConfigPath%, sync, room
     IniWrite, %EditRoomPassword%, %ConfigPath%, sync, roomPassword
@@ -165,12 +189,15 @@ SaveConfig:
     IniWrite, %normalizedHotkey%, %ConfigPath%, sync, panelHotkey
     IniWrite, %normalizedSyncToggleHotkey%, %ConfigPath%, sync, syncToggleHotkey
     IniWrite, %normalizedTrayIconHotkey%, %ConfigPath%, sync, trayIconHotkey
+    IniWrite, %normalizedDirectSendHotkey%, %ConfigPath%, sync, directSendHotkey
     IniWrite, %autoConnectValue%, %ConfigPath%, sync, autoConnectEnabled
     IniWrite, %startupValue%, %ConfigPath%, sync, startupEnabled
+    IniWrite, %normalizedFileConfirmSeconds%, %ConfigPath%, sync, fileConfirmSeconds
     RefreshRuntimePaths()
     RegisterPanelHotkey()
     RegisterSyncToggleHotkey()
     RegisterTrayIconHotkey()
+    RegisterDirectSendHotkey()
     SyncStartupShortcut()
     LastSyncResult := "配置已保存"
     if (HelperActive) {
@@ -239,12 +266,31 @@ OpenTrayIconHotkeyCapture:
     Gui, HotkeyCapture:Show, AutoSize, 录制托盘图标热键
 return
 
+OpenDirectSendHotkeyCapture:
+    global CaptureHotkeyValue, CaptureHotkeyTarget, EditDirectSendHotkey
+    Gui, Advanced:Submit, NoHide
+    SuspendRegisteredHotkeys()
+    CaptureHotkeyTarget := "directSend"
+    CaptureHotkeyValue := NormalizeHotkey(EditDirectSendHotkey)
+    Gui, HotkeyCapture:Destroy
+    Gui, HotkeyCapture:New, +OwnerStatus +AlwaysOnTop +ToolWindow, 录制直发热键
+    Gui, HotkeyCapture:Margin, 16, 16
+    Gui, HotkeyCapture:Add, Text, w280, 按下要用于直接发送当前选中文件的快捷键；也可以清空为不设置。
+    Gui, HotkeyCapture:Add, Hotkey, xm y+12 w280 vCaptureHotkeyValue, %CaptureHotkeyValue%
+    Gui, HotkeyCapture:Add, Button, xm y+14 w84 gSaveCapturedHotkey Default, 确认
+    Gui, HotkeyCapture:Add, Button, x+8 w84 gClearCapturedHotkey, 清空
+    Gui, HotkeyCapture:Add, Button, x+8 w84 gCancelCapturedHotkey, 取消
+    Gui, HotkeyCapture:Show, AutoSize, 录制直发热键
+return
+
 SaveCapturedHotkey:
     global CaptureHotkeyValue, CaptureHotkeyTarget
     Gui, HotkeyCapture:Submit, NoHide
     displayHotkey := FormatHotkeyForDisplay(CaptureHotkeyValue)
     if (CaptureHotkeyTarget = "syncToggle")
         GuiControl, Advanced:, EditSyncToggleHotkey, %displayHotkey%
+    else if (CaptureHotkeyTarget = "directSend")
+        GuiControl, Advanced:, EditDirectSendHotkey, %displayHotkey%
     else if (CaptureHotkeyTarget = "trayIcon")
         GuiControl, Advanced:, EditTrayIconHotkey, %displayHotkey%
     else
@@ -295,15 +341,14 @@ SendFilesToAndroid:
     paths := SelectFilesForAndroid()
     if (paths = "")
         return
-    AppendCommand("payload", paths)
-    LastSyncResult := "已提交文件通知任务，等待后台上传"
-    UpdateGui()
+    RequestPayloadConfirmation(paths, "upload", "已选择文件待发送")
 return
 
 ClearRuntimeCache:
     global CommandPath, EventPath, LastEventLine, LastSyncResult, HelperActive, ApplyingRemoteClipboard
     ApplyingRemoteClipboard := false
     LastEventLine := 0
+    ClearPendingPayloadState()
     if (HelperActive) {
         RestartHelper(true)
         LastSyncResult := "已清理本地运行缓存，并重新连接后台同步"
@@ -403,9 +448,33 @@ ToggleStartup:
     TrayTip, Cloud Clipboard, % nextValue = 1 ? "已开启开机启动" : "已关闭开机启动", 3, 1
 return
 
+DirectSendSelectedFiles:
+    global LastSyncResult, HelperActive, SyncPaused
+    if (!HelperActive) {
+        LastSyncResult := "当前未启动后台同步，请先启动同步"
+        UpdateGui()
+        return
+    }
+    if (SyncPaused) {
+        LastSyncResult := "当前已暂停同步，请先恢复同步再发送文件"
+        UpdateGui()
+        return
+    }
+    paths := GetActiveExplorerSelection()
+    if (paths = "") {
+        LastSyncResult := "当前没有可直接发送的文件，请先在资源管理器或桌面选中文件"
+        UpdateGui()
+        ShowActionTip("Cloud Clipboard", "没有读取到当前选中的文件，先在资源管理器或桌面选中文件再按直发热键")
+        return
+    }
+    ExecutePayloadAction("upload", paths)
+    ClearPendingPayloadState()
+return
+
 ExitClient:
     if (HelperActive)
         AppendCommand("shutdown", "")
+    ClearPendingPayloadState()
     StopHelper()
     ExitApp
 return
@@ -427,6 +496,7 @@ EnsureConfig() {
     IniWrite, ^!v, %ConfigPath%, sync, panelHotkey
     IniWrite, %emptyValue%, %ConfigPath%, sync, syncToggleHotkey
     IniWrite, %emptyValue%, %ConfigPath%, sync, trayIconHotkey
+    IniWrite, ^!c, %ConfigPath%, sync, directSendHotkey
     IniWrite, 1, %ConfigPath%, sync, autoConnectEnabled
     IniWrite, 0, %ConfigPath%, sync, startupEnabled
     IniWrite, stopped, %ConfigPath%, sync, lastDesiredRunningState
@@ -452,6 +522,9 @@ MigrateConfig() {
     IniRead, TrayIconHotkey, %ConfigPath%, sync, trayIconHotkey, %missingValue%
     if (TrayIconHotkey = missingValue)
         IniWrite, %emptyValue%, %ConfigPath%, sync, trayIconHotkey
+    IniRead, DirectSendHotkey, %ConfigPath%, sync, directSendHotkey, %missingValue%
+    if (DirectSendHotkey = missingValue)
+        IniWrite, ^!c, %ConfigPath%, sync, directSendHotkey
     IniRead, AutoConnectEnabled, %ConfigPath%, sync, autoConnectEnabled, %missingValue%
     if (AutoConnectEnabled = missingValue || AutoConnectEnabled = "")
         IniWrite, 1, %ConfigPath%, sync, autoConnectEnabled
@@ -526,8 +599,8 @@ InitGui() {
 }
 
 InitAdvancedGui() {
-    global EditDeviceId, EditRuntimeDir, EditPanelHotkey, EditSyncToggleHotkey, EditTrayIconHotkey
-    global EditAutoConnectEnabled, EditStartupEnabled
+    global EditDeviceId, EditRuntimeDir, EditPanelHotkey, EditSyncToggleHotkey, EditTrayIconHotkey, EditDirectSendHotkey
+    global EditAutoConnectEnabled, EditStartupEnabled, EditFileConfirmSeconds
     Gui, Advanced:New, +OwnerStatus +ToolWindow +OwnDialogs, Cloud Clipboard 高级设置
     Gui, Advanced:Margin, 18, 18
     Gui, Advanced:Color, F6F8FC
@@ -559,11 +632,17 @@ InitAdvancedGui() {
     Gui, Advanced:Add, Text, xm y+12 w92, 托盘图标键
     Gui, Advanced:Add, Edit, x+10 yp-3 w256 h24 vEditTrayIconHotkey,
     Gui, Advanced:Add, Button, x+8 yp-1 w104 h28 gOpenTrayIconHotkeyCapture, 录制快捷键
+    Gui, Advanced:Add, Text, xm y+12 w92, 直发热键
+    Gui, Advanced:Add, Edit, x+10 yp-3 w256 h24 vEditDirectSendHotkey,
+    Gui, Advanced:Add, Button, x+8 yp-1 w104 h28 gOpenDirectSendHotkeyCapture, 录制快捷键
 
     Gui, Advanced:Add, Progress, xm y+18 w470 h1 Disabled cE1E7F0 BackgroundE1E7F0, 100
     Gui, Advanced:Font, s10 Bold c24476B, Segoe UI
     Gui, Advanced:Add, Text, xm y+12 w470, 启动规则
     Gui, Advanced:Font, s9 Norm c344054, Segoe UI
+    Gui, Advanced:Add, Text, xm y+14 w92, 确认秒数
+    Gui, Advanced:Add, Edit, x+10 yp-3 w120 h24 vEditFileConfirmSeconds,
+    Gui, Advanced:Add, Text, x+12 yp+4 w246, 普通复制文件后会先提示，在这个时间内再次复制同一批文件才发送。
     Gui, Advanced:Add, CheckBox, xm y+14 w470 vEditAutoConnectEnabled, 启动客户端后按上次状态自动恢复同步
     Gui, Advanced:Add, CheckBox, xm y+8 w470 vEditStartupEnabled, 跟随 Windows 开机启动本客户端
     Gui, Advanced:Add, Button, xm y+18 w104 h30 gSaveConfig Default, 保存配置
@@ -581,13 +660,16 @@ UpdateGui() {
     IniRead, PanelHotkey, %ConfigPath%, sync, panelHotkey,
     IniRead, SyncToggleHotkey, %ConfigPath%, sync, syncToggleHotkey,
     IniRead, TrayIconHotkey, %ConfigPath%, sync, trayIconHotkey,
+    IniRead, DirectSendHotkey, %ConfigPath%, sync, directSendHotkey, ^!c
     IniRead, AutoConnectEnabled, %ConfigPath%, sync, autoConnectEnabled, 1
     IniRead, StartupEnabled, %ConfigPath%, sync, startupEnabled, 0
+    IniRead, FileConfirmSeconds, %ConfigPath%, sync, fileConfirmSeconds, 8
     masked := RoomPassword = "" ? "未设置" : "已设置"
     autoResumeText := AutoConnectEnabled = 1 ? "开启" : "关闭"
     displayHotkey := FormatHotkeyForDisplay(PanelHotkey)
     displaySyncToggleHotkey := FormatHotkeyForDisplay(SyncToggleHotkey)
     displayTrayIconHotkey := FormatHotkeyForDisplay(TrayIconHotkey)
+    displayDirectSendHotkey := FormatHotkeyForDisplay(DirectSendHotkey)
     runtimeDirText := ResolveRuntimeDir(RuntimeDirValue)
     GuiControl, Status:, EditServerBase, %ServerBase%
     GuiControl, Status:, EditRoom, %RoomName%
@@ -598,13 +680,15 @@ UpdateGui() {
     GuiControl, Advanced:, EditPanelHotkey, %displayHotkey%
     GuiControl, Advanced:, EditSyncToggleHotkey, %displaySyncToggleHotkey%
     GuiControl, Advanced:, EditTrayIconHotkey, %displayTrayIconHotkey%
+    GuiControl, Advanced:, EditDirectSendHotkey, %displayDirectSendHotkey%
     GuiControl, Advanced:, EditAutoConnectEnabled, % AutoConnectEnabled = 1 ? 1 : 0
     GuiControl, Advanced:, EditStartupEnabled, % StartupEnabled = 1 ? 1 : 0
+    GuiControl, Advanced:, EditFileConfirmSeconds, %FileConfirmSeconds%
     GuiControl, Status:, StatusText, 状态：%ClientStatus%
     GuiControl, Status:, RoomText, 房间：%RoomName%
     GuiControl, Status:, DeviceText, 设备：%DeviceName%（%DeviceId%） 面板热键：%displayHotkey%
     GuiControl, Status:, PasswordText, 房间密码：%masked% 自动恢复：%autoResumeText% 托盘图标键：%displayTrayIconHotkey%
-    GuiControl, Status:, ResultText, 最近结果：%LastSyncResult% 同步开关键：%displaySyncToggleHotkey% 运行目录：%runtimeDirText%
+    GuiControl, Status:, ResultText, 最近结果：%LastSyncResult% 同步开关键：%displaySyncToggleHotkey% 直发热键：%displayDirectSendHotkey% 运行目录：%runtimeDirText%
 }
 
 InitTray() {
@@ -617,6 +701,7 @@ InitTray() {
     Menu, Tray, Add, 启动同步, StartSync
     Menu, Tray, Add, 停止同步, StopSync
     Menu, Tray, Add, 暂停/恢复同步, TogglePause
+    Menu, Tray, Add, 直接发送当前选中文件, DirectSendSelectedFiles
     Menu, Tray, Add, 重新连接, ReconnectHelper
     Menu, Tray, Add, 发送文件/图片到安卓, SendFilesToAndroid
     Menu, Tray, Add, 清理本地缓存, ClearRuntimeCache
@@ -710,6 +795,7 @@ StopSyncSession() {
     SyncPaused := false
     ResetReconnectFailures()
     IniWrite, stopped, %ConfigPath%, sync, lastDesiredRunningState
+    ClearPendingPayloadState()
     if (HelperActive)
         AppendCommand("shutdown", "")
     StopHelper()
@@ -781,8 +867,24 @@ RegisterTrayIconHotkey() {
     RegisteredTrayIconHotkey := NextHotkey
 }
 
+RegisterDirectSendHotkey() {
+    global RegisteredDirectSendHotkey, ConfigPath, LastSyncResult
+    IniRead, NextHotkey, %ConfigPath%, sync, directSendHotkey, ^!c
+    NextHotkey := NormalizeHotkey(NextHotkey)
+    if (RegisteredDirectSendHotkey != "")
+        Hotkey, %RegisteredDirectSendHotkey%, DirectSendSelectedFiles, Off UseErrorLevel
+    if (NextHotkey != "") {
+        Hotkey, %NextHotkey%, DirectSendSelectedFiles, On UseErrorLevel
+        if (ErrorLevel) {
+            LastSyncResult := "直发热键无效，已忽略当前设置"
+            NextHotkey := ""
+        }
+    }
+    RegisteredDirectSendHotkey := NextHotkey
+}
+
 SuspendRegisteredHotkeys() {
-    global RegisteredPanelHotkey, RegisteredSyncToggleHotkey, RegisteredTrayIconHotkey, HotkeyCaptureSuspended
+    global RegisteredPanelHotkey, RegisteredSyncToggleHotkey, RegisteredTrayIconHotkey, RegisteredDirectSendHotkey, HotkeyCaptureSuspended
     if (HotkeyCaptureSuspended)
         return
     if (RegisteredPanelHotkey != "")
@@ -791,6 +893,8 @@ SuspendRegisteredHotkeys() {
         Hotkey, %RegisteredSyncToggleHotkey%, ToggleSyncSession, Off UseErrorLevel
     if (RegisteredTrayIconHotkey != "")
         Hotkey, %RegisteredTrayIconHotkey%, ToggleTrayIconVisibility, Off UseErrorLevel
+    if (RegisteredDirectSendHotkey != "")
+        Hotkey, %RegisteredDirectSendHotkey%, DirectSendSelectedFiles, Off UseErrorLevel
     HotkeyCaptureSuspended := true
 }
 
@@ -802,6 +906,7 @@ ResumeRegisteredHotkeys() {
     RegisterPanelHotkey()
     RegisterSyncToggleHotkey()
     RegisterTrayIconHotkey()
+    RegisterDirectSendHotkey()
 }
 
 CloseHotkeyCapture() {
@@ -998,6 +1103,181 @@ AppendCommand(type, payload) {
     line := type . "|" . Base64Encode(payload) . "`n"
     FileAppend, %line%, %CommandPath%, UTF-8
 }
+
+RequestPayloadConfirmation(paths, action := "upload", reason := "已记录文件") {
+    global HelperActive, SyncPaused, LastSyncResult
+    if (!HelperActive) {
+        LastSyncResult := "当前未启动后台同步，请先启动同步"
+        UpdateGui()
+        return
+    }
+    if (SyncPaused) {
+        LastSyncResult := "当前已暂停同步，请先恢复同步再发送文件"
+        UpdateGui()
+        return
+    }
+    signature := BuildPayloadSignature(paths)
+    if (signature = "")
+        return
+    now := A_TickCount
+    if (IsPendingPayloadMatch(signature, action, now)) {
+        ExecutePayloadAction(action, paths)
+        ClearPendingPayloadState()
+        return
+    }
+    ArmPendingPayload(action, paths, signature, reason)
+}
+
+ArmPendingPayload(action, paths, signature, reason) {
+    global PendingPayloadSignature, PendingPayloadPaths, PendingPayloadExpiresAt, PendingPayloadAction
+    global PendingPayloadDescription, PendingPayloadCount, LastSyncResult
+    seconds := GetFileConfirmSeconds()
+    PendingPayloadSignature := signature
+    PendingPayloadPaths := paths
+    PendingPayloadAction := action
+    PendingPayloadDescription := reason
+    PendingPayloadCount := CountPayloadPaths(paths)
+    PendingPayloadExpiresAt := A_TickCount + seconds * 1000
+    LastSyncResult := reason . "；请在 " . seconds . " 秒内再次复制同一批文件，才会真正发送到安卓"
+    UpdateGui()
+    ShowActionTip("Cloud Clipboard", reason . "，" . seconds . " 秒内再次复制同一批文件即可发送到安卓")
+    delayMs := seconds * 1000
+    SetTimer, ClearPendingPayloadTimer, Off
+    SetTimer, ClearPendingPayloadTimer, % -delayMs
+}
+
+IsPendingPayloadMatch(signature, action, now) {
+    global PendingPayloadSignature, PendingPayloadAction, PendingPayloadExpiresAt
+    return (PendingPayloadSignature != "" && PendingPayloadSignature = signature && PendingPayloadAction = action && now <= PendingPayloadExpiresAt)
+}
+
+ExecutePayloadAction(action, paths) {
+    global LastSyncResult
+    if (action = "upload") {
+        AppendCommand("payload", paths)
+        count := CountPayloadPaths(paths)
+        LastSyncResult := "已确认发送 " . count . " 个文件通知，等待后台上传"
+        UpdateGui()
+        ShowActionTip("Cloud Clipboard", "已确认发送 " . count . " 个文件通知，后台开始上传")
+    }
+}
+
+ClearPendingPayloadState() {
+    global PendingPayloadSignature, PendingPayloadPaths, PendingPayloadExpiresAt, PendingPayloadAction
+    global PendingPayloadDescription, PendingPayloadCount
+    PendingPayloadSignature := ""
+    PendingPayloadPaths := ""
+    PendingPayloadExpiresAt := 0
+    PendingPayloadAction := ""
+    PendingPayloadDescription := ""
+    PendingPayloadCount := 0
+}
+
+ClearPendingPayloadTimer:
+    global PendingPayloadSignature, PendingPayloadExpiresAt, PendingPayloadDescription, LastSyncResult
+    if (PendingPayloadSignature = "")
+        return
+    if (A_TickCount < PendingPayloadExpiresAt)
+        return
+    LastSyncResult := PendingPayloadDescription . "已过期；刚才那批文件未发送，如需继续请重新复制一次"
+    ClearPendingPayloadState()
+    UpdateGui()
+return
+
+GetFileConfirmSeconds() {
+    global ConfigPath
+    IniRead, value, %ConfigPath%, sync, fileConfirmSeconds, 8
+    value += 0
+    if (value < 3)
+        value := 3
+    if (value > 30)
+        value := 30
+    return value
+}
+
+BuildPayloadSignature(paths) {
+    lines := StrSplit(paths, "`n", "`r")
+    normalized := ""
+    for index, item in lines {
+        item := Trim(item)
+        if (item = "")
+            continue
+        StringLower, lowerItem, item
+        normalized .= "|" . lowerItem
+    }
+    return normalized
+}
+
+CountPayloadPaths(paths) {
+    count := 0
+    lines := StrSplit(paths, "`n", "`r")
+    for index, item in lines {
+        if (Trim(item) != "")
+            count++
+    }
+    return count
+}
+
+ClipboardContainsFiles() {
+    return DllCall("IsClipboardFormatAvailable", "UInt", 15)
+}
+
+GetClipboardFileList() {
+    ClipWait, 0.2
+    raw := Clipboard
+    if (raw = "")
+        return ""
+    output := ""
+    lines := StrSplit(raw, "`n", "`r")
+    for index, item in lines {
+        item := Trim(item, "`r`n `t""")
+        if (item = "")
+            continue
+        if FileExist(item)
+            output .= (output = "" ? "" : "`n") . item
+    }
+    return output
+}
+
+GetActiveExplorerSelection() {
+    output := ""
+    WinGetClass, activeClass, A
+    if (activeClass = "Progman" || activeClass = "WorkerW" || activeClass = "CabinetWClass" || activeClass = "ExploreWClass") {
+        shellApp := ComObjCreate("Shell.Application")
+        for window in shellApp.Windows {
+            try hwnd := window.HWND
+            catch
+                continue
+            if (hwnd != WinExist("A"))
+                continue
+            try items := window.Document.SelectedItems
+            catch
+                continue
+            count := items.Count
+            Loop %count% {
+                item := items.Item(A_Index - 1)
+                path := item.Path
+                if (path = "")
+                    continue
+                output .= (output = "" ? "" : "`n") . path
+            }
+            break
+        }
+    }
+    return output
+}
+
+ShowActionTip(title, message) {
+    MouseGetPos, mouseX, mouseY
+    ToolTip, %message%, % mouseX + 16, % mouseY + 20
+    TrayTip, %title%, %message%, 3, 1
+    SetTimer, HideActionToolTip, Off
+    SetTimer, HideActionToolTip, -3500
+}
+
+HideActionToolTip:
+    ToolTip
+return
 
 SelectFilesForAndroid() {
     FileSelectFile, selection, M3, , 选择要通知安卓接收的文件或图片
