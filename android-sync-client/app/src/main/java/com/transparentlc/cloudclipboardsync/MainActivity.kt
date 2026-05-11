@@ -46,6 +46,9 @@ class MainActivity : AppCompatActivity() {
     private lateinit var closeAfterStartSwitch: MaterialSwitch
     private lateinit var removeTaskSwitch: MaterialSwitch
     private lateinit var floatingConfirmSwitch: MaterialSwitch
+    private lateinit var floatingWidthInput: EditText
+    private lateinit var floatingHeightInput: EditText
+    private lateinit var floatingShowSecondsInput: EditText
     private lateinit var cacheRetentionInput: EditText
     private lateinit var permissionSummaryText: TextView
     private lateinit var permissionGuideText: TextView
@@ -92,6 +95,9 @@ class MainActivity : AppCompatActivity() {
         closeAfterStartSwitch = findViewById(R.id.closeAfterStartSwitch)
         removeTaskSwitch = findViewById(R.id.removeTaskSwitch)
         floatingConfirmSwitch = findViewById(R.id.floatingConfirmSwitch)
+        floatingWidthInput = findViewById(R.id.floatingWidthInput)
+        floatingHeightInput = findViewById(R.id.floatingHeightInput)
+        floatingShowSecondsInput = findViewById(R.id.floatingShowSecondsInput)
         cacheRetentionInput = findViewById(R.id.cacheRetentionInput)
         permissionSummaryText = findViewById(R.id.permissionSummaryText)
         permissionGuideText = findViewById(R.id.permissionGuideText)
@@ -193,6 +199,9 @@ class MainActivity : AppCompatActivity() {
         closeAfterStartSwitch.isChecked = config.closeActivityAfterStart
         removeTaskSwitch.isChecked = config.removeTaskFromRecents
         floatingConfirmSwitch.isChecked = config.floatingEnabled
+        floatingWidthInput.setText(config.floatingWidthDp.toString())
+        floatingHeightInput.setText(config.floatingHeightDp.toString())
+        floatingShowSecondsInput.setText(config.floatingShowSeconds.toString())
         cacheRetentionInput.setText(config.cacheRetentionHours.toString())
         statusText.text = getString(R.string.status_idle)
         lastSyncText.text = getString(R.string.last_result_idle)
@@ -255,11 +264,11 @@ class MainActivity : AppCompatActivity() {
             closeActivityAfterStart = closeAfterStartSwitch.isChecked,
             removeTaskFromRecents = removeTaskSwitch.isChecked,
             floatingEnabled = floatingConfirmSwitch.isChecked,
-            floatingWidthDp = previous.floatingWidthDp,
-            floatingHeightDp = previous.floatingHeightDp,
+            floatingWidthDp = floatingWidthInput.text.toString().toIntOrNull()?.coerceIn(220, 420) ?: previous.floatingWidthDp,
+            floatingHeightDp = floatingHeightInput.text.toString().toIntOrNull()?.coerceIn(96, 220) ?: previous.floatingHeightDp,
             floatingPosX = previous.floatingPosX,
             floatingPosY = previous.floatingPosY,
-            floatingShowSeconds = previous.floatingShowSeconds,
+            floatingShowSeconds = floatingShowSecondsInput.text.toString().toIntOrNull()?.coerceIn(5, 60) ?: previous.floatingShowSeconds,
             cacheRetentionHours = cacheRetentionInput.text.toString().toIntOrNull()?.coerceAtLeast(1) ?: previous.cacheRetentionHours,
             clipboardMode = selectedClipboardMode(),
             lastDesiredRunningState = previous.lastDesiredRunningState,

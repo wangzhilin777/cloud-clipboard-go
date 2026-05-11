@@ -33,6 +33,11 @@
     <string name="close_after_start_switch">启动同步后自动关闭设置页</string>
     <string name="remove_task_switch">启动同步后从最近任务中移除本应用</string>
     <string name="floating_confirm_switch">收到图片/文件通知时优先用悬浮确认</string>
+    <string name="floating_size_title">悬浮确认样式</string>
+    <string name="floating_size_desc">悬浮确认的位置可以直接拖动保存，显示时长和尺寸可按使用习惯调整。</string>
+    <string name="floating_width_hint">悬浮宽度，默认 280</string>
+    <string name="floating_height_hint">悬浮高度，默认 110</string>
+    <string name="floating_seconds_hint">显示时长，默认 20 秒</string>
     <string name="cache_retention_hint">缓存保留小时数，默认 24</string>
     <string name="cache_retention_tip">缓存会在启动 App、回前台、下载前和同步服务启动时做过期清理。</string>
     <string name="clear_cache_button">立即清空本地缓存</string>
