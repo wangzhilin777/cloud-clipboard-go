@@ -18,10 +18,11 @@ global ClientStatus := "未启动"
 global LastSyncResult := "暂无"
 global PanelVisible := false
 global HelperActive := false
-global HelperRestartFailures := 0
+global HelperStartAttempts := 0
 global NextHelperRestartAt := 0
 global RegisteredPanelHotkey := ""
 global RegisteredSyncToggleHotkey := ""
+global HotkeyCaptureSuspended := false
 global StatusText := ""
 global RoomText := ""
 global DeviceText := ""
@@ -164,6 +165,7 @@ return
 
 OpenHotkeyCapture:
     global CaptureHotkeyValue, CaptureHotkeyTarget, EditPanelHotkey
+    SuspendRegisteredHotkeys()
     CaptureHotkeyTarget := "panel"
     CaptureHotkeyValue := NormalizeHotkey(EditPanelHotkey)
     Gui, HotkeyCapture:Destroy
@@ -179,6 +181,7 @@ return
 
 OpenSyncToggleHotkeyCapture:
     global CaptureHotkeyValue, CaptureHotkeyTarget, EditSyncToggleHotkey
+    SuspendRegisteredHotkeys()
     CaptureHotkeyTarget := "syncToggle"
     CaptureHotkeyValue := NormalizeHotkey(EditSyncToggleHotkey)
     Gui, HotkeyCapture:Destroy
@@ -200,7 +203,7 @@ SaveCapturedHotkey:
         GuiControl, Status:, EditSyncToggleHotkey, %displayHotkey%
     else
         GuiControl, Status:, EditPanelHotkey, %displayHotkey%
-    Gui, HotkeyCapture:Destroy
+    CloseHotkeyCapture()
 return
 
 ClearCapturedHotkey:
@@ -212,7 +215,7 @@ return
 CancelCapturedHotkey:
 HotkeyCaptureGuiClose:
 HotkeyCaptureGuiEscape:
-    Gui, HotkeyCapture:Destroy
+    CloseHotkeyCapture()
 return
 
 OpenWebConsole:
@@ -261,25 +264,25 @@ ToggleSyncSession:
 return
 
 EnsureHelperRunning:
-    global HelperPid, HelperActive, HelperRestartFailures, ClientStatus, LastSyncResult, NextHelperRestartAt
+    global HelperPid, HelperActive, HelperStartAttempts, ClientStatus, LastSyncResult, NextHelperRestartAt, ConfigPath
     if (!HelperActive)
         return
     if (A_TickCount < NextHelperRestartAt)
         return
     Process, Exist, %HelperPid%
     if (HelperPid = "" || ErrorLevel = 0) {
-        HelperRestartFailures++
-        if (HelperRestartFailures >= 3) {
+        if (HelperStartAttempts >= 3) {
             HelperActive := false
             NextHelperRestartAt := 0
+            IniWrite, stopped, %ConfigPath%, sync, lastDesiredRunningState
             ClientStatus := "重连失败"
-            LastSyncResult := "连续 3 次重连失败，请检查服务端状态后手动点“启动同步”或“重新连接”"
+            LastSyncResult := "连续 3 次连接失败，已停止自动重连，请检查服务端状态后手动点“启动同步”或“重新连接”"
             TrayTip, Cloud Clipboard, 连续 3 次重连失败，请检查服务端后手动重试, 5, 17
             UpdateGui()
             return
         }
         ClientStatus := "重连中"
-        LastSyncResult := "后台同步连接失败，正在进行第 " . HelperRestartFailures . "/3 次重试"
+        LastSyncResult := "后台同步连接失败，2 秒后进行第 " . (HelperStartAttempts + 1) . "/3 次连接尝试"
         NextHelperRestartAt := A_TickCount + 2000
         UpdateGui()
         StartHelper()
@@ -456,8 +459,9 @@ InitTray() {
 }
 
 StartHelper() {
-    global HelperPid, HelperPath, ConfigPath, CommandPath, EventPath, HelperActive
+    global HelperPid, HelperPath, ConfigPath, CommandPath, EventPath, HelperActive, HelperStartAttempts
     HelperActive := true
+    HelperStartAttempts++
     Run, powershell.exe -ExecutionPolicy Bypass -File "%HelperPath%" -ConfigPath "%ConfigPath%" -CommandPath "%CommandPath%" -EventPath "%EventPath%",, Hide, HelperPid
 }
 
@@ -564,6 +568,31 @@ RegisterSyncToggleHotkey() {
         }
     }
     RegisteredSyncToggleHotkey := NextHotkey
+}
+
+SuspendRegisteredHotkeys() {
+    global RegisteredPanelHotkey, RegisteredSyncToggleHotkey, HotkeyCaptureSuspended
+    if (HotkeyCaptureSuspended)
+        return
+    if (RegisteredPanelHotkey != "")
+        Hotkey, %RegisteredPanelHotkey%, ToggleStatusPanel, Off UseErrorLevel
+    if (RegisteredSyncToggleHotkey != "")
+        Hotkey, %RegisteredSyncToggleHotkey%, ToggleSyncSession, Off UseErrorLevel
+    HotkeyCaptureSuspended := true
+}
+
+ResumeRegisteredHotkeys() {
+    global HotkeyCaptureSuspended
+    if (!HotkeyCaptureSuspended)
+        return
+    HotkeyCaptureSuspended := false
+    RegisterPanelHotkey()
+    RegisterSyncToggleHotkey()
+}
+
+CloseHotkeyCapture() {
+    Gui, HotkeyCapture:Destroy
+    ResumeRegisteredHotkeys()
 }
 
 NormalizeHotkey(value) {
@@ -745,8 +774,8 @@ MarkConnectedOnce() {
 }
 
 ResetReconnectFailures() {
-    global HelperRestartFailures, NextHelperRestartAt
-    HelperRestartFailures := 0
+    global HelperStartAttempts, NextHelperRestartAt
+    HelperStartAttempts := 0
     NextHelperRestartAt := 0
 }
 
