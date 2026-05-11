@@ -112,6 +112,18 @@ cloud-clipboard-go.exe -port 9501
 - 🚀 开箱即用，无需额外依赖
 - 💾 支持数据持久化
 
+### 3.1️⃣ 使用 Android 同步客户端（一期同步能力）
+
+如果你要使用“网页 / Windows / Android 文本自动同步 + Android 图片文件确认接收”这一套一期同步能力，请使用仓库中的独立工程：
+
+- [`android-sync-client/`](./android-sync-client)
+
+说明：
+
+- `android/` 仍表示原仓库自带的 Android 服务器端 App
+- `android-sync-client/` 是新增的安卓同步客户端，不与服务器 APK 混用
+- 同步客户端配置使用“房间密码或全局密码 + 网页端设备批准”的双层校验模型
+
 ### 4️⃣ 使用 Homebrew（macOS）
 
 ```bash
