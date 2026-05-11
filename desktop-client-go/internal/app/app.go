@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"log"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -57,6 +59,14 @@ func (a *App) Run(ctx context.Context) error {
 		_ = panelServer.Shutdown(shutdownCtx)
 	}()
 	a.logger.Printf("本地控制面板已启动: %s", panelServer.URL())
+	if a.cfg.OpenPanelOnLaunch {
+		go func() {
+			time.Sleep(500 * time.Millisecond)
+			if err := a.OpenPanel(); err != nil {
+				a.logger.Printf("自动打开控制面板失败: %v", err)
+			}
+		}()
+	}
 
 	for {
 		client := syncclient.New(a.currentConfig(), a.logger, a)
@@ -222,6 +232,29 @@ func (a *App) RequestReconnect() {
 	case a.reloadCh <- struct{}{}:
 	default:
 	}
+}
+
+func (a *App) OpenPanel() error {
+	panelURL := ""
+	a.mu.Lock()
+	if a.panel != nil {
+		panelURL = a.panel.URL()
+	}
+	a.mu.Unlock()
+	if strings.TrimSpace(panelURL) == "" {
+		return errors.New("控制面板尚未启动")
+	}
+
+	var cmd *exec.Cmd
+	switch runtime.GOOS {
+	case "windows":
+		cmd = exec.Command("rundll32", "url.dll,FileProtocolHandler", panelURL)
+	case "darwin":
+		cmd = exec.Command("open", panelURL)
+	default:
+		cmd = exec.Command("xdg-open", panelURL)
+	}
+	return cmd.Start()
 }
 
 func (a *App) currentConfig() config.Config {

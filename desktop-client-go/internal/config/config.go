@@ -20,6 +20,7 @@ type Config struct {
 	PollInterval         time.Duration `json:"pollInterval"`
 	NoticeMode           string        `json:"noticeMode"`
 	PanelAddress         string        `json:"panelAddress"`
+	OpenPanelOnLaunch    bool          `json:"openPanelOnLaunch"`
 	ReconnectDelay       time.Duration `json:"reconnectDelay"`
 	MaxReconnectAttempts int           `json:"maxReconnectAttempts"`
 }
@@ -38,6 +39,7 @@ func Default() Config {
 		PollInterval:         800 * time.Millisecond,
 		NoticeMode:           "popup",
 		PanelAddress:         "127.0.0.1:9530",
+		OpenPanelOnLaunch:    true,
 		ReconnectDelay:       2 * time.Second,
 		MaxReconnectAttempts: 3,
 	}

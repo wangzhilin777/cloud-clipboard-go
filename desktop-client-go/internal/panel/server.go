@@ -20,6 +20,7 @@ type Backend interface {
 	Status() StatusView
 	UpdateConfig(cfg config.Config) error
 	RequestReconnect()
+	OpenPanel() error
 }
 
 type Server struct {
@@ -59,6 +60,7 @@ type configView struct {
 	PollIntervalMs       int64  `json:"pollIntervalMs"`
 	NoticeMode           string `json:"noticeMode"`
 	PanelAddress         string `json:"panelAddress"`
+	OpenPanelOnLaunch    bool   `json:"openPanelOnLaunch"`
 	ReconnectDelayMs     int64  `json:"reconnectDelayMs"`
 	MaxReconnectAttempts int    `json:"maxReconnectAttempts"`
 }
@@ -78,6 +80,7 @@ func New(address string, backend Backend) *Server {
 	mux.HandleFunc("/api/status", s.handleStatus)
 	mux.HandleFunc("/api/config", s.handleConfig)
 	mux.HandleFunc("/api/reconnect", s.handleReconnect)
+	mux.HandleFunc("/api/open-panel", s.handleOpenPanel)
 	mux.Handle("/", http.FileServer(http.FS(staticRoot)))
 	return s
 }
@@ -135,6 +138,7 @@ func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
 		PollInterval:         time.Duration(payload.PollIntervalMs) * time.Millisecond,
 		NoticeMode:           payload.NoticeMode,
 		PanelAddress:         payload.PanelAddress,
+		OpenPanelOnLaunch:    payload.OpenPanelOnLaunch,
 		ReconnectDelay:       time.Duration(payload.ReconnectDelayMs) * time.Millisecond,
 		MaxReconnectAttempts: payload.MaxReconnectAttempts,
 	}
@@ -158,6 +162,18 @@ func (s *Server) handleReconnect(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 
+func (s *Server) handleOpenPanel(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	if err := s.backend.OpenPanel(); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+}
+
 func toConfigView(cfg config.Config) configView {
 	return configView{
 		ServerBase:           cfg.ServerBase,
@@ -167,6 +183,7 @@ func toConfigView(cfg config.Config) configView {
 		PollIntervalMs:       cfg.PollInterval.Milliseconds(),
 		NoticeMode:           cfg.NoticeMode,
 		PanelAddress:         cfg.PanelAddress,
+		OpenPanelOnLaunch:    cfg.OpenPanelOnLaunch,
 		ReconnectDelayMs:     cfg.ReconnectDelay.Milliseconds(),
 		MaxReconnectAttempts: cfg.MaxReconnectAttempts,
 	}

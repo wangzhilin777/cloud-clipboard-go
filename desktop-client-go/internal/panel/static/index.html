@@ -206,6 +206,13 @@
           <span class="label">最大自动重连次数</span>
           <input id="maxReconnectAttempts" type="number" min="1" max="20">
         </label>
+        <label class="field">
+          <span class="label">启动时自动打开面板</span>
+          <select id="openPanelOnLaunch">
+            <option value="true">开启</option>
+            <option value="false">关闭</option>
+          </select>
+        </label>
         <label class="field full">
           <span class="label">面板监听地址</span>
           <input id="panelAddress" placeholder="127.0.0.1:9530">
@@ -214,6 +221,7 @@
       <div class="actions">
         <button class="primary" id="saveButton" type="button">保存并重连</button>
         <button class="secondary" id="reconnectButton" type="button">仅重连</button>
+        <button class="secondary" id="openPanelButton" type="button">系统浏览器打开</button>
       </div>
       <div class="message" id="message"></div>
       <div class="footer">配置保存后会立即触发桌面客户端重连。若修改了面板监听地址，本页面需要手动用新地址重新打开。</div>
@@ -230,6 +238,7 @@
       noticeMode: document.getElementById('noticeMode'),
       reconnectDelayMs: document.getElementById('reconnectDelayMs'),
       maxReconnectAttempts: document.getElementById('maxReconnectAttempts'),
+      openPanelOnLaunch: document.getElementById('openPanelOnLaunch'),
       panelAddress: document.getElementById('panelAddress'),
     };
     const statusText = document.getElementById('statusText');
@@ -290,6 +299,7 @@
         noticeMode: fields.noticeMode.value,
         reconnectDelayMs: Number(fields.reconnectDelayMs.value || 0),
         maxReconnectAttempts: Number(fields.maxReconnectAttempts.value || 0),
+        openPanelOnLaunch: fields.openPanelOnLaunch.value === 'true',
         panelAddress: fields.panelAddress.value,
       };
       try {
@@ -320,8 +330,20 @@
       }
     }
 
+    async function openPanelInBrowser() {
+      message.textContent = '正在打开系统浏览器...';
+      try {
+        const resp = await fetch('/api/open-panel', { method: 'POST' });
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        message.textContent = '已请求系统浏览器打开控制面板。';
+      } catch (err) {
+        message.textContent = `打开失败：${err.message}`;
+      }
+    }
+
     document.getElementById('saveButton').addEventListener('click', saveConfig);
     document.getElementById('reconnectButton').addEventListener('click', reconnect);
+    document.getElementById('openPanelButton').addEventListener('click', openPanelInBrowser);
 
     loadStatus();
     refreshTimer = setInterval(() => loadStatus(true), 2000);
