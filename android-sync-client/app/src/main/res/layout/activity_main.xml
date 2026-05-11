@@ -47,37 +47,6 @@
             android:text="@string/last_result_idle" />
     </LinearLayout>
 
-    <com.google.android.material.tabs.TabLayout
-        android:id="@+id/settingsTabLayout"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:paddingStart="8dp"
-        android:paddingEnd="8dp"
-        app:tabGravity="fill"
-        app:tabIndicatorFullWidth="false"
-        app:tabMode="fixed">
-
-        <com.google.android.material.tabs.TabItem
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/tab_connection" />
-
-        <com.google.android.material.tabs.TabItem
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/tab_runtime" />
-
-        <com.google.android.material.tabs.TabItem
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/tab_permissions" />
-
-        <com.google.android.material.tabs.TabItem
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/tab_receive" />
-    </com.google.android.material.tabs.TabLayout>
-
     <ScrollView
         android:layout_width="match_parent"
         android:layout_height="0dp"
@@ -329,4 +298,13 @@
             </LinearLayout>
         </LinearLayout>
     </ScrollView>
+
+    <com.google.android.material.bottomnavigation.BottomNavigationView
+        android:id="@+id/settingsBottomNav"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="?android:attr/windowBackground"
+        app:itemHorizontalTranslationEnabled="false"
+        app:labelVisibilityMode="labeled"
+        app:menu="@menu/main_sections" />
 </LinearLayout>

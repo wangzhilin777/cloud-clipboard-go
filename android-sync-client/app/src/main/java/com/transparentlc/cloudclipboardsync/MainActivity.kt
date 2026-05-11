@@ -21,13 +21,13 @@ import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
-import com.google.android.material.tabs.TabLayout
+import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.transparentlc.cloudclipboardsync.sync.PayloadCacheStore
 import com.transparentlc.cloudclipboardsync.sync.SettingsStore
 import com.transparentlc.cloudclipboardsync.sync.SyncService
 
 class MainActivity : AppCompatActivity() {
-    private lateinit var settingsTabLayout: TabLayout
+    private lateinit var settingsBottomNav: BottomNavigationView
     private lateinit var connectionSection: LinearLayout
     private lateinit var runtimeSection: LinearLayout
     private lateinit var permissionSection: LinearLayout
@@ -67,7 +67,7 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        settingsTabLayout = findViewById(R.id.settingsTabLayout)
+        settingsBottomNav = findViewById(R.id.settingsBottomNav)
         connectionSection = findViewById(R.id.connectionSection)
         runtimeSection = findViewById(R.id.runtimeSection)
         permissionSection = findViewById(R.id.permissionSection)
@@ -90,7 +90,7 @@ class MainActivity : AppCompatActivity() {
         statusText = findViewById(R.id.statusText)
         lastSyncText = findViewById(R.id.lastSyncText)
 
-        bindTabs()
+        bindBottomNav()
         bindConfig()
         findViewById<Button>(R.id.saveButton).setOnClickListener {
             val config = saveConfig()
@@ -185,18 +185,18 @@ class MainActivity : AppCompatActivity() {
         refreshPermissionSummary()
     }
 
-    private fun bindTabs() {
-        settingsTabLayout.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
-            override fun onTabSelected(tab: TabLayout.Tab) {
-                selectedTabIndex = tab.position
-                updateVisibleSection()
+    private fun bindBottomNav() {
+        settingsBottomNav.setOnItemSelectedListener { item ->
+            selectedTabIndex = when (item.itemId) {
+                R.id.nav_runtime -> TAB_RUNTIME
+                R.id.nav_permissions -> TAB_PERMISSIONS
+                R.id.nav_receive -> TAB_RECEIVE
+                else -> TAB_CONNECTION
             }
-
-            override fun onTabUnselected(tab: TabLayout.Tab) = Unit
-
-            override fun onTabReselected(tab: TabLayout.Tab) = Unit
-        })
-        settingsTabLayout.getTabAt(selectedTabIndex)?.select()
+            updateVisibleSection()
+            true
+        }
+        settingsBottomNav.selectedItemId = R.id.nav_connection
         updateVisibleSection()
     }
 
