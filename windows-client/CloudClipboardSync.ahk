@@ -695,7 +695,7 @@ InitAdvancedGui() {
     Gui, Advanced:Font, s9 Norm c344054, Segoe UI
     Gui, Advanced:Add, Text, xm y+14 w92, 确认秒数
     Gui, Advanced:Add, Edit, x+10 yp-3 w120 h24 vEditFileConfirmSeconds,
-    Gui, Advanced:Add, Text, x+12 yp+4 w246, 普通复制文件后会先提示，在这个时间内再次复制同一批文件才发送。
+    Gui, Advanced:Add, Text, x+12 yp+4 w246, 普通复制文件后会先提示，在这个时间内再次复制同一批文件才发送；收到远端文件后，再次粘贴可确认下载。
     Gui, Advanced:Add, CheckBox, xm y+14 w470 vEditAutoConnectEnabled, 启动客户端后按上次状态自动恢复同步
     Gui, Advanced:Add, CheckBox, xm y+8 w470 vEditStartupEnabled, 跟随 Windows 开机启动本客户端
     Gui, Advanced:Add, Button, xm y+18 w104 h30 gSaveConfig Default, 保存配置
