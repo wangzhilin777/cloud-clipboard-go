@@ -56,6 +56,13 @@
     <string name="permission_guide_placeholder">推荐先开通知和忽略电池优化；需要更稳定的后台文本同步时，再开启无障碍或 Shizuku。</string>
     <string name="runtime_advice_placeholder">推荐优先使用前台服务模式；如果后台复制经常丢失，再切到无障碍或 Shizuku。</string>
     <string name="auto_resume_placeholder">自动续连状态会在这里显示。</string>
+    <string name="runtime_mode_action_accessibility">打开无障碍设置</string>
+    <string name="runtime_mode_action_shizuku">打开 Shizuku</string>
+    <string name="runtime_mode_action_shizuku_install">查看 Shizuku</string>
+    <string name="runtime_mode_action_battery">打开电池优化设置</string>
+    <string name="runtime_mode_action_foreground_ready">查看前台模式建议</string>
+    <string name="runtime_mode_action_foreground_ready_toast">前台服务模式当前无需额外授权；如需更稳的后台复制，再切到无障碍或 Shizuku。</string>
+    <string name="runtime_mode_action_shizuku_missing_toast">当前设备还没有可打开的 Shizuku 入口，请先安装或检查系统应用页。</string>
     <string name="permission_state_enabled">已开启</string>
     <string name="permission_state_disabled">未开启</string>
     <string name="open_notification_settings_button">通知设置</string>

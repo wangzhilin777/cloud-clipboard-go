@@ -5,6 +5,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.ActivityNotFoundException
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -59,6 +60,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var autoResumeSummaryText: TextView
     private lateinit var runtimeModeBadgeText: TextView
     private lateinit var permissionOverviewBadgeText: TextView
+    private lateinit var runtimeModeActionButton: Button
     private lateinit var statusText: TextView
     private lateinit var lastSyncText: TextView
 
@@ -111,6 +113,7 @@ class MainActivity : AppCompatActivity() {
         autoResumeSummaryText = findViewById(R.id.autoResumeSummaryText)
         runtimeModeBadgeText = findViewById(R.id.runtimeModeBadgeText)
         permissionOverviewBadgeText = findViewById(R.id.permissionOverviewBadgeText)
+        runtimeModeActionButton = findViewById(R.id.runtimeModeActionButton)
         statusText = findViewById(R.id.statusText)
         lastSyncText = findViewById(R.id.lastSyncText)
 
@@ -168,6 +171,12 @@ class MainActivity : AppCompatActivity() {
         }
         findViewById<Button>(R.id.openBatterySettingsButton).setOnClickListener {
             openBatteryOptimizationSettings()
+        }
+        runtimeModeActionButton.setOnClickListener {
+            handleRuntimeModeQuickAction()
+        }
+        clipboardModeGroup.setOnCheckedChangeListener { _, _ ->
+            refreshRuntimeHints()
         }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -350,6 +359,7 @@ class MainActivity : AppCompatActivity() {
             warningText = getString(R.string.runtime_recommendation_attention),
         )
         runtimeAdviceText.text = buildClipboardModeAdvice(config, status)
+        runtimeModeActionButton.text = runtimeModeActionLabel(config, status)
         autoResumeSummaryText.text = buildAutoResumeSummary(config, status)
         floatingLayoutSummaryText.text = getString(
             R.string.floating_layout_summary_format,
@@ -373,6 +383,28 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun handleRuntimeModeQuickAction() {
+        val config = SettingsStore.load(this)
+        val status = PermissionStatusHelper.read(this)
+        when (config.clipboardMode) {
+            SettingsStore.CLIPBOARD_MODE_ACCESSIBILITY -> {
+                startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+            }
+
+            SettingsStore.CLIPBOARD_MODE_SHIZUKU -> {
+                openShizuku(status.shizukuInstalled)
+            }
+
+            else -> {
+                if (status.batteryOptimizationIgnored) {
+                    Toast.makeText(this, R.string.runtime_mode_action_foreground_ready_toast, Toast.LENGTH_LONG).show()
+                } else {
+                    openBatteryOptimizationSettings()
+                }
+            }
+        }
+    }
+
     private fun openNotificationSettings() {
         val intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
@@ -393,6 +425,47 @@ class MainActivity : AppCompatActivity() {
             Intent(Settings.ACTION_SETTINGS)
         }
         startActivity(intent)
+    }
+
+    private fun openShizuku(installed: Boolean) {
+        if (installed) {
+            val launchIntent = packageManager.getLaunchIntentForPackage("moe.shizuku.privileged.api")
+            if (launchIntent != null) {
+                startActivity(launchIntent)
+                return
+            }
+        }
+        val fallbackIntent = Intent(
+            Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+            Uri.parse("package:moe.shizuku.privileged.api"),
+        )
+        try {
+            startActivity(fallbackIntent)
+        } catch (_: ActivityNotFoundException) {
+            Toast.makeText(this, R.string.runtime_mode_action_shizuku_missing_toast, Toast.LENGTH_LONG).show()
+        }
+    }
+
+    private fun runtimeModeActionLabel(
+        config: SettingsStore.Config,
+        status: PermissionStatus,
+    ): String = when (config.clipboardMode) {
+        SettingsStore.CLIPBOARD_MODE_ACCESSIBILITY -> getString(R.string.runtime_mode_action_accessibility)
+        SettingsStore.CLIPBOARD_MODE_SHIZUKU -> getString(
+            if (status.shizukuInstalled) {
+                R.string.runtime_mode_action_shizuku
+            } else {
+                R.string.runtime_mode_action_shizuku_install
+            },
+        )
+
+        else -> getString(
+            if (status.batteryOptimizationIgnored) {
+                R.string.runtime_mode_action_foreground_ready
+            } else {
+                R.string.runtime_mode_action_battery
+            },
+        )
     }
 
     private fun stateLabel(enabled: Boolean): String = getString(
