@@ -208,6 +208,11 @@ services:
       MANUAL_KEY_PATH: ${MANUAL_KEY_PATH:-} # Manual key path. Higher priority than MKCERT_DOMAIN_OR_IP.
       MANUAL_CERT_PATH: ${MANUAL_CERT_PATH:-} # Manual certificate path. Higher priority than MKCERT_DOMAIN_OR_IP.
       ROOM_LIST: ${ROOM_LIST:-} # Enable room list display, default is false.
+      SYNC_STATE_CLEANUP: ${SYNC_STATE_CLEANUP:-} # Sync-state cleanup interval in seconds, default 600.
+      SYNC_MESSAGE_EXPIRE: ${SYNC_MESSAGE_EXPIRE:-} # Sync text history retention in seconds, default 86400.
+      SYNC_PAYLOAD_EXPIRE: ${SYNC_PAYLOAD_EXPIRE:-} # Sync payload notice retention in seconds, default 86400.
+      SYNC_PENDING_DEVICE_EXPIRE: ${SYNC_PENDING_DEVICE_EXPIRE:-} # Offline pending device retention in seconds, default 604800.
+      SYNC_TRUSTED_DEVICE_EXPIRE: ${SYNC_TRUSTED_DEVICE_EXPIRE:-} # Offline trusted device retention in seconds, default 0 disables auto-removal.
     volumes:
       - /path/your/dir/data:/app/server-node/data # Replace with your own directory
     image: jonnyan404/cloud-clipboard-go:latest
@@ -227,6 +232,8 @@ Additional notes:
 - The entrypoint still accepts the legacy variable name `ROOM_AUTH` for backward compatibility, but the Compose example and docs are now standardized on `ROOM_AUTH_JSON`.
 - If you use a `.env` file, keep the same variable names and only fill in the values.
 - The image explicitly installs `nc`, and the health check only verifies that the container is listening on the configured port, independent of `PREFIX` and HTTP/HTTPS settings.
+- The `SYNC_*` variables only affect the new phase-one sync state file `sync-state.json`; they do not change the legacy `/push` flow.
+- `SYNC_PENDING_DEVICE_EXPIRE` is useful for pruning long-unapproved devices. `SYNC_TRUSTED_DEVICE_EXPIRE` defaults to `0` so approved devices are not removed unexpectedly.
 
 Example:
 

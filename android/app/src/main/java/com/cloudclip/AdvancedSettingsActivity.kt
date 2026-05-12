@@ -107,6 +107,13 @@ class AdvancedSettingsActivity : AppCompatActivity() {
                 "expire": 3600,
                 "chunk": 2097152,
                 "limit": 268435456
+            },
+            "sync": {
+                "stateCleanup": 600,
+                "messageExpire": 86400,
+                "payloadExpire": 86400,
+                "pendingDeviceExpire": 604800,
+                "trustedDeviceExpire": 0
             }
         }
         """.trimIndent()

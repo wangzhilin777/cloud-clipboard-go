@@ -234,6 +234,11 @@ services:
       MANUAL_KEY_PATH: ${MANUAL_KEY_PATH:-} #手动设置证书路径,默认为空,该参数优先级高于MKCERT_DOMAIN_OR_IP
       MANUAL_CERT_PATH: ${MANUAL_CERT_PATH:-} #手动设置证书路径,默认为空,该参数优先级高于MKCERT_DOMAIN_OR_IP
       ROOM_LIST: ${ROOM_LIST:-} #是否启用房间列表展示功能,默认false
+      SYNC_STATE_CLEANUP: ${SYNC_STATE_CLEANUP:-} #同步状态清理周期,默认600秒
+      SYNC_MESSAGE_EXPIRE: ${SYNC_MESSAGE_EXPIRE:-} #同步文本历史保留秒数,默认86400
+      SYNC_PAYLOAD_EXPIRE: ${SYNC_PAYLOAD_EXPIRE:-} #同步payload通知保留秒数,默认86400
+      SYNC_PENDING_DEVICE_EXPIRE: ${SYNC_PENDING_DEVICE_EXPIRE:-} #pending设备离线保留秒数,默认604800
+      SYNC_TRUSTED_DEVICE_EXPIRE: ${SYNC_TRUSTED_DEVICE_EXPIRE:-} #trusted设备离线保留秒数,默认0表示不自动移除
     volumes:
       - /path/your/dir/data:/app/server-node/data #请注意修改为你自己的目录
     image: jonnyan404/cloud-clipboard-go:latest
@@ -253,6 +258,8 @@ docker compose up -d
 - 入口脚本仍兼容旧变量名 `ROOM_AUTH`，但 Compose 示例和后续文档统一使用 `ROOM_AUTH_JSON`。
 - 如果你使用 `.env` 文件，建议保持与上面的 `${VAR:-}` 模板对应，只填写右侧的实际值。
 - 镜像内显式安装了 `nc`，Compose 健康检查只检查容器内监听端口，和 `PREFIX`、HTTP/HTTPS 配置无关。
+- `SYNC_*` 变量只作用于新增的一期同步协议状态文件 `sync-state.json`，不会改写旧 `/push` 逻辑。
+- `SYNC_PENDING_DEVICE_EXPIRE` 适合清理长期未批准设备；`SYNC_TRUSTED_DEVICE_EXPIRE` 默认为 `0`，避免已批准设备被误清。
 
 示例：
 

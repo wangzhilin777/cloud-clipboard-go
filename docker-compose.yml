@@ -26,6 +26,11 @@ services:
             MANUAL_KEY_PATH: ${MANUAL_KEY_PATH:-} #手动设置证书路径,默认为空,该参数优先级高于MKCERT_DOMAIN_OR_IP
             MANUAL_CERT_PATH: ${MANUAL_CERT_PATH:-} #手动设置证书路径,默认为空,该参数优先级高于MKCERT_DOMAIN_OR_IP
             ROOM_LIST: ${ROOM_LIST:-} #是否启用房间列表展示功能,默认false
+            SYNC_STATE_CLEANUP: ${SYNC_STATE_CLEANUP:-} #同步状态清理周期,默认600秒
+            SYNC_MESSAGE_EXPIRE: ${SYNC_MESSAGE_EXPIRE:-} #同步文本历史保留秒数,默认86400
+            SYNC_PAYLOAD_EXPIRE: ${SYNC_PAYLOAD_EXPIRE:-} #同步payload通知保留秒数,默认86400
+            SYNC_PENDING_DEVICE_EXPIRE: ${SYNC_PENDING_DEVICE_EXPIRE:-} #pending设备离线保留秒数,默认604800
+            SYNC_TRUSTED_DEVICE_EXPIRE: ${SYNC_TRUSTED_DEVICE_EXPIRE:-} #trusted设备离线保留秒数,默认0表示不自动移除
         volumes:
             - /path/your/dir/data:/app/server-node/data #请注意修改为你自己的目录
         image: jonnyan404/cloud-clipboard-go:latest

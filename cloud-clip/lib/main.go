@@ -143,6 +143,7 @@ func NewClipboardServer(cfg *Config) (*ClipboardServer, error) {
 	if err != nil {
 		return nil, fmt.Errorf("初始化同步状态失败: %w", err)
 	}
+	s.cleanupSyncStateOnce()
 
 	if err := s.loadHistoryData(); err != nil {
 		s.logger.Printf("警告: 加载历史记录失败: %v. 将以空历史记录启动。", err)
@@ -152,6 +153,7 @@ func NewClipboardServer(cfg *Config) (*ClipboardServer, error) {
 	if cfg.Server.RoomList {
 		s.startRoomCleanup()
 	}
+	s.startSyncCleanup()
 
 	return s, nil
 }
@@ -484,6 +486,7 @@ func (s *ClipboardServer) Stop() error {
 	}
 	// 停止房间清理任务
 	s.stopRoomCleanup()
+	s.stopSyncCleanup()
 	s.logger.Println("正在停止服务器...")
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -935,6 +938,59 @@ func (s *ClipboardServer) startRoomCleanup() {
 			s.cleanupEmptyRooms()
 		}
 	}()
+}
+
+func (s *ClipboardServer) syncCleanupPolicy() SyncCleanupPolicy {
+	return SyncCleanupPolicy{
+		MessageExpireMillis:       int64(s.config.Sync.MessageExpire) * 1000,
+		PayloadExpireMillis:       int64(s.config.Sync.PayloadExpire) * 1000,
+		PendingDeviceExpireMillis: int64(s.config.Sync.PendingDeviceExpire) * 1000,
+		TrustedDeviceExpireMillis: int64(s.config.Sync.TrustedDeviceExpire) * 1000,
+	}
+}
+
+func (s *ClipboardServer) cleanupSyncStateOnce() {
+	if s.syncHub == nil {
+		return
+	}
+	result, err := s.syncHub.Cleanup(s.syncCleanupPolicy(), time.Now())
+	if err != nil {
+		s.logger.Printf("同步状态清理失败: %v", err)
+		return
+	}
+	if result.RemovedMessages > 0 || result.RemovedPayloads > 0 || result.RemovedDevices > 0 {
+		s.logger.Printf(
+			"同步状态清理完成: 清理消息 %d 条, payload 通知 %d 条, 设备 %d 个",
+			result.RemovedMessages,
+			result.RemovedPayloads,
+			result.RemovedDevices,
+		)
+	}
+}
+
+func (s *ClipboardServer) startSyncCleanup() {
+	if s.config.Sync.StateCleanup <= 0 {
+		s.logger.Println("同步状态清理间隔设置为0或负数，不启动定时清理任务")
+		return
+	}
+
+	interval := time.Duration(s.config.Sync.StateCleanup) * time.Second
+	s.syncCleanupTicker = time.NewTicker(interval)
+	s.logger.Printf("同步状态清理任务已启动，清理间隔: %v", interval)
+
+	go func() {
+		for range s.syncCleanupTicker.C {
+			s.cleanupSyncStateOnce()
+		}
+	}()
+}
+
+func (s *ClipboardServer) stopSyncCleanup() {
+	if s.syncCleanupTicker != nil {
+		s.syncCleanupTicker.Stop()
+		s.syncCleanupTicker = nil
+		s.logger.Println("同步状态清理任务已停止")
+	}
 }
 
 // stopRoomCleanup 停止房间清理任务

@@ -75,6 +75,13 @@ else
                     expire = 3600,
                     chunk = 2097152,
                     limit = 268435456
+                },
+                sync = {
+                    stateCleanup = 600,
+                    messageExpire = 86400,
+                    payloadExpire = 86400,
+                    pendingDeviceExpire = 604800,
+                    trustedDeviceExpire = 0
                 }
             }
             -- 如果设置了密码,添加到配置中
@@ -111,6 +118,13 @@ else
         "expire": 3600,
         "chunk": 2097152,
         "limit": 268435456
+    },
+    "sync": {
+        "stateCleanup": 600,
+        "messageExpire": 86400,
+        "payloadExpire": 86400,
+        "pendingDeviceExpire": 604800,
+        "trustedDeviceExpire": 0
     }
 }]]
             end
@@ -195,6 +209,13 @@ json_help.value = [[
         "expire": 3600,            // 文件过期时间(秒)
         "chunk": 2097152,          // 文件上传分片大小(字节),2MB
         "limit": 268435456         // 文件大小限制(字节),256MB
+    },
+    "sync": {
+        "stateCleanup": 600,       // 同步状态清理周期(秒),0 表示关闭定时清理
+        "messageExpire": 86400,    // recentMessages 保留秒数
+        "payloadExpire": 86400,    // recentPayloads 保留秒数
+        "pendingDeviceExpire": 604800, // 未批准设备离线保留秒数
+        "trustedDeviceExpire": 0   // 已批准设备离线保留秒数,0 表示不自动移除
     }
 }
 </pre>

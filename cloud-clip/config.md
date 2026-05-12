@@ -31,6 +31,13 @@
         "expire": 3600, // 上传文件的有效期，超过有效期后自动删除，单位为秒
         "chunk": 1048576, // 上传文件的分片大小，不能超过 5 MB，单位为 byte
         "limit": 104857600 // 上传文件的大小限制，单位为 byte
+    },
+    "sync": {
+        "stateCleanup": 600, // 同步状态清理周期(秒)，0 表示关闭定时清理
+        "messageExpire": 86400, // recentMessages 保留秒数，0 表示只按 history 条数保留
+        "payloadExpire": 86400, // recentPayloads 保留秒数，0 表示只按 history 条数保留
+        "pendingDeviceExpire": 604800, // 未批准设备离线保留秒数，避免 pending 设备无限累积
+        "trustedDeviceExpire": 0 // 已批准设备离线保留秒数，0 表示不因离线时长自动移除
     }
 }
 ```
@@ -46,6 +53,13 @@
 > `server.roomAuth` 不会让 `server.auth` 失效；它只是给指定房间增加一个额外可用密码。
 > `server.roomAuth` 中值为空字符串时，该房间只接受全局 `server.auth`；值为非空字符串时，该房间同时接受全局 `server.auth` 和该房间自己的密码。
 > 未通过认证的用户不会在房间列表里看到受保护房间。
+>
+> “同步状态清理”的说明：
+>
+> `sync.stateCleanup` 只影响新增的一期同步协议状态文件 `sync-state.json`，不会影响旧 `/push` 主链。
+> `sync.messageExpire` 和 `sync.payloadExpire` 用于裁剪同步协议里的 recent 历史，避免长期堆积。
+> `sync.pendingDeviceExpire` 适合自动清理长期未批准的设备。
+> `sync.trustedDeviceExpire` 默认关闭，避免已批准设备因为长时间离线被自动移除。
 
 
 ### HTTP API

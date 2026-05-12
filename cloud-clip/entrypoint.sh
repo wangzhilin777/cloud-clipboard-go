@@ -124,6 +124,13 @@ cat>"${CONFIG_FILE}"<<EOF
         "expire": ${FILE_EXPIRE:-3600},
         "chunk": 1048576,
         "limit": ${FILE_LIMIT:-104857600}
+    },
+    "sync": {
+        "stateCleanup": ${SYNC_STATE_CLEANUP:-600},
+        "messageExpire": ${SYNC_MESSAGE_EXPIRE:-86400},
+        "payloadExpire": ${SYNC_PAYLOAD_EXPIRE:-86400},
+        "pendingDeviceExpire": ${SYNC_PENDING_DEVICE_EXPIRE:-604800},
+        "trustedDeviceExpire": ${SYNC_TRUSTED_DEVICE_EXPIRE:-0}
     }
 }
 EOF

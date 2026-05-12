@@ -37,6 +37,13 @@ type Config struct {
 		Chunk  int `json:"chunk"`  //done, but no limit
 		Limit  int `json:"limit"`  //done
 	} `json:"file"`
+	Sync struct {
+		StateCleanup        int `json:"stateCleanup"`
+		MessageExpire       int `json:"messageExpire"`
+		PayloadExpire       int `json:"payloadExpire"`
+		PendingDeviceExpire int `json:"pendingDeviceExpire"`
+		TrustedDeviceExpire int `json:"trustedDeviceExpire"`
+	} `json:"sync"`
 }
 
 // var config_path = "config.json"
@@ -126,6 +133,19 @@ func defaultConfig() *Config {
 			Expire: 3600,
 			Chunk:  1 * _MB,
 			Limit:  256 * _MB,
+		},
+		Sync: struct {
+			StateCleanup        int `json:"stateCleanup"`
+			MessageExpire       int `json:"messageExpire"`
+			PayloadExpire       int `json:"payloadExpire"`
+			PendingDeviceExpire int `json:"pendingDeviceExpire"`
+			TrustedDeviceExpire int `json:"trustedDeviceExpire"`
+		}{
+			StateCleanup:        600,
+			MessageExpire:       86400,
+			PayloadExpire:       86400,
+			PendingDeviceExpire: 604800,
+			TrustedDeviceExpire: 0,
 		},
 	}
 }

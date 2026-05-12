@@ -78,6 +78,7 @@ type ClipboardServer struct {
 	roomStats         map[string]*RoomStat `json:"-"` // 房间统计信息，不序列化
 	roomStatsMutex    sync.RWMutex         `json:"-"` // 房间统计读写锁
 	roomCleanupTicker *time.Ticker         `json:"-"` // 房间清理定时器
+	syncCleanupTicker *time.Ticker         `json:"-"` // 同步状态清理定时器
 	syncHub           *SyncHub             `json:"-"`
 }
 

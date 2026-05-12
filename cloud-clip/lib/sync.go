@@ -70,6 +70,19 @@ type syncClipboardPublishPayload struct {
 	CreatedAt int64  `json:"createdAt"`
 }
 
+type SyncCleanupPolicy struct {
+	MessageExpireMillis       int64
+	PayloadExpireMillis       int64
+	PendingDeviceExpireMillis int64
+	TrustedDeviceExpireMillis int64
+}
+
+type SyncCleanupResult struct {
+	RemovedMessages int
+	RemovedPayloads int
+	RemovedDevices  int
+}
+
 func NewSyncHub(logger LoggerLike, statePath string, messageLimit int, textLimit int) (*SyncHub, error) {
 	if statePath == "" {
 		return nil, errors.New("sync state path is required")
@@ -120,6 +133,18 @@ func (h *SyncHub) load() error {
 	}
 	if loaded.Payloads == nil {
 		loaded.Payloads = []SyncPayloadNotice{}
+	}
+	for i := range loaded.Devices {
+		loaded.Devices[i] = normalizeSyncDevice(loaded.Devices[i])
+	}
+	for i := range loaded.Messages {
+		loaded.Messages[i].Room = normalizeSyncRoom(loaded.Messages[i].Room)
+		if strings.TrimSpace(loaded.Messages[i].Mime) == "" {
+			loaded.Messages[i].Mime = "text/plain"
+		}
+	}
+	for i := range loaded.Payloads {
+		loaded.Payloads[i].Room = normalizeSyncRoom(loaded.Payloads[i].Room)
 	}
 	h.state = loaded
 	return nil
@@ -507,6 +532,71 @@ func (h *SyncHub) GetRecentPayloads(room string) []SyncPayloadNotice {
 		result = result[len(result)-20:]
 	}
 	return result
+}
+
+func (h *SyncHub) Cleanup(policy SyncCleanupPolicy, now time.Time) (SyncCleanupResult, error) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	result := SyncCleanupResult{}
+	nowMillis := now.UnixMilli()
+
+	if policy.MessageExpireMillis > 0 {
+		filtered := h.state.Messages[:0]
+		for _, message := range h.state.Messages {
+			if message.CreatedAt > 0 && nowMillis-message.CreatedAt > policy.MessageExpireMillis {
+				result.RemovedMessages++
+				continue
+			}
+			filtered = append(filtered, message)
+		}
+		h.state.Messages = filtered
+	}
+
+	if policy.PayloadExpireMillis > 0 {
+		filtered := h.state.Payloads[:0]
+		for _, payload := range h.state.Payloads {
+			if payload.CreatedAt > 0 && nowMillis-payload.CreatedAt > policy.PayloadExpireMillis {
+				result.RemovedPayloads++
+				continue
+			}
+			filtered = append(filtered, payload)
+		}
+		h.state.Payloads = filtered
+	}
+
+	if policy.PendingDeviceExpireMillis > 0 || policy.TrustedDeviceExpireMillis > 0 {
+		filtered := h.state.Devices[:0]
+		for _, device := range h.state.Devices {
+			if h.isDeviceOnlineLocked(device.Room, device.DeviceID) {
+				filtered = append(filtered, device)
+				continue
+			}
+
+			lastActiveAt := device.LastSeenAt
+			if lastActiveAt == 0 {
+				lastActiveAt = device.CreatedAt
+			}
+
+			expireMillis := policy.PendingDeviceExpireMillis
+			if device.Trusted {
+				expireMillis = policy.TrustedDeviceExpireMillis
+			}
+
+			if expireMillis > 0 && lastActiveAt > 0 && nowMillis-lastActiveAt > expireMillis {
+				result.RemovedDevices++
+				continue
+			}
+			filtered = append(filtered, device)
+		}
+		h.state.Devices = filtered
+	}
+
+	if result.RemovedMessages == 0 && result.RemovedPayloads == 0 && result.RemovedDevices == 0 {
+		return result, nil
+	}
+
+	return result, h.persistLocked()
 }
 
 func (h *SyncHub) WriteJSON(w http.ResponseWriter, status int, payload interface{}) {
