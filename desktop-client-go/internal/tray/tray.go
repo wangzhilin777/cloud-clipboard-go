@@ -33,8 +33,16 @@ func Run(ctx context.Context, logger *log.Logger, backend Backend, stop func()) 
 	if err != nil {
 		return err
 	}
-	if err := tray.Show(0, "Cloud Clipboard Desktop"); err != nil {
-		return err
+	iconPath, iconErr := ensureTrayIconFile()
+	if iconErr == nil {
+		if err := tray.ShowCustom(iconPath, "Cloud Clipboard Desktop"); err != nil {
+			return err
+		}
+	} else {
+		logger.Printf("加载托盘图标失败，回退默认图标: %v", iconErr)
+		if err := tray.Show(0, "Cloud Clipboard Desktop"); err != nil {
+			return err
+		}
 	}
 	tray.OnClick(func() {
 		if err := backend.OpenPanel(); err != nil {
