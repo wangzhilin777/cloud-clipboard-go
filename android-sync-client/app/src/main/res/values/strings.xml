@@ -71,6 +71,7 @@
     <string name="permission_suggestions_none">无</string>
     <string name="permission_guide_placeholder">推荐先开通知和忽略电池优化；需要更稳定的后台文本同步时，再开启无障碍或 Shizuku。</string>
     <string name="runtime_advice_placeholder">推荐优先使用前台服务模式；如果后台复制经常丢失，再切到无障碍或 Shizuku。</string>
+    <string name="runtime_implementation_placeholder">当前模式的实现阶段会显示在这里。</string>
     <string name="auto_resume_placeholder">自动续连状态会在这里显示。</string>
     <string name="runtime_mode_action_accessibility">打开无障碍设置</string>
     <string name="runtime_mode_action_shizuku">打开 Shizuku</string>

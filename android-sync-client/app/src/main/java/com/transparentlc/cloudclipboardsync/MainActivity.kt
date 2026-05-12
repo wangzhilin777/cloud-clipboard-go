@@ -63,6 +63,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var permissionSummaryText: TextView
     private lateinit var permissionGuideText: TextView
     private lateinit var runtimeAdviceText: TextView
+    private lateinit var runtimeImplementationText: TextView
     private lateinit var autoResumeSummaryText: TextView
     private lateinit var runtimeModeBadgeText: TextView
     private lateinit var permissionOverviewBadgeText: TextView
@@ -117,6 +118,7 @@ class MainActivity : AppCompatActivity() {
         permissionSummaryText = findViewById(R.id.permissionSummaryText)
         permissionGuideText = findViewById(R.id.permissionGuideText)
         runtimeAdviceText = findViewById(R.id.runtimeAdviceText)
+        runtimeImplementationText = findViewById(R.id.runtimeImplementationText)
         autoResumeSummaryText = findViewById(R.id.autoResumeSummaryText)
         runtimeModeBadgeText = findViewById(R.id.runtimeModeBadgeText)
         permissionOverviewBadgeText = findViewById(R.id.permissionOverviewBadgeText)
@@ -380,6 +382,7 @@ class MainActivity : AppCompatActivity() {
             warningText = getString(R.string.runtime_recommendation_blocked),
         )
         runtimeAdviceText.text = buildClipboardModeAdvice(config, status, validation)
+        runtimeImplementationText.text = buildRuntimeImplementationSummary(config)
         runtimeModeActionButton.text = runtimeModeActionLabel(config, status)
         autoResumeSummaryText.text = buildAutoResumeSummary(config, status)
         floatingLayoutSummaryText.text = getString(
@@ -582,6 +585,20 @@ class MainActivity : AppCompatActivity() {
             warnings += "未开启开机自动恢复，当前仅在你打开 App 时自动续连"
         }
         return "自动续连：已就绪\n${warnings.joinToString("；")}。"
+    }
+
+    private fun buildRuntimeImplementationSummary(config: SettingsStore.Config): String = when (config.clipboardMode) {
+        SettingsStore.CLIPBOARD_MODE_ACCESSIBILITY -> {
+            "当前阶段：无障碍模式的授权检查、启动前置校验和恢复流程已接好；一期同步链路仍以系统剪贴板监听为主，后续再继续补强后台增强细节。"
+        }
+
+        SettingsStore.CLIPBOARD_MODE_SHIZUKU -> {
+            "当前阶段：Shizuku 模式已接入配置入口、状态检测和启动前置校验；一期同步链路仍复用现有文本同步主链，后续再继续补真实增强能力。"
+        }
+
+        else -> {
+            "当前阶段：前台服务模式是一期开箱可用的主通道，文本同步、自动续连、图片/文件确认接收都按这条链路稳定运行。"
+        }
     }
 
     private fun buildPermissionSummary(
