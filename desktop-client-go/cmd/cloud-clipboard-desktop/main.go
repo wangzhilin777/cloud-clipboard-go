@@ -31,8 +31,14 @@ func main() {
 		logger.Fatalf("加载配置失败: %v", err)
 	}
 	if *shellSend != "" || *shellDownloadDir != "" || *shellFetchLatestFile {
-		if err := runShellAction(logger, cfg, *shellSend, *shellDownloadDir, *shellFetchLatestFile); err != nil {
+		notifier := app.BuildNotifier(cfg, logger, *configPath)
+		message, err := runShellAction(logger, cfg, *shellSend, *shellDownloadDir, *shellFetchLatestFile)
+		if err != nil {
+			notifier.Notify("Cloud Clipboard", "右键动作失败："+err.Error())
 			logger.Fatalf("执行右键动作失败: %v", err)
+		}
+		if cfg.SuccessNoticeEnabled && message != "" {
+			notifier.Notify("Cloud Clipboard", message)
 		}
 		return
 	}
@@ -65,28 +71,37 @@ func main() {
 	}
 }
 
-func runShellAction(logger *log.Logger, cfg config.Config, shellSend string, shellDownloadDir string, shellFetchLatestFile bool) error {
+func runShellAction(logger *log.Logger, cfg config.Config, shellSend string, shellDownloadDir string, shellFetchLatestFile bool) (string, error) {
 	sender := transfer.NewSender(cfg, logger)
 	if shellSend != "" {
-		_, err := sender.SendFiles(context.Background(), []string{shellSend})
-		return err
+		results, err := sender.SendFiles(context.Background(), []string{shellSend})
+		if err != nil {
+			return "", err
+		}
+		if len(results) == 0 {
+			return "已发送文件到服务器", nil
+		}
+		return "已发送文件到服务器：" + results[0].Name, nil
 	}
 	if shellDownloadDir != "" {
 		cfg.DownloadDir = shellDownloadDir
 		cfg.Normalize()
 		sender = transfer.NewSender(cfg, logger)
-		_, err := sender.DownloadLatestFile(context.Background())
-		return err
+		result, err := sender.DownloadLatestFile(context.Background())
+		if err != nil {
+			return "", err
+		}
+		return "已下载最新文件到：" + result.Path, nil
 	}
 	if shellFetchLatestFile {
 		result, err := sender.DownloadLatestFile(context.Background())
 		if err != nil {
-			return err
+			return "", err
 		}
 		if err := fileclip.SetFileList([]string{result.Path}); err != nil {
 			logger.Printf("文件剪贴板写入返回异常，但下载文件已落地: %v", err)
 		}
-		return nil
+		return "已拉取最新文件到本地剪贴板", nil
 	}
-	return nil
+	return "", nil
 }

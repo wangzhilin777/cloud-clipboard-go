@@ -363,7 +363,11 @@ func (a *App) OpenPanel() error {
 	default:
 		cmd = exec.Command("xdg-open", panelURL)
 	}
-	return cmd.Start()
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+	a.saveLastAction("open-panel", panelURL)
+	return nil
 }
 
 func (a *App) OpenDownloadDir() error {

@@ -4,6 +4,7 @@ import (
 	"log"
 
 	"github.com/gen2brain/beeep"
+	"github.com/jonnyan404/cloud-clipboard-go/desktop-client-go/internal/config"
 )
 
 type Notifier interface {
@@ -24,6 +25,10 @@ func (n logNotifier) Notify(title string, body string) {
 
 type beeepNotifier struct {
 	logger *log.Logger
+}
+
+func BuildNotifier(cfg config.Config, logger *log.Logger, configPath string) Notifier {
+	return buildNotifier(cfg, logger, configPath)
 }
 
 func (n beeepNotifier) Notify(title string, body string) {

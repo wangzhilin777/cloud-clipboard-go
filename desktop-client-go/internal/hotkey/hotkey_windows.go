@@ -26,7 +26,8 @@ const (
 )
 
 const (
-	actionSendClipboard = iota + 1
+	actionOpenPanel = iota + 1
+	actionSendClipboard
 	actionFetchLatest
 	actionFetchLatestFile
 	actionDownloadLatest
@@ -153,6 +154,13 @@ func (m *manager) unregisterAll() {
 
 func (m *manager) bindingsForConfig(cfg config.Config) []hotkeyBinding {
 	return []hotkeyBinding{
+		newBinding(actionOpenPanel, "打开控制面板", cfg.OpenPanelHotkey, func() {
+			if err := m.actions.OpenPanel(); err != nil {
+				m.logger.Printf("全局热键打开控制面板失败: %v", err)
+			} else {
+				m.logger.Printf("全局热键已打开控制面板")
+			}
+		}),
 		newBinding(actionSendClipboard, "发送当前剪贴板文本", cfg.SendClipboardHotkey, func() {
 			if text, err := m.actions.SendText("", true); err != nil {
 				m.logger.Printf("全局热键发送剪贴板文本失败: %v", err)

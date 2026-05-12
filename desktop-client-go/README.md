@@ -22,11 +22,12 @@
 - 支持下载最新文件到本地目录
 - Windows 支持把最新文件直接拉到本机文件剪贴板，下载后可直接在资源管理器 `Ctrl+V`
 - 支持打开下载目录、手动清空下载缓存、按保留时长自动清理过期缓存
-- 支持全局热键：发送剪贴板文本、拉取最新文本、拉取最新文件到剪贴板、下载最新文件
+- 支持全局热键：打开控制面板、发送剪贴板文本、拉取最新文本、拉取最新文件到剪贴板、下载最新文件
 - 支持 Windows 右键子菜单：
   - 文件：`复制到剪贴板服务器`
   - 目录/空白处：`从剪贴板服务器粘贴到此处`
   - 目录/空白处：`拉取最新文件到剪贴板`
+- Windows 右键一次性动作会按当前通知模式返回成功或失败提示
 - 支持检测新的剪贴板文件列表，先进入待确认状态
 - Windows 下待确认剪贴板文件可通过右下角 Tip、托盘菜单、控制面板确认发送
 
@@ -66,6 +67,7 @@ go run ./cmd/cloud-clipboard-desktop -headless
 - `downloadCacheRetentionHours`
 - `clipboardFileConfirmEnabled`
 - `clipboardFileConfirmWindowSec`
+- `openPanelHotkey`
 - `sendClipboardHotkey`
 - `fetchLatestHotkey`
 - `fetchLatestFileHotkey`

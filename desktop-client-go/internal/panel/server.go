@@ -82,6 +82,7 @@ type configView struct {
 	ShellMenuEnabled              bool   `json:"shellMenuEnabled"`
 	ClipboardFileConfirmEnabled   bool   `json:"clipboardFileConfirmEnabled"`
 	ClipboardFileConfirmWindowSec int64  `json:"clipboardFileConfirmWindowSec"`
+	OpenPanelHotkey               string `json:"openPanelHotkey"`
 	SendClipboardHotkey           string `json:"sendClipboardHotkey"`
 	FetchLatestHotkey             string `json:"fetchLatestHotkey"`
 	FetchLatestFileHotkey         string `json:"fetchLatestFileHotkey"`
@@ -188,6 +189,7 @@ func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
 		ShellMenuEnabled:            payload.ShellMenuEnabled,
 		ClipboardFileConfirmEnabled: payload.ClipboardFileConfirmEnabled,
 		ClipboardFileConfirmWindow:  time.Duration(payload.ClipboardFileConfirmWindowSec) * time.Second,
+		OpenPanelHotkey:             payload.OpenPanelHotkey,
 		SendClipboardHotkey:         payload.SendClipboardHotkey,
 		FetchLatestHotkey:           payload.FetchLatestHotkey,
 		FetchLatestFileHotkey:       payload.FetchLatestFileHotkey,
@@ -386,6 +388,7 @@ func toConfigView(cfg config.Config) configView {
 		ShellMenuEnabled:              cfg.ShellMenuEnabled,
 		ClipboardFileConfirmEnabled:   cfg.ClipboardFileConfirmEnabled,
 		ClipboardFileConfirmWindowSec: int64(cfg.ClipboardFileConfirmWindow / time.Second),
+		OpenPanelHotkey:               cfg.OpenPanelHotkey,
 		SendClipboardHotkey:           cfg.SendClipboardHotkey,
 		FetchLatestHotkey:             cfg.FetchLatestHotkey,
 		FetchLatestFileHotkey:         cfg.FetchLatestFileHotkey,

@@ -8,6 +8,7 @@ import (
 )
 
 type Actions interface {
+	OpenPanel() error
 	SendText(text string, fromClipboard bool) (string, error)
 	FetchLatestText() (string, error)
 	FetchLatestFileToClipboard() (string, error)

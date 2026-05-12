@@ -26,6 +26,7 @@ type Config struct {
 	ShellMenuEnabled            bool          `json:"shellMenuEnabled"`
 	ClipboardFileConfirmEnabled bool          `json:"clipboardFileConfirmEnabled"`
 	ClipboardFileConfirmWindow  time.Duration `json:"clipboardFileConfirmWindow"`
+	OpenPanelHotkey             string        `json:"openPanelHotkey"`
 	SendClipboardHotkey         string        `json:"sendClipboardHotkey"`
 	FetchLatestHotkey           string        `json:"fetchLatestHotkey"`
 	FetchLatestFileHotkey       string        `json:"fetchLatestFileHotkey"`
@@ -59,6 +60,7 @@ func Default() Config {
 		DownloadCacheRetention:      24 * time.Hour,
 		ClipboardFileConfirmEnabled: true,
 		ClipboardFileConfirmWindow:  8 * time.Second,
+		OpenPanelHotkey:             "",
 		SendClipboardHotkey:         "",
 		FetchLatestHotkey:           "",
 		FetchLatestFileHotkey:       "",
@@ -157,6 +159,7 @@ func (c *Config) normalize() {
 	if c.ClipboardFileConfirmWindow > 30*time.Second {
 		c.ClipboardFileConfirmWindow = 30 * time.Second
 	}
+	c.OpenPanelHotkey = normalizeHotkey(c.OpenPanelHotkey)
 	c.SendClipboardHotkey = normalizeHotkey(c.SendClipboardHotkey)
 	c.FetchLatestHotkey = normalizeHotkey(c.FetchLatestHotkey)
 	c.FetchLatestFileHotkey = normalizeHotkey(c.FetchLatestFileHotkey)
