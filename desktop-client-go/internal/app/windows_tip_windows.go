@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-func showWindowsTip(title string, body string, primaryLabel string, primaryURL string, secondaryLabel string, secondaryURL string, seconds int, width int, height int, theme string) error {
+func showWindowsTip(title string, body string, primaryLabel string, primaryURL string, secondaryLabel string, secondaryURL string, seconds int, width int, height int, theme string, left int, top int, configPath string) error {
 	title = strings.TrimSpace(title)
 	body = strings.TrimSpace(body)
 	if title == "" {
@@ -27,14 +27,14 @@ func showWindowsTip(title string, body string, primaryLabel string, primaryURL s
 	if strings.TrimSpace(theme) == "" {
 		theme = "dark"
 	}
-	script := buildWindowsTipScript(title, body, primaryLabel, primaryURL, secondaryLabel, secondaryURL, seconds, width, height, theme)
+	script := buildWindowsTipScript(title, body, primaryLabel, primaryURL, secondaryLabel, secondaryURL, seconds, width, height, theme, left, top, configPath)
 	encoded := base64.StdEncoding.EncodeToString([]byte(script))
 	ps := fmt.Sprintf("[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('%s')) | Invoke-Expression", encoded)
 	cmd := exec.Command("powershell", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-STA", "-WindowStyle", "Hidden", "-Command", ps)
 	return cmd.Start()
 }
 
-func buildWindowsTipScript(title string, body string, primaryLabel string, primaryURL string, secondaryLabel string, secondaryURL string, seconds int, width int, height int, theme string) string {
+func buildWindowsTipScript(title string, body string, primaryLabel string, primaryURL string, secondaryLabel string, secondaryURL string, seconds int, width int, height int, theme string, left int, top int, configPath string) string {
 	return fmt.Sprintf(`
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
@@ -56,6 +56,24 @@ function Invoke-Action($target) {
   Start-Process $target | Out-Null
 }
 
+function Clamp-Value($value, $min, $max) {
+  if ($value -lt $min) { return $min }
+  if ($value -gt $max) { return $max }
+  return $value
+}
+
+function Save-TipPosition($configPath, $left, $top) {
+  if ([string]::IsNullOrWhiteSpace($configPath)) { return }
+  try {
+    if (-not (Test-Path -LiteralPath $configPath)) { return }
+    $cfg = Get-Content -LiteralPath $configPath -Raw -Encoding UTF8 | ConvertFrom-Json
+    $cfg | Add-Member -NotePropertyName tipLeft -NotePropertyValue ([int]$left) -Force
+    $cfg | Add-Member -NotePropertyName tipTop -NotePropertyValue ([int]$top) -Force
+    $cfg | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $configPath -Encoding UTF8
+  } catch {
+  }
+}
+
 $titleText = %s
 $bodyText = %s
 $primaryLabel = %s
@@ -66,6 +84,9 @@ $timeoutMs = %d
 $tipWidth = %d
 $tipHeight = %d
 $theme = %s
+$savedLeft = %d
+$savedTop = %d
+$configPath = %s
 
 if ($theme -eq 'light') {
   $outerBg = '#d7deea'
@@ -109,7 +130,19 @@ $regionHandle = [DpiHelper]::CreateRoundRectRgn(0, 0, $tipWidth + 1, $tipHeight 
 $form.Region = [System.Drawing.Region]::FromHrgn($regionHandle)
 
 $working = [System.Windows.Forms.Screen]::PrimaryScreen.WorkingArea
-$form.Location = New-Object System.Drawing.Point(($working.Right - $form.Width - 18), ($working.Bottom - $form.Height - 18))
+$minLeft = $working.Left
+$maxLeft = $working.Right - $form.Width
+$minTop = $working.Top
+$maxTop = $working.Bottom - $form.Height
+$defaultLeft = $working.Right - $form.Width - 18
+$defaultTop = $working.Bottom - $form.Height - 18
+$initialLeft = $defaultLeft
+$initialTop = $defaultTop
+if ($savedLeft -ge 0 -and $savedTop -ge 0) {
+  $initialLeft = Clamp-Value $savedLeft $minLeft $maxLeft
+  $initialTop = Clamp-Value $savedTop $minTop $maxTop
+}
+$form.Location = New-Object System.Drawing.Point($initialLeft, $initialTop)
 
 $contentWidth = $tipWidth - 32
 $closeLeft = $tipWidth - 46
@@ -215,8 +248,46 @@ $timer.Add_Tick({
 })
 $timer.Start()
 
+$script:dragging = $false
+$script:dragStartCursor = $null
+$script:dragStartForm = $null
+
+function Register-DragTarget($control) {
+  $control.Add_MouseDown({
+    if ($_.Button -ne [System.Windows.Forms.MouseButtons]::Left) { return }
+    $script:dragging = $true
+    $script:dragStartCursor = [System.Windows.Forms.Cursor]::Position
+    $script:dragStartForm = $form.Location
+    $timer.Stop()
+  })
+  $control.Add_MouseMove({
+    if (-not $script:dragging) { return }
+    $cursor = [System.Windows.Forms.Cursor]::Position
+    $nextLeft = $script:dragStartForm.X + ($cursor.X - $script:dragStartCursor.X)
+    $nextTop = $script:dragStartForm.Y + ($cursor.Y - $script:dragStartCursor.Y)
+    $nextLeft = Clamp-Value $nextLeft $minLeft $maxLeft
+    $nextTop = Clamp-Value $nextTop $minTop $maxTop
+    $form.Location = New-Object System.Drawing.Point($nextLeft, $nextTop)
+  })
+  $control.Add_MouseUp({
+    if (-not $script:dragging) { return }
+    $script:dragging = $false
+    $timer.Stop()
+    $timer.Start()
+  })
+}
+
+Register-DragTarget $surface
+Register-DragTarget $meta
+Register-DragTarget $title
+Register-DragTarget $body
+
+$form.Add_FormClosing({
+  Save-TipPosition $configPath $form.Left $form.Top
+})
+
 [System.Windows.Forms.Application]::Run($form)
-`, toPSString(title), toPSString(body), toPSString(primaryLabel), toPSString(primaryURL), toPSString(secondaryLabel), toPSString(secondaryURL), seconds*1000, width, height, toPSString(strings.ToLower(strings.TrimSpace(theme))))
+`, toPSString(title), toPSString(body), toPSString(primaryLabel), toPSString(primaryURL), toPSString(secondaryLabel), toPSString(secondaryURL), seconds*1000, width, height, toPSString(strings.ToLower(strings.TrimSpace(theme))), left, top, toPSString(configPath))
 }
 
 func toPSString(value string) string {

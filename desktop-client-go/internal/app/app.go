@@ -45,6 +45,9 @@ type App struct {
 }
 
 func New(logger *log.Logger, cfg config.Config, configPath string) *App {
+	if absPath, err := filepath.Abs(configPath); err == nil {
+		configPath = absPath
+	}
 	configDir := filepath.Dir(configPath)
 	if configDir == "" {
 		configDir = "."
@@ -55,7 +58,7 @@ func New(logger *log.Logger, cfg config.Config, configPath string) *App {
 		configPath: configPath,
 		configDir:  configDir,
 		state:      NewStateStore(filepath.Join(configDir, "state.json")),
-		notifier:   buildNotifier(cfg, logger),
+		notifier:   buildNotifier(cfg, logger, configPath),
 		reloadCh:   make(chan struct{}, 1),
 	}
 }
@@ -131,7 +134,7 @@ func (a *App) Run(ctx context.Context) error {
 	}
 }
 
-func buildNotifier(cfg config.Config, logger *log.Logger) Notifier {
+func buildNotifier(cfg config.Config, logger *log.Logger, configPath string) Notifier {
 	switch strings.ToLower(strings.TrimSpace(cfg.NoticeMode)) {
 	case "off":
 		return noopNotifier{}
@@ -139,10 +142,13 @@ func buildNotifier(cfg config.Config, logger *log.Logger) Notifier {
 		return logNotifier{logger: logger}
 	case "tip":
 		return windowsTipNotifier{
-			logger: logger,
-			width:  cfg.TipWidth,
-			height: cfg.TipHeight,
-			theme:  cfg.TipTheme,
+			logger:     logger,
+			configPath: configPath,
+			width:      cfg.TipWidth,
+			height:     cfg.TipHeight,
+			theme:      cfg.TipTheme,
+			left:       cfg.TipLeft,
+			top:        cfg.TipTop,
 		}
 	default:
 		return beeepNotifier{logger: logger}
@@ -294,7 +300,7 @@ func (a *App) UpdateConfig(cfg config.Config) error {
 		return err
 	}
 	a.cfg = cfg
-	a.notifier = buildNotifier(cfg, a.logger)
+	a.notifier = buildNotifier(cfg, a.logger, a.configPath)
 	if a.hotkeys != nil {
 		a.hotkeys.Update(cfg)
 	}

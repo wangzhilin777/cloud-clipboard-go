@@ -91,6 +91,8 @@ type configView struct {
 	TipWidth                      int    `json:"tipWidth"`
 	TipHeight                     int    `json:"tipHeight"`
 	TipTheme                      string `json:"tipTheme"`
+	TipLeft                       int    `json:"tipLeft"`
+	TipTop                        int    `json:"tipTop"`
 }
 
 func New(address string, backend Backend) *Server {
@@ -194,6 +196,8 @@ func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
 		TipWidth:                    payload.TipWidth,
 		TipHeight:                   payload.TipHeight,
 		TipTheme:                    payload.TipTheme,
+		TipLeft:                     payload.TipLeft,
+		TipTop:                      payload.TipTop,
 	}
 	if err := s.backend.UpdateConfig(cfg); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -389,6 +393,8 @@ func toConfigView(cfg config.Config) configView {
 		TipWidth:                      cfg.TipWidth,
 		TipHeight:                     cfg.TipHeight,
 		TipTheme:                      cfg.TipTheme,
+		TipLeft:                       cfg.TipLeft,
+		TipTop:                        cfg.TipTop,
 	}
 }
 

@@ -35,6 +35,8 @@ type Config struct {
 	TipWidth                    int           `json:"tipWidth"`
 	TipHeight                   int           `json:"tipHeight"`
 	TipTheme                    string        `json:"tipTheme"`
+	TipLeft                     int           `json:"tipLeft"`
+	TipTop                      int           `json:"tipTop"`
 }
 
 func Default() Config {
@@ -65,6 +67,8 @@ func Default() Config {
 		TipWidth:                    348,
 		TipHeight:                   140,
 		TipTheme:                    "dark",
+		TipLeft:                     -1,
+		TipTop:                      -1,
 	}
 }
 
@@ -189,6 +193,12 @@ func (c *Config) normalize() {
 		c.TipHeight = 260
 	}
 	c.TipTheme = normalizeTipTheme(c.TipTheme)
+	if c.TipLeft < -1 {
+		c.TipLeft = -1
+	}
+	if c.TipTop < -1 {
+		c.TipTop = -1
+	}
 }
 
 func (c *Config) Normalize() {

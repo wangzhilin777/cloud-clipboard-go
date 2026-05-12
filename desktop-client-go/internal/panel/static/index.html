@@ -443,15 +443,23 @@
               <span class="label">Tip 高度</span>
               <input id="tipHeight" type="number" min="120" max="260">
             </label>
-            <label class="field">
-              <span class="label">Tip 主题</span>
-              <select id="tipTheme">
-                <option value="dark">深色</option>
-                <option value="light">浅色</option>
-              </select>
-            </label>
+              <label class="field">
+                <span class="label">Tip 主题</span>
+                <select id="tipTheme">
+                  <option value="dark">深色</option>
+                  <option value="light">浅色</option>
+                </select>
+              </label>
+              <label class="field">
+                <span class="label">Tip 左侧坐标</span>
+                <input id="tipLeft" type="number" min="-1" placeholder="-1 表示自动靠右下">
+              </label>
+              <label class="field">
+                <span class="label">Tip 顶部坐标</span>
+                <input id="tipTop" type="number" min="-1" placeholder="-1 表示自动靠右下">
+              </label>
+            </div>
           </div>
-        </div>
 
         <details class="group" open>
           <summary>文件确认与缓存<span class="summary-tip">不常改的确认窗口、下载目录和缓存策略收在一组里。</span></summary>
@@ -507,10 +515,12 @@
       fetchLatestHotkey: document.getElementById('fetchLatestHotkey'),
       fetchLatestFileHotkey: document.getElementById('fetchLatestFileHotkey'),
       downloadLatestHotkey: document.getElementById('downloadLatestHotkey'),
-      tipWidth: document.getElementById('tipWidth'),
-      tipHeight: document.getElementById('tipHeight'),
-      tipTheme: document.getElementById('tipTheme'),
-    };
+        tipWidth: document.getElementById('tipWidth'),
+        tipHeight: document.getElementById('tipHeight'),
+        tipTheme: document.getElementById('tipTheme'),
+        tipLeft: document.getElementById('tipLeft'),
+        tipTop: document.getElementById('tipTop'),
+      };
     const manualText = document.getElementById('manualText');
     const statusText = document.getElementById('statusText');
     const deviceNameText = document.getElementById('deviceNameText');
@@ -599,6 +609,7 @@
       if (cfg.shellMenuEnabled) items.push('右键菜单：开');
       if (cfg.clipboardFileConfirmEnabled) items.push(`确认窗：${cfg.clipboardFileConfirmWindowSec || 0}s`);
       if (cfg.noticeMode === 'tip') items.push(`Tip：${cfg.tipWidth || 0}x${cfg.tipHeight || 0} / ${cfg.tipTheme === 'light' ? '浅色' : '深色'}`);
+      if (cfg.noticeMode === 'tip' && Number(cfg.tipLeft) >= 0 && Number(cfg.tipTop) >= 0) items.push(`位置：${cfg.tipLeft},${cfg.tipTop}`);
       return items.length ? items.join(' / ') : '未配置';
     }
 
@@ -659,6 +670,8 @@
         tipWidth: Number(fields.tipWidth.value || 0),
         tipHeight: Number(fields.tipHeight.value || 0),
         tipTheme: fields.tipTheme.value,
+        tipLeft: Number(fields.tipLeft.value || 0),
+        tipTop: Number(fields.tipTop.value || 0),
       };
       try {
         const resp = await fetch('/api/config', {
