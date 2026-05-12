@@ -28,6 +28,7 @@ import kotlin.math.abs
 
 class SyncService : Service() {
     private val reconnectDelaysMs = longArrayOf(2_000L, 2_000L, 2_000L)
+    private val clipboardPollIntervalMs = 1500L
     private val handler = Handler(Looper.getMainLooper())
     private lateinit var clipboardManager: ClipboardManager
     private lateinit var config: SettingsStore.Config
@@ -39,28 +40,26 @@ class SyncService : Service() {
     private var lastRemoteMessageId = ""
     private var lastPublishedText = ""
     private var lastPublishedAt = 0L
+    private var lastObservedLocalText = ""
     private var serviceStarted = false
     private var reconnectAttempt = 0
     private val downloadingPayloads = mutableSetOf<String>()
 
     private val clipboardListener = ClipboardManager.OnPrimaryClipChangedListener {
-        if (applyingRemoteText || !trusted) return@OnPrimaryClipChangedListener
-        val clip = clipboardManager.primaryClip ?: return@OnPrimaryClipChangedListener
-        val text = clip.getItemAt(0).coerceToText(this)?.toString().orEmpty()
-        if (text.isBlank()) return@OnPrimaryClipChangedListener
-        val now = System.currentTimeMillis()
-        if (text == lastRemoteText && now - lastRemoteAt < 5_000) return@OnPrimaryClipChangedListener
-        if (text == lastPublishedText && now - lastPublishedAt < 2_000) return@OnPrimaryClipChangedListener
-        lastPublishedText = text
-        lastPublishedAt = now
-        client?.publishText(text)
-        broadcastStatus(getString(R.string.status_trusted), "已推送本地文本到服务端")
+        publishLocalClipboardIfNeeded("listener")
     }
 
     private val refreshRunnable = object : Runnable {
         override fun run() {
             Thread(::refreshTrustState).start()
             handler.postDelayed(this, 8_000)
+        }
+    }
+
+    private val clipboardPollRunnable = object : Runnable {
+        override fun run() {
+            publishLocalClipboardIfNeeded("poll")
+            handler.postDelayed(this, clipboardPollIntervalMs)
         }
     }
 
@@ -90,6 +89,7 @@ class SyncService : Service() {
             startForeground(NOTIFICATION_ID, buildNotification(getString(R.string.status_connecting)))
             connect()
             handler.post(refreshRunnable)
+            handler.post(clipboardPollRunnable)
             serviceStarted = true
         }
         return START_STICKY
@@ -214,9 +214,27 @@ class SyncService : Service() {
         }
         lastRemoteText = text
         lastRemoteAt = System.currentTimeMillis()
+        lastObservedLocalText = text
         clipboardManager.setPrimaryClip(ClipData.newPlainText("cloud-clipboard", text))
         broadcastStatus(getString(R.string.status_trusted), resultText)
         handler.postDelayed({ applyingRemoteText = false }, 1500)
+    }
+
+    private fun publishLocalClipboardIfNeeded(source: String) {
+        if (applyingRemoteText || !trusted) return
+        val clip = clipboardManager.primaryClip ?: return
+        if (clip.itemCount <= 0) return
+        val text = clip.getItemAt(0).coerceToText(this)?.toString().orEmpty().trim()
+        if (text.isBlank()) return
+        if (text == lastObservedLocalText && source == "poll") return
+        lastObservedLocalText = text
+        val now = System.currentTimeMillis()
+        if (text == lastRemoteText && now - lastRemoteAt < 5_000) return
+        if (text == lastPublishedText && now - lastPublishedAt < 2_000) return
+        lastPublishedText = text
+        lastPublishedAt = now
+        client?.publishText(text)
+        broadcastStatus(getString(R.string.status_trusted), "已推送本地文本到服务端")
     }
 
     private fun currentStatus(): String = when {
