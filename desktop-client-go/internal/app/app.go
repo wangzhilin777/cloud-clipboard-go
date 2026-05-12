@@ -59,6 +59,11 @@ func New(logger *log.Logger, cfg config.Config, configPath string) *App {
 func (a *App) Run(ctx context.Context) error {
 	a.logger.Printf("桌面同步客户端启动，服务端: %s 房间: %s 设备: %s", a.cfg.ServerBase, a.cfg.Room, a.cfg.DeviceName)
 	_ = a.state.Save(StateSnapshot{Status: "starting"})
+	if removed, err := a.cleanupExpiredDownloadDir(); err != nil {
+		a.logger.Printf("启动清理下载缓存失败: %v", err)
+	} else if removed > 0 {
+		a.logger.Printf("启动时已清理过期下载缓存: %d 项", removed)
+	}
 	a.hotkeys = hotkey.Start(ctx, a.logger, a.currentConfig(), a)
 	clipwatch.Start(ctx, a.logger, a)
 	if exePath, err := os.Executable(); err == nil {
@@ -441,6 +446,9 @@ func (a *App) FetchLatestText() (string, error) {
 }
 
 func (a *App) DownloadLatestFile() (string, error) {
+	if _, err := a.cleanupExpiredDownloadDir(); err != nil {
+		return "", err
+	}
 	sender := transfer.NewSender(a.currentConfig(), a.logger)
 	result, err := sender.DownloadLatestFile(context.Background())
 	if err != nil {
@@ -451,6 +459,9 @@ func (a *App) DownloadLatestFile() (string, error) {
 }
 
 func (a *App) FetchLatestFileToClipboard() (string, error) {
+	if _, err := a.cleanupExpiredDownloadDir(); err != nil {
+		return "", err
+	}
 	sender := transfer.NewSender(a.currentConfig(), a.logger)
 	result, err := sender.DownloadLatestFile(context.Background())
 	if err != nil {
@@ -492,6 +503,42 @@ func (a *App) clearExpiredClipboardPendingLocked() {
 		snapshot.PendingClipboardDetectedAt = 0
 		snapshot.PendingClipboardExpiresAt = 0
 	})
+}
+
+func (a *App) cleanupExpiredDownloadDir() (int, error) {
+	cfg := a.currentConfig()
+	dir := strings.TrimSpace(cfg.DownloadDir)
+	if dir == "" {
+		return 0, errors.New("下载目录未配置")
+	}
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return 0, err
+	}
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return 0, err
+	}
+	expireBefore := time.Now().Add(-cfg.DownloadCacheRetention)
+	removed := 0
+	for _, entry := range entries {
+		info, err := entry.Info()
+		if err != nil {
+			return removed, err
+		}
+		if info.ModTime().After(expireBefore) {
+			continue
+		}
+		target := filepath.Join(dir, entry.Name())
+		if err := os.RemoveAll(target); err != nil {
+			return removed, err
+		}
+		removed++
+	}
+	_ = a.state.Update(func(snapshot *StateSnapshot) {
+		snapshot.LastCacheCleanupRemoved = removed
+		snapshot.LastCacheCleanupAt = time.Now().UnixMilli()
+	})
+	return removed, nil
 }
 
 func clipboardFilesSignature(paths []string) string {

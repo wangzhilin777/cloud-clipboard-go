@@ -26,6 +26,8 @@ type StateSnapshot struct {
 	PendingClipboardFiles      []string `json:"pendingClipboardFiles,omitempty"`
 	PendingClipboardDetectedAt int64    `json:"pendingClipboardDetectedAt,omitempty"`
 	PendingClipboardExpiresAt  int64    `json:"pendingClipboardExpiresAt,omitempty"`
+	LastCacheCleanupRemoved    int      `json:"lastCacheCleanupRemoved,omitempty"`
+	LastCacheCleanupAt         int64    `json:"lastCacheCleanupAt,omitempty"`
 	LastActionType             string   `json:"lastActionType,omitempty"`
 	LastActionDetail           string   `json:"lastActionDetail,omitempty"`
 	LastActionAt               int64    `json:"lastActionAt,omitempty"`

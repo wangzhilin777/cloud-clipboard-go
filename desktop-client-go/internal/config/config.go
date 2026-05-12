@@ -22,6 +22,7 @@ type Config struct {
 	PanelAddress                string        `json:"panelAddress"`
 	OpenPanelOnLaunch           bool          `json:"openPanelOnLaunch"`
 	DownloadDir                 string        `json:"downloadDir"`
+	DownloadCacheRetention      time.Duration `json:"downloadCacheRetention"`
 	ShellMenuEnabled            bool          `json:"shellMenuEnabled"`
 	ClipboardFileConfirmEnabled bool          `json:"clipboardFileConfirmEnabled"`
 	ClipboardFileConfirmWindow  time.Duration `json:"clipboardFileConfirmWindow"`
@@ -49,6 +50,7 @@ func Default() Config {
 		PanelAddress:                "127.0.0.1:9530",
 		OpenPanelOnLaunch:           true,
 		DownloadDir:                 defaultDownloadDir(),
+		DownloadCacheRetention:      24 * time.Hour,
 		ClipboardFileConfirmEnabled: true,
 		ClipboardFileConfirmWindow:  8 * time.Second,
 		SendClipboardHotkey:         "",
@@ -124,6 +126,15 @@ func (c *Config) normalize() {
 	c.DownloadDir = strings.TrimSpace(c.DownloadDir)
 	if c.DownloadDir == "" {
 		c.DownloadDir = def.DownloadDir
+	}
+	if c.DownloadCacheRetention <= 0 {
+		c.DownloadCacheRetention = def.DownloadCacheRetention
+	}
+	if c.DownloadCacheRetention < time.Hour {
+		c.DownloadCacheRetention = time.Hour
+	}
+	if c.DownloadCacheRetention > 30*24*time.Hour {
+		c.DownloadCacheRetention = 30 * 24 * time.Hour
 	}
 	if c.ClipboardFileConfirmWindow <= 0 {
 		c.ClipboardFileConfirmWindow = def.ClipboardFileConfirmWindow

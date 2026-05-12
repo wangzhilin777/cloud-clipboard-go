@@ -177,6 +177,10 @@
         <span class="label">待确认剪贴板文件</span>
         <div id="pendingClipboardText" class="value">-</div>
       </article>
+      <article class="card">
+        <span class="label">最近缓存清理</span>
+        <div id="cacheCleanupText" class="value">-</div>
+      </article>
     </section>
 
     <section class="form-card">
@@ -232,6 +236,10 @@
         <label class="field full">
           <span class="label">下载目录</span>
           <input id="downloadDir" placeholder="C:\\Users\\用户名\\Downloads\\CloudClipboard">
+        </label>
+        <label class="field">
+          <span class="label">下载缓存保留（小时）</span>
+          <input id="downloadCacheRetentionHours" type="number" min="1" max="720">
         </label>
         <label class="field">
           <span class="label">Windows 右键菜单</span>
@@ -312,6 +320,7 @@
       openPanelOnLaunch: document.getElementById('openPanelOnLaunch'),
       panelAddress: document.getElementById('panelAddress'),
       downloadDir: document.getElementById('downloadDir'),
+      downloadCacheRetentionHours: document.getElementById('downloadCacheRetentionHours'),
       shellMenuEnabled: document.getElementById('shellMenuEnabled'),
       clipboardFileConfirmEnabled: document.getElementById('clipboardFileConfirmEnabled'),
       clipboardFileConfirmWindowSec: document.getElementById('clipboardFileConfirmWindowSec'),
@@ -328,6 +337,7 @@
     const actionText = document.getElementById('actionText');
     const hotkeyText = document.getElementById('hotkeyText');
     const pendingClipboardText = document.getElementById('pendingClipboardText');
+    const cacheCleanupText = document.getElementById('cacheCleanupText');
     const message = document.getElementById('message');
     let refreshTimer = null;
 
@@ -359,6 +369,7 @@
       errorText.textContent = state.lastError || '-';
       actionText.textContent = state.lastActionDetail ? `${actionLabel(state.lastActionType)} / ${state.lastActionDetail}` : '-';
       pendingClipboardText.textContent = formatPendingClipboard(state);
+      cacheCleanupText.textContent = formatCacheCleanup(state);
     }
 
     function actionLabel(actionType) {
@@ -408,6 +419,14 @@
       return remaining > 0 ? `${name}${extra} / 剩余 ${remaining}s` : `${name}${extra} / 已过期`;
     }
 
+    function formatCacheCleanup(state) {
+      const removed = Number(state.lastCacheCleanupRemoved || 0);
+      const at = Number(state.lastCacheCleanupAt || 0);
+      if (!at) return '-';
+      const timeText = new Date(at).toLocaleString();
+      return `${removed} 项 / ${timeText}`;
+    }
+
     async function loadStatus(silent = false) {
       try {
         const resp = await fetch('/api/status', { cache: 'no-store' });
@@ -435,6 +454,7 @@
         openPanelOnLaunch: fields.openPanelOnLaunch.value === 'true',
         panelAddress: fields.panelAddress.value,
         downloadDir: fields.downloadDir.value,
+        downloadCacheRetentionHours: Number(fields.downloadCacheRetentionHours.value || 0),
         shellMenuEnabled: fields.shellMenuEnabled.value === 'true',
         clipboardFileConfirmEnabled: fields.clipboardFileConfirmEnabled.value === 'true',
         clipboardFileConfirmWindowSec: Number(fields.clipboardFileConfirmWindowSec.value || 0),

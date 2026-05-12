@@ -50,6 +50,8 @@ type StateSnapshot struct {
 	PendingClipboardFiles      []string `json:"pendingClipboardFiles,omitempty"`
 	PendingClipboardDetectedAt int64    `json:"pendingClipboardDetectedAt,omitempty"`
 	PendingClipboardExpiresAt  int64    `json:"pendingClipboardExpiresAt,omitempty"`
+	LastCacheCleanupRemoved    int      `json:"lastCacheCleanupRemoved,omitempty"`
+	LastCacheCleanupAt         int64    `json:"lastCacheCleanupAt,omitempty"`
 	LastActionType             string   `json:"lastActionType,omitempty"`
 	LastActionDetail           string   `json:"lastActionDetail,omitempty"`
 	LastActionAt               int64    `json:"lastActionAt,omitempty"`
@@ -76,6 +78,7 @@ type configView struct {
 	PanelAddress                  string `json:"panelAddress"`
 	OpenPanelOnLaunch             bool   `json:"openPanelOnLaunch"`
 	DownloadDir                   string `json:"downloadDir"`
+	DownloadCacheRetentionHours   int64  `json:"downloadCacheRetentionHours"`
 	ShellMenuEnabled              bool   `json:"shellMenuEnabled"`
 	ClipboardFileConfirmEnabled   bool   `json:"clipboardFileConfirmEnabled"`
 	ClipboardFileConfirmWindowSec int64  `json:"clipboardFileConfirmWindowSec"`
@@ -175,6 +178,7 @@ func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
 		PanelAddress:                payload.PanelAddress,
 		OpenPanelOnLaunch:           payload.OpenPanelOnLaunch,
 		DownloadDir:                 payload.DownloadDir,
+		DownloadCacheRetention:      time.Duration(payload.DownloadCacheRetentionHours) * time.Hour,
 		ShellMenuEnabled:            payload.ShellMenuEnabled,
 		ClipboardFileConfirmEnabled: payload.ClipboardFileConfirmEnabled,
 		ClipboardFileConfirmWindow:  time.Duration(payload.ClipboardFileConfirmWindowSec) * time.Second,
@@ -366,6 +370,7 @@ func toConfigView(cfg config.Config) configView {
 		PanelAddress:                  cfg.PanelAddress,
 		OpenPanelOnLaunch:             cfg.OpenPanelOnLaunch,
 		DownloadDir:                   cfg.DownloadDir,
+		DownloadCacheRetentionHours:   int64(cfg.DownloadCacheRetention / time.Hour),
 		ShellMenuEnabled:              cfg.ShellMenuEnabled,
 		ClipboardFileConfirmEnabled:   cfg.ClipboardFileConfirmEnabled,
 		ClipboardFileConfirmWindowSec: int64(cfg.ClipboardFileConfirmWindow / time.Second),
