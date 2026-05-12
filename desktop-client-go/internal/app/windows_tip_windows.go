@@ -41,6 +41,8 @@ using System.Runtime.InteropServices;
 public static class DpiHelper {
   [DllImport("user32.dll")]
   public static extern bool SetProcessDPIAware();
+  [DllImport("gdi32.dll")]
+  public static extern IntPtr CreateRoundRectRgn(int nLeftRect, int nTopRect, int nRightRect, int nBottomRect, int nWidthEllipse, int nHeightEllipse);
 }
 "@
 [void][DpiHelper]::SetProcessDPIAware()
@@ -68,9 +70,11 @@ $form.StartPosition = [System.Windows.Forms.FormStartPosition]::Manual
 $form.ShowInTaskbar = $false
 $form.TopMost = $true
 $form.AutoScaleMode = [System.Windows.Forms.AutoScaleMode]::Dpi
-$form.BackColor = [System.Drawing.ColorTranslator]::FromHtml('#1f2937')
+$form.BackColor = [System.Drawing.ColorTranslator]::FromHtml('#d8e2f2')
 $form.ForeColor = [System.Drawing.Color]::White
 $form.ClientSize = New-Object System.Drawing.Size($tipWidth, $tipHeight)
+$regionHandle = [DpiHelper]::CreateRoundRectRgn(0, 0, $tipWidth + 1, $tipHeight + 1, 26, 26)
+$form.Region = [System.Drawing.Region]::FromHrgn($regionHandle)
 
 $working = [System.Windows.Forms.Screen]::PrimaryScreen.WorkingArea
 $form.Location = New-Object System.Drawing.Point(($working.Right - $form.Width - 18), ($working.Bottom - $form.Height - 18))
@@ -78,17 +82,35 @@ $form.Location = New-Object System.Drawing.Point(($working.Right - $form.Width -
 $contentWidth = $tipWidth - 32
 $closeLeft = $tipWidth - 46
 $buttonWidth = [Math]::Floor(($contentWidth - 16) / 2)
-$buttonTop = $tipHeight - 40
+$buttonTop = $tipHeight - 44
 $secondaryLeft = 16 + $buttonWidth + 16
-$bodyHeight = [Math]::Max(40, $buttonTop - 56)
+$bodyHeight = [Math]::Max(40, $buttonTop - 64)
+
+$surface = New-Object System.Windows.Forms.Panel
+$surface.Location = New-Object System.Drawing.Point(1, 1)
+$surface.Size = New-Object System.Drawing.Size(($tipWidth - 2), ($tipHeight - 2))
+$surface.BackColor = [System.Drawing.ColorTranslator]::FromHtml('#1f2430')
+
+$accent = New-Object System.Windows.Forms.Panel
+$accent.Location = New-Object System.Drawing.Point(0, 0)
+$accent.Size = New-Object System.Drawing.Size(($tipWidth - 2), 4)
+$accent.BackColor = [System.Drawing.ColorTranslator]::FromHtml('#4f8cff')
+
+$meta = New-Object System.Windows.Forms.Label
+$meta.Text = 'Cloud Clipboard'
+$meta.Location = New-Object System.Drawing.Point(16, 12)
+$meta.Size = New-Object System.Drawing.Size(140, 18)
+$meta.UseCompatibleTextRendering = $false
+$meta.Font = New-Object System.Drawing.Font('Segoe UI', 8.25, [System.Drawing.FontStyle]::Bold)
+$meta.ForeColor = [System.Drawing.ColorTranslator]::FromHtml('#8ca3c7')
 
 $title = New-Object System.Windows.Forms.Label
 $title.Text = $titleText
-$title.Location = New-Object System.Drawing.Point(16, 14)
-$title.Size = New-Object System.Drawing.Size(($contentWidth - 40), 24)
+$title.Location = New-Object System.Drawing.Point(16, 34)
+$title.Size = New-Object System.Drawing.Size(($contentWidth - 40), 26)
 $title.UseCompatibleTextRendering = $false
 $title.AutoEllipsis = $true
-$title.Font = New-Object System.Drawing.Font('Segoe UI', 10.5, [System.Drawing.FontStyle]::Bold)
+$title.Font = New-Object System.Drawing.Font('Segoe UI Semibold', 10.5, [System.Drawing.FontStyle]::Bold)
 $title.ForeColor = [System.Drawing.Color]::White
 
 $close = New-Object System.Windows.Forms.Button
@@ -97,57 +119,61 @@ $close.Location = New-Object System.Drawing.Point($closeLeft, 10)
 $close.Size = New-Object System.Drawing.Size(30, 28)
 $close.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
 $close.FlatAppearance.BorderSize = 0
-$close.BackColor = [System.Drawing.ColorTranslator]::FromHtml('#374151')
-$close.ForeColor = [System.Drawing.Color]::White
+$close.BackColor = [System.Drawing.ColorTranslator]::FromHtml('#2c3342')
+$close.ForeColor = [System.Drawing.ColorTranslator]::FromHtml('#d5deed')
 $close.Font = New-Object System.Drawing.Font('Segoe UI Symbol', 10, [System.Drawing.FontStyle]::Regular)
 $close.Add_Click({ $form.Close() })
 
 $body = New-Object System.Windows.Forms.Label
 $body.Text = $bodyText
-$body.Location = New-Object System.Drawing.Point(16, 46)
+$body.Location = New-Object System.Drawing.Point(16, 64)
 $body.Size = New-Object System.Drawing.Size($contentWidth, $bodyHeight)
 $body.UseCompatibleTextRendering = $false
 $body.AutoEllipsis = $true
-$body.Font = New-Object System.Drawing.Font('Segoe UI', 9.25, [System.Drawing.FontStyle]::Regular)
-$body.ForeColor = [System.Drawing.ColorTranslator]::FromHtml('#e5e7eb')
+$body.Font = New-Object System.Drawing.Font('Segoe UI', 9, [System.Drawing.FontStyle]::Regular)
+$body.ForeColor = [System.Drawing.ColorTranslator]::FromHtml('#d7dfec')
 
-$form.Controls.Add($title)
-$form.Controls.Add($close)
-$form.Controls.Add($body)
+$surface.Controls.Add($accent)
+$surface.Controls.Add($meta)
+$surface.Controls.Add($title)
+$surface.Controls.Add($close)
+$surface.Controls.Add($body)
 
 if (-not [string]::IsNullOrWhiteSpace($primaryLabel)) {
   $primary = New-Object System.Windows.Forms.Button
   $primary.Text = $primaryLabel
   $primary.Location = New-Object System.Drawing.Point(16, $buttonTop)
-  $primary.Size = New-Object System.Drawing.Size($buttonWidth, 28)
+  $primary.Size = New-Object System.Drawing.Size($buttonWidth, 30)
   $primary.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
   $primary.FlatAppearance.BorderSize = 0
-  $primary.BackColor = [System.Drawing.ColorTranslator]::FromHtml('#2563eb')
+  $primary.BackColor = [System.Drawing.ColorTranslator]::FromHtml('#4f8cff')
   $primary.ForeColor = [System.Drawing.Color]::White
   $primary.Font = New-Object System.Drawing.Font('Segoe UI', 9, [System.Drawing.FontStyle]::Regular)
   $primary.Add_Click({
     Invoke-Action $primaryURL
     $form.Close()
   })
-  $form.Controls.Add($primary)
+  $surface.Controls.Add($primary)
 }
 
 if (-not [string]::IsNullOrWhiteSpace($secondaryLabel)) {
   $secondary = New-Object System.Windows.Forms.Button
   $secondary.Text = $secondaryLabel
   $secondary.Location = New-Object System.Drawing.Point($secondaryLeft, $buttonTop)
-  $secondary.Size = New-Object System.Drawing.Size($buttonWidth, 28)
+  $secondary.Size = New-Object System.Drawing.Size($buttonWidth, 30)
   $secondary.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
   $secondary.FlatAppearance.BorderSize = 0
-  $secondary.BackColor = [System.Drawing.ColorTranslator]::FromHtml('#374151')
-  $secondary.ForeColor = [System.Drawing.Color]::White
+  $secondary.BackColor = [System.Drawing.ColorTranslator]::FromHtml('#2d3443')
+  $secondary.ForeColor = [System.Drawing.ColorTranslator]::FromHtml('#e6edf8')
   $secondary.Font = New-Object System.Drawing.Font('Segoe UI', 9, [System.Drawing.FontStyle]::Regular)
   $secondary.Add_Click({
     Invoke-Action $secondaryURL
     $form.Close()
   })
-  $form.Controls.Add($secondary)
+  $surface.Controls.Add($secondary)
 }
+
+$form.Controls.Add($surface)
 
 $timer = New-Object System.Windows.Forms.Timer
 $timer.Interval = $timeoutMs
@@ -155,7 +181,6 @@ $timer.Add_Tick({
   $timer.Stop()
   $form.Close()
 })
-$form.Add_Shown({ $form.Activate() })
 $timer.Start()
 
 [System.Windows.Forms.Application]::Run($form)
