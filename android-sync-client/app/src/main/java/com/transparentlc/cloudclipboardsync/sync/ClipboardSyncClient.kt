@@ -6,6 +6,8 @@ import okhttp3.Response
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
 import org.json.JSONObject
+import java.net.URLEncoder
+import java.nio.charset.StandardCharsets
 import java.util.UUID
 
 class ClipboardSyncClient(
@@ -27,12 +29,19 @@ class ClipboardSyncClient(
     private var trusted = false
 
     fun connect() {
+        val queryParts = mutableListOf<String>()
+        if (config.room.isNotBlank()) {
+            queryParts += "room=" + URLEncoder.encode(config.room, StandardCharsets.UTF_8.toString())
+        }
+        if (config.roomPassword.isNotBlank()) {
+            queryParts += "auth=" + URLEncoder.encode(config.roomPassword, StandardCharsets.UTF_8.toString())
+        }
         val wsUrl = buildString {
             append(config.serverBase.replaceFirst("http", "ws").trimEnd('/'))
             append("/sync/ws")
-            if (config.roomPassword.isNotBlank()) {
-                append("?auth=")
-                append(config.roomPassword)
+            if (queryParts.isNotEmpty()) {
+                append("?")
+                append(queryParts.joinToString("&"))
             }
         }
         val request = Request.Builder().url(wsUrl).build()

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 )
@@ -232,6 +233,10 @@ func (s *ClipboardServer) handleSyncDeviceTrust(w http.ResponseWriter, r *http.R
 	if r.Method == http.MethodOptions {
 		return
 	}
+	if body.Trusted == nil {
+		s.writeSyncError(w, http.StatusBadRequest, "缺少 trusted")
+		return
+	}
 	device, ok, err := s.syncHub.UpdateDeviceTrust(deviceID, body.Room, body.Trusted, body.Name)
 	if err != nil {
 		s.writeSyncError(w, http.StatusInternalServerError, "更新设备失败")
@@ -254,6 +259,39 @@ func (s *ClipboardServer) handleSyncDeviceTrust(w http.ResponseWriter, r *http.R
 		},
 	})
 	s.syncHub.WriteJSON(w, http.StatusOK, map[string]interface{}{"device": device})
+}
+
+func normalizeSyncPayloadKind(kind string) string {
+	switch strings.ToLower(strings.TrimSpace(kind)) {
+	case "image":
+		return "image"
+	case "file":
+		return "file"
+	default:
+		return ""
+	}
+}
+
+func sanitizeSyncPayloadURL(raw string) (string, bool) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return "", true
+	}
+	parsed, err := url.Parse(raw)
+	if err != nil {
+		return "", false
+	}
+	if parsed.IsAbs() {
+		scheme := strings.ToLower(parsed.Scheme)
+		if scheme != "http" && scheme != "https" {
+			return "", false
+		}
+		return parsed.String(), true
+	}
+	if strings.HasPrefix(raw, "//") {
+		return "", false
+	}
+	return raw, true
 }
 
 type syncPayloadNoticeBody struct {
@@ -286,6 +324,40 @@ func (s *ClipboardServer) handleSyncPayloadNotice(w http.ResponseWriter, r *http
 		return
 	}
 	if r.Method == http.MethodOptions {
+		return
+	}
+	body.Kind = normalizeSyncPayloadKind(body.Kind)
+	if body.Kind == "" {
+		s.writeSyncError(w, http.StatusBadRequest, "kind 仅支持 image 或 file")
+		return
+	}
+	body.Title = strings.TrimSpace(body.Title)
+	if body.Title == "" {
+		s.writeSyncError(w, http.StatusBadRequest, "缺少 title")
+		return
+	}
+	if body.Size < 0 {
+		s.writeSyncError(w, http.StatusBadRequest, "size 不能小于 0")
+		return
+	}
+	body.SourceDeviceID = strings.TrimSpace(body.SourceDeviceID)
+	if body.SourceDeviceID == "" {
+		s.writeSyncError(w, http.StatusBadRequest, "缺少 sourceDeviceId")
+		return
+	}
+	var ok bool
+	body.ActionURL, ok = sanitizeSyncPayloadURL(body.ActionURL)
+	if !ok {
+		s.writeSyncError(w, http.StatusBadRequest, "actionUrl 非法")
+		return
+	}
+	body.DownloadURL, ok = sanitizeSyncPayloadURL(body.DownloadURL)
+	if !ok {
+		s.writeSyncError(w, http.StatusBadRequest, "downloadUrl 非法")
+		return
+	}
+	if body.ActionURL == "" && body.DownloadURL == "" {
+		s.writeSyncError(w, http.StatusBadRequest, "actionUrl 与 downloadUrl 至少提供一个")
 		return
 	}
 

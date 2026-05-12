@@ -504,11 +504,19 @@ func (h *SyncHub) AddPayloadNotice(payload SyncPayloadNotice) (SyncPayloadNotice
 
 	record := payload
 	record.Room = normalizeSyncRoom(record.Room)
+	if strings.TrimSpace(record.Kind) == "" {
+		record.Kind = "file"
+	}
 	if strings.TrimSpace(record.PayloadID) == "" {
 		record.PayloadID = uuid.NewString()
 	}
 	if record.CreatedAt == 0 {
 		record.CreatedAt = time.Now().UnixMilli()
+	}
+	for _, existing := range h.state.Payloads {
+		if existing.PayloadID == record.PayloadID {
+			return existing, nil
+		}
 	}
 	h.state.Payloads = append(h.state.Payloads, record)
 	if len(h.state.Payloads) > h.messageLimit {
