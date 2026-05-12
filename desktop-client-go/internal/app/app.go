@@ -331,6 +331,7 @@ func (a *App) ConfirmPendingClipboardFiles() ([]string, error) {
 		return nil, err
 	}
 	a.clearPendingClipboard()
+	a.saveLastAction("clipboard-file-send", strings.Join(names, "，"))
 	a.notifyActionSuccess("已发送待确认文件到服务器")
 	return names, nil
 }
@@ -520,11 +521,11 @@ func (a *App) notifyActionSuccess(message string) {
 		return
 	}
 	cfg := a.currentConfig()
-	if !cfg.SuccessNoticeEnabled {
-		return
-	}
 	if strings.EqualFold(cfg.NoticeMode, "tip") {
 		_ = closeWindowsTip(a.configPath)
+	}
+	if !cfg.SuccessNoticeEnabled {
+		return
 	}
 	a.notifier.Notify("Cloud Clipboard", message)
 }
