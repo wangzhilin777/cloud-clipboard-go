@@ -25,8 +25,10 @@
     <string name="receive_overlay_action_button">打开悬浮窗设置</string>
     <string name="runtime_recommendation_ready">当前模式已就绪</string>
     <string name="runtime_recommendation_attention">建议继续完善</string>
+    <string name="runtime_recommendation_blocked">当前模式存在阻塞</string>
     <string name="permission_overview_ready">当前可直接使用</string>
     <string name="permission_overview_attention">建议补齐后台权限</string>
+    <string name="permission_overview_blocked">当前存在启动阻塞</string>
     <string name="room_hint">房间名称（可留空）</string>
     <string name="room_password_hint">房间密码或全局密码（可留空）</string>
     <string name="device_name_hint">设备名称</string>
@@ -65,6 +67,8 @@
     <string name="permission_section_label">权限与系统配置检查</string>
     <string name="permission_summary_placeholder">正在读取当前权限状态…</string>
     <string name="permission_summary_format">通知：%1$s\n悬浮窗：%2$s\n无障碍：%3$s\n忽略电池优化：%4$s\nShizuku：%5$s</string>
+    <string name="permission_blockers_none">无</string>
+    <string name="permission_suggestions_none">无</string>
     <string name="permission_guide_placeholder">推荐先开通知和忽略电池优化；需要更稳定的后台文本同步时，再开启无障碍或 Shizuku。</string>
     <string name="runtime_advice_placeholder">推荐优先使用前台服务模式；如果后台复制经常丢失，再切到无障碍或 Shizuku。</string>
     <string name="auto_resume_placeholder">自动续连状态会在这里显示。</string>

@@ -28,6 +28,11 @@ import com.transparentlc.cloudclipboardsync.sync.PayloadCacheStore
 import com.transparentlc.cloudclipboardsync.sync.SettingsStore
 import com.transparentlc.cloudclipboardsync.sync.SyncService
 
+private data class StatusChecklist(
+    val blockers: List<String>,
+    val suggestions: List<String>,
+)
+
 class MainActivity : AppCompatActivity() {
     private lateinit var settingsBottomNav: BottomNavigationView
     private lateinit var connectionSection: View
@@ -200,6 +205,9 @@ class MainActivity : AppCompatActivity() {
         clipboardModeGroup.setOnCheckedChangeListener { _, _ ->
             refreshRuntimeHints()
         }
+        autoConnectSwitch.setOnCheckedChangeListener { _, _ -> refreshRuntimeHints() }
+        startOnBootSwitch.setOnCheckedChangeListener { _, _ -> refreshRuntimeHints() }
+        floatingConfirmSwitch.setOnCheckedChangeListener { _, _ -> refreshRuntimeHints() }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
@@ -348,45 +356,30 @@ class MainActivity : AppCompatActivity() {
 
     private fun refreshPermissionSummary() {
         val status = PermissionStatusHelper.read(this)
-        val missingCount = listOf(
-            status.notificationsEnabled,
-            status.overlayEnabled,
-            status.accessibilityEnabled,
-            status.batteryOptimizationIgnored,
-        ).count { !it }
+        val config = SettingsStore.load(this)
+        val checklist = buildPermissionChecklist(config, status)
         bindStatusBadge(
             permissionOverviewBadgeText,
-            ready = missingCount <= 1,
+            ready = checklist.blockers.isEmpty(),
             readyText = getString(R.string.permission_overview_ready),
-            warningText = getString(R.string.permission_overview_attention),
+            warningText = getString(R.string.permission_overview_blocked),
         )
-        permissionSummaryText.text = getString(
-            R.string.permission_summary_format,
-            stateLabel(status.notificationsEnabled),
-            stateLabel(status.overlayEnabled),
-            stateLabel(status.accessibilityEnabled),
-            stateLabel(status.batteryOptimizationIgnored),
-            stateLabel(status.shizukuInstalled),
-        )
-        permissionGuideText.text = buildPermissionGuide(status)
+        permissionSummaryText.text = buildPermissionSummary(status, checklist)
+        permissionGuideText.text = buildPermissionGuide(checklist)
         refreshRuntimeHints()
     }
 
     private fun refreshRuntimeHints() {
         val config = SettingsStore.load(this)
         val status = PermissionStatusHelper.read(this)
-        val runtimeReady = when (config.clipboardMode) {
-            SettingsStore.CLIPBOARD_MODE_ACCESSIBILITY -> status.accessibilityEnabled
-            SettingsStore.CLIPBOARD_MODE_SHIZUKU -> status.shizukuInstalled
-            else -> true
-        }
+        val validation = RuntimeModeValidator.validate(this, config)
         bindStatusBadge(
             runtimeModeBadgeText,
-            ready = runtimeReady,
+            ready = validation.ready,
             readyText = getString(R.string.runtime_recommendation_ready),
-            warningText = getString(R.string.runtime_recommendation_attention),
+            warningText = getString(R.string.runtime_recommendation_blocked),
         )
-        runtimeAdviceText.text = buildClipboardModeAdvice(config, status)
+        runtimeAdviceText.text = buildClipboardModeAdvice(config, status, validation)
         runtimeModeActionButton.text = runtimeModeActionLabel(config, status)
         autoResumeSummaryText.text = buildAutoResumeSummary(config, status)
         floatingLayoutSummaryText.text = getString(
@@ -539,24 +532,30 @@ class MainActivity : AppCompatActivity() {
     private fun buildClipboardModeAdvice(
         config: SettingsStore.Config,
         status: PermissionStatus,
+        validation: RuntimeModeValidation,
     ): String = when (config.clipboardMode) {
         SettingsStore.CLIPBOARD_MODE_ACCESSIBILITY -> {
             if (status.accessibilityEnabled) {
-                "当前是无障碍增强模式：后台文本监听更稳，但会比前台模式更耗电。"
+                "当前模式：无障碍增强\n启动状态：可直接启动同步\n说明：后台文本监听会更稳，但会比前台模式更耗电。"
             } else {
-                "当前选了无障碍增强模式：推荐开启无障碍后再长期使用，后台复制会更稳，但耗电略高。"
+                "当前模式：无障碍增强\n启动状态：暂时被拦截\n原因：${validation.message}\n说明：开启后后台复制会更稳，但耗电略高。"
             }
         }
 
         SettingsStore.CLIPBOARD_MODE_SHIZUKU -> {
             when {
-                !status.shizukuInstalled -> "当前选了 Shizuku 模式：请先安装并授权 Shizuku；它能力更强，但重启后通常要重新授权。"
-                else -> "当前是 Shizuku 模式：能力更强，适合受系统限制明显的设备，但重启后通常要重新授权。"
+                !status.shizukuInstalled -> "当前模式：Shizuku\n启动状态：暂时被拦截\n原因：${validation.message}\n说明：它能力更强，但重启后通常要重新授权。"
+                else -> "当前模式：Shizuku\n启动状态：可尝试启动同步\n说明：更适合系统限制明显的设备，但重启后通常要重新授权。"
             }
         }
 
         else -> {
-            "当前是前台服务模式：配置最省心；如果后台复制经常丢失，再切到无障碍或 Shizuku。"
+            val batteryLine = if (status.batteryOptimizationIgnored) {
+                "电池策略：已忽略电池优化，后台稳定性更好。"
+            } else {
+                "电池策略：建议补开忽略电池优化，否则系统可能后台回收同步服务。"
+            }
+            "当前模式：前台服务\n启动状态：可直接启动同步\n$batteryLine\n说明：这是最省心的模式；如果后台复制经常丢失，再切到无障碍或 Shizuku。"
         }
     }
 
@@ -565,13 +564,13 @@ class MainActivity : AppCompatActivity() {
         status: PermissionStatus,
     ): String {
         if (!config.autoConnectEnabled) {
-            return "自动续连已关闭：每次都需要你手动点启动同步。"
+            return "自动续连：已关闭\n结果：每次都需要你手动点启动同步。"
         }
         if (isLoopbackServerBase(config.serverBase)) {
-            return "自动续连暂不可用：当前服务地址还是 127.0.0.1/localhost，请改成 Windows 局域网 IP。"
+            return "自动续连：暂不可用\n原因：当前服务地址还是 127.0.0.1/localhost，请改成 Windows 局域网 IP。"
         }
         if (config.lastDesiredRunningState != SettingsStore.RUNNING_STATE_RUNNING) {
-            return "上次是手动停止状态：后续即使重新打开 App，也不会自动恢复同步。"
+            return "自动续连：等待下次生效\n原因：上次是手动停止状态，后续即使重新打开 App，也不会自动恢复同步。"
         }
         val warnings = mutableListOf<String>()
         if (!status.batteryOptimizationIgnored) {
@@ -582,30 +581,92 @@ class MainActivity : AppCompatActivity() {
         } else {
             warnings += "未开启开机自动恢复，当前仅在你打开 App 时自动续连"
         }
-        return "自动续连已就绪：${warnings.joinToString("；")}。"
+        return "自动续连：已就绪\n${warnings.joinToString("；")}。"
     }
 
-    private fun buildPermissionGuide(status: PermissionStatus): String {
-        val steps = mutableListOf<String>()
+    private fun buildPermissionSummary(
+        status: PermissionStatus,
+        checklist: StatusChecklist,
+    ): String {
+        val baseStatus = getString(
+            R.string.permission_summary_format,
+            stateLabel(status.notificationsEnabled),
+            stateLabel(status.overlayEnabled),
+            stateLabel(status.accessibilityEnabled),
+            stateLabel(status.batteryOptimizationIgnored),
+            stateLabel(status.shizukuInstalled),
+        )
+        val blockers = if (checklist.blockers.isEmpty()) {
+            getString(R.string.permission_blockers_none)
+        } else {
+            checklist.blockers.joinToString("；")
+        }
+        val suggestions = if (checklist.suggestions.isEmpty()) {
+            getString(R.string.permission_suggestions_none)
+        } else {
+            checklist.suggestions.joinToString("；")
+        }
+        return "$baseStatus\n\n当前阻塞项：$blockers\n建议优化项：$suggestions"
+    }
+
+    private fun buildPermissionGuide(checklist: StatusChecklist): String {
+        if (checklist.blockers.isEmpty() && checklist.suggestions.isEmpty()) {
+            return "当前常用权限和系统配置都已到位，可以直接使用同步、自动续连和悬浮确认。"
+        }
+        val lines = mutableListOf<String>()
+        if (checklist.blockers.isNotEmpty()) {
+            lines += "优先处理阻塞项："
+            checklist.blockers.forEachIndexed { index, item ->
+                lines += "${index + 1}. $item"
+            }
+        }
+        if (checklist.suggestions.isNotEmpty()) {
+            lines += "建议随后补齐："
+            checklist.suggestions.forEachIndexed { index, item ->
+                lines += "${index + 1}. $item"
+            }
+        }
+        return lines.joinToString("\n")
+    }
+
+    private fun buildPermissionChecklist(
+        config: SettingsStore.Config,
+        status: PermissionStatus,
+    ): StatusChecklist {
+        val blockers = mutableListOf<String>()
+        val suggestions = mutableListOf<String>()
+
+        when (config.clipboardMode) {
+            SettingsStore.CLIPBOARD_MODE_ACCESSIBILITY -> {
+                if (!status.accessibilityEnabled) {
+                    blockers += "无障碍增强模式还没开启无障碍服务，当前模式下无法启动同步。"
+                }
+            }
+
+            SettingsStore.CLIPBOARD_MODE_SHIZUKU -> {
+                if (!status.shizukuInstalled) {
+                    blockers += "Shizuku 模式还没有可用环境，当前模式下无法启动同步。"
+                }
+            }
+        }
+
         if (!status.notificationsEnabled) {
-            steps += "先开通知权限，否则前台同步状态和接收确认提示都不完整。"
+            suggestions += "建议开启通知权限，否则前台服务状态和接收确认提示会不完整。"
         }
         if (!status.batteryOptimizationIgnored) {
-            steps += "建议忽略电池优化，尤其是澎湃 / MIUI 一类系统，否则后台容易被杀。"
+            suggestions += "建议忽略电池优化，尤其是澎湃 / MIUI 一类系统，否则后台容易被杀。"
         }
-        if (!status.accessibilityEnabled) {
-            steps += "想要更稳的后台文本同步，优先开启无障碍；它更省心，但耗电会略高。"
+        if (config.floatingEnabled && !status.overlayEnabled) {
+            suggestions += "已启用悬浮确认，但系统还没允许悬浮窗显示，图片/文件会回退到通知确认。"
+        }
+        if (config.clipboardMode == SettingsStore.CLIPBOARD_MODE_FOREGROUND && !status.accessibilityEnabled) {
+            suggestions += "如果后续遇到后台复制不稳定，可以再开启无障碍增强模式。"
         }
         if (!status.shizukuInstalled) {
-            steps += "如果无障碍场景仍受限，再考虑 Shizuku；能力更强，但重启后通常要重授权。"
+            suggestions += "Shizuku 更适合系统限制明显的设备，需要时再安装并授权即可。"
         }
-        if (!status.overlayEnabled) {
-            steps += "想用图片/文件悬浮确认，再补开悬浮窗权限。"
-        }
-        if (steps.isEmpty()) {
-            return "当前常用权限都已到位：通知、悬浮窗、无障碍和电池优化都已具备。"
-        }
-        return steps.joinToString("\n")
+
+        return StatusChecklist(blockers = blockers, suggestions = suggestions)
     }
 
     private fun buildReceiveCacheSummary(): String {
