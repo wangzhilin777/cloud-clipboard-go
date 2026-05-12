@@ -45,6 +45,33 @@
       margin: 0;
       opacity: 0.92;
     }
+    .tabbar {
+      position: sticky;
+      top: 0;
+      z-index: 5;
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      margin-bottom: 16px;
+      padding: 10px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.92);
+      box-shadow: 0 10px 24px rgba(42, 66, 112, 0.08);
+      backdrop-filter: blur(14px);
+    }
+    .tab-button {
+      border: 1px solid transparent;
+      border-radius: 14px;
+      padding: 12px 10px;
+      background: transparent;
+      color: var(--muted);
+      font-weight: 600;
+    }
+    .tab-button.active {
+      border-color: rgba(45, 108, 223, 0.16);
+      background: #eaf1ff;
+      color: var(--accent);
+    }
     .grid {
       display: grid;
       gap: 16px;
@@ -80,6 +107,10 @@
     .form-title {
       margin: 0 0 16px;
       font-size: 20px;
+    }
+    .section-subtitle {
+      margin: 0 0 14px;
+      font-size: 16px;
     }
     .form-grid {
       display: grid;
@@ -134,10 +165,82 @@
       margin-top: 12px;
       color: var(--muted);
     }
+    .tab-panel {
+      display: none;
+    }
+    .tab-panel.active {
+      display: block;
+    }
+    .stack {
+      display: grid;
+      gap: 16px;
+    }
+    .inline-button {
+      white-space: nowrap;
+      padding: 10px 14px;
+    }
+    .input-with-button {
+      display: flex;
+      gap: 10px;
+      align-items: stretch;
+    }
+    .input-with-button input {
+      flex: 1;
+    }
+    details.group {
+      border: 1px solid rgba(216, 225, 236, 0.9);
+      border-radius: 16px;
+      background: #fbfdff;
+      padding: 4px 16px 16px;
+    }
+    details.group summary {
+      list-style: none;
+      cursor: pointer;
+      font-weight: 700;
+      color: var(--text);
+      padding: 14px 0;
+    }
+    details.group summary::-webkit-details-marker {
+      display: none;
+    }
+    .summary-tip {
+      display: block;
+      margin-top: 4px;
+      font-weight: 400;
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .helper {
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.6;
+    }
     .footer {
       margin-top: 20px;
       color: var(--muted);
       font-size: 13px;
+    }
+    @media (max-width: 720px) {
+      .wrap {
+        padding: 20px 14px 96px;
+      }
+      .tabbar {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        top: auto;
+        margin: 0;
+        border-radius: 20px 20px 0 0;
+      }
+      .tab-button {
+        padding: 10px 6px;
+        font-size: 13px;
+      }
+      .input-with-button {
+        flex-direction: column;
+      }
     }
   </style>
 </head>
@@ -148,162 +251,219 @@
       <p>本地控制面板已经接入，后续桌面端配置与状态都从这里统一收口。</p>
     </section>
 
-    <section class="grid">
-      <article class="card">
-        <span class="label">连接状态</span>
-        <div id="statusText" class="value">加载中</div>
-      </article>
-      <article class="card">
-        <span class="label">设备名称</span>
-        <div id="deviceNameText" class="value">-</div>
-      </article>
-      <article class="card">
-        <span class="label">最近远端文件通知</span>
-        <div id="payloadText" class="value">-</div>
-      </article>
-      <article class="card">
-        <span class="label">最近错误</span>
-        <div id="errorText" class="value">-</div>
-      </article>
-      <article class="card">
-        <span class="label">最近手动发送</span>
-        <div id="actionText" class="value">-</div>
-      </article>
-      <article class="card">
-        <span class="label">快捷键概览</span>
-        <div id="hotkeyText" class="value">-</div>
-      </article>
-      <article class="card">
-        <span class="label">待确认剪贴板文件</span>
-        <div id="pendingClipboardText" class="value">-</div>
-      </article>
-      <article class="card">
-        <span class="label">最近缓存清理</span>
-        <div id="cacheCleanupText" class="value">-</div>
-      </article>
-    </section>
+    <nav class="tabbar" aria-label="控制面板分组">
+      <button class="tab-button active" type="button" data-tab-button="overview">概览</button>
+      <button class="tab-button" type="button" data-tab-button="connection">连接</button>
+      <button class="tab-button" type="button" data-tab-button="actions">动作</button>
+      <button class="tab-button" type="button" data-tab-button="advanced">高级</button>
+    </nav>
 
-    <section class="form-card">
-      <h2 class="form-title">同步配置</h2>
-      <div class="form-grid">
-        <label class="field full">
-          <span class="label">服务端地址</span>
-          <input id="serverBase" placeholder="http://192.168.31.136:9501">
-        </label>
-        <label class="field">
-          <span class="label">房间名</span>
-          <input id="room" placeholder="default">
-        </label>
-        <label class="field">
-          <span class="label">房间密码</span>
-          <input id="roomPassword" type="password" placeholder="room password">
-        </label>
-        <label class="field">
+    <section class="tab-panel active" data-tab-panel="overview">
+      <section class="grid">
+        <article class="card">
+          <span class="label">连接状态</span>
+          <div id="statusText" class="value">加载中</div>
+        </article>
+        <article class="card">
           <span class="label">设备名称</span>
-          <input id="deviceName" placeholder="Desktop">
-        </label>
-        <label class="field">
-          <span class="label">轮询间隔（毫秒）</span>
-          <input id="pollIntervalMs" type="number" min="200" max="3000">
-        </label>
-        <label class="field">
-          <span class="label">通知模式</span>
-          <select id="noticeMode">
-            <option value="popup">系统通知</option>
-            <option value="log">仅日志</option>
-            <option value="off">关闭通知</option>
-          </select>
-        </label>
-        <label class="field">
-          <span class="label">失败重连间隔（毫秒）</span>
-          <input id="reconnectDelayMs" type="number" min="500" max="30000">
-        </label>
-        <label class="field">
-          <span class="label">最大自动重连次数</span>
-          <input id="maxReconnectAttempts" type="number" min="1" max="20">
-        </label>
-        <label class="field">
-          <span class="label">启动时自动打开面板</span>
-          <select id="openPanelOnLaunch">
-            <option value="true">开启</option>
-            <option value="false">关闭</option>
-          </select>
-        </label>
-        <label class="field full">
-          <span class="label">面板监听地址</span>
-          <input id="panelAddress" placeholder="127.0.0.1:9530">
-        </label>
-        <label class="field full">
-          <span class="label">下载目录</span>
-          <input id="downloadDir" placeholder="C:\\Users\\用户名\\Downloads\\CloudClipboard">
-        </label>
-        <label class="field">
-          <span class="label">下载缓存保留（小时）</span>
-          <input id="downloadCacheRetentionHours" type="number" min="1" max="720">
-        </label>
-        <label class="field">
-          <span class="label">Windows 右键菜单</span>
-          <select id="shellMenuEnabled">
-            <option value="false">关闭</option>
-            <option value="true">开启</option>
-          </select>
-        </label>
-        <label class="field">
-          <span class="label">剪贴板文件确认</span>
-          <select id="clipboardFileConfirmEnabled">
-            <option value="true">开启</option>
-            <option value="false">关闭</option>
-          </select>
-        </label>
-        <label class="field">
-          <span class="label">确认窗口（秒）</span>
-          <input id="clipboardFileConfirmWindowSec" type="number" min="3" max="30">
-        </label>
-        <label class="field">
-          <span class="label">发送剪贴板文本热键</span>
-          <input id="sendClipboardHotkey" placeholder="Ctrl+Alt+C">
-        </label>
-        <label class="field">
-          <span class="label">拉取最新文本热键</span>
-          <input id="fetchLatestHotkey" placeholder="Ctrl+Alt+T">
-        </label>
-        <label class="field">
-          <span class="label">拉取最新文件到剪贴板热键</span>
-          <input id="fetchLatestFileHotkey" placeholder="Ctrl+Alt+G">
-        </label>
-        <label class="field">
-          <span class="label">下载最新文件热键</span>
-          <input id="downloadLatestHotkey" placeholder="Ctrl+Alt+B">
-        </label>
-      </div>
-      <div class="actions">
-        <button class="primary" id="saveButton" type="button">保存并重连</button>
-        <button class="secondary" id="reconnectButton" type="button">仅重连</button>
-        <button class="secondary" id="openPanelButton" type="button">系统浏览器打开</button>
-        <button class="secondary" id="sendFileButton" type="button">选择文件并发送</button>
-        <button class="secondary" id="fetchLatestTextButton" type="button">拉取最新文本到剪贴板</button>
-        <button class="secondary" id="fetchLatestFileToClipboardButton" type="button">拉取最新文件到剪贴板</button>
-        <button class="secondary" id="downloadLatestFileButton" type="button">下载最新文件到本机</button>
-        <button class="secondary" id="openDownloadDirButton" type="button">打开下载目录</button>
-        <button class="secondary" id="clearDownloadDirButton" type="button">清空下载缓存</button>
-        <button class="secondary" id="confirmPendingClipboardFilesButton" type="button">发送待确认剪贴板文件</button>
-      </div>
-      <div class="message" id="message"></div>
-      <div class="footer">配置保存后会立即触发桌面客户端重连。若修改了面板监听地址，本页面需要手动用新地址重新打开。</div>
+          <div id="deviceNameText" class="value">-</div>
+        </article>
+        <article class="card">
+          <span class="label">最近远端文件通知</span>
+          <div id="payloadText" class="value">-</div>
+        </article>
+        <article class="card">
+          <span class="label">最近错误</span>
+          <div id="errorText" class="value">-</div>
+        </article>
+        <article class="card">
+          <span class="label">最近手动发送</span>
+          <div id="actionText" class="value">-</div>
+        </article>
+        <article class="card">
+          <span class="label">快捷键概览</span>
+          <div id="hotkeyText" class="value">-</div>
+        </article>
+        <article class="card">
+          <span class="label">待确认剪贴板文件</span>
+          <div id="pendingClipboardText" class="value">-</div>
+        </article>
+        <article class="card">
+          <span class="label">最近缓存清理</span>
+          <div id="cacheCleanupText" class="value">-</div>
+        </article>
+      </section>
+      <section class="form-card">
+        <h2 class="form-title">常用动作</h2>
+        <div class="actions">
+          <button class="primary" id="reconnectButton" type="button">立即重连</button>
+          <button class="secondary" id="openPanelButton" type="button">系统浏览器打开</button>
+          <button class="secondary" id="confirmPendingClipboardFilesButton" type="button">发送待确认剪贴板文件</button>
+          <button class="secondary" id="openDownloadDirButton" type="button">打开下载目录</button>
+        </div>
+        <div class="helper">这里保留最常用的入口，详细设置和文件动作分到其它分组里，避免主界面过长。</div>
+      </section>
     </section>
 
-    <section class="form-card" style="margin-top: 16px;">
-      <h2 class="form-title">快速动作</h2>
-      <div class="form-grid">
-        <label class="field full">
-          <span class="label">手动发送文本</span>
-          <input id="manualText" placeholder="输入要发送到同步房间的文本">
-        </label>
-      </div>
-      <div class="actions">
-        <button class="primary" id="sendTextButton" type="button">发送输入文本</button>
-        <button class="secondary" id="sendClipboardTextButton" type="button">发送当前剪贴板文本</button>
-      </div>
+    <section class="tab-panel" data-tab-panel="connection">
+      <section class="form-card stack">
+        <div>
+          <h2 class="form-title">同步连接</h2>
+          <div class="form-grid">
+            <label class="field full">
+              <span class="label">服务端地址</span>
+              <input id="serverBase" placeholder="http://192.168.31.136:9501">
+            </label>
+            <label class="field">
+              <span class="label">房间名</span>
+              <input id="room" placeholder="default">
+            </label>
+            <label class="field">
+              <span class="label">房间密码</span>
+              <input id="roomPassword" type="password" placeholder="room password">
+            </label>
+            <label class="field">
+              <span class="label">设备名称</span>
+              <input id="deviceName" placeholder="Desktop">
+            </label>
+            <label class="field">
+              <span class="label">通知模式</span>
+              <select id="noticeMode">
+                <option value="popup">系统通知</option>
+                <option value="log">仅日志</option>
+                <option value="off">关闭通知</option>
+              </select>
+            </label>
+            <label class="field">
+              <span class="label">启动时自动打开面板</span>
+              <select id="openPanelOnLaunch">
+                <option value="true">开启</option>
+                <option value="false">关闭</option>
+              </select>
+            </label>
+          </div>
+        </div>
+
+        <details class="group" open>
+          <summary>连接细节<span class="summary-tip">网络地址和重连参数都收在这里，平时不用展开太多。</span></summary>
+          <div class="form-grid">
+            <label class="field full">
+              <span class="label">面板监听地址</span>
+              <input id="panelAddress" placeholder="127.0.0.1:9530">
+            </label>
+            <label class="field">
+              <span class="label">轮询间隔（毫秒）</span>
+              <input id="pollIntervalMs" type="number" min="200" max="3000">
+            </label>
+            <label class="field">
+              <span class="label">失败重连间隔（毫秒）</span>
+              <input id="reconnectDelayMs" type="number" min="500" max="30000">
+            </label>
+            <label class="field">
+              <span class="label">最大自动重连次数</span>
+              <input id="maxReconnectAttempts" type="number" min="1" max="20">
+            </label>
+          </div>
+        </details>
+
+        <div class="actions">
+          <button class="primary" id="saveButton" type="button">保存并重连</button>
+          <button class="secondary" id="connectionReconnectButton" type="button">仅重连</button>
+        </div>
+        <div class="message" id="message"></div>
+        <div class="footer">配置保存后会立即触发桌面客户端重连。若修改了面板监听地址，本页面需要手动用新地址重新打开。</div>
+      </section>
+    </section>
+
+    <section class="tab-panel" data-tab-panel="actions">
+      <section class="form-card stack">
+        <div>
+          <h2 class="form-title">文本动作</h2>
+          <div class="form-grid">
+            <label class="field full">
+              <span class="label">手动发送文本</span>
+              <input id="manualText" placeholder="输入要发送到同步房间的文本">
+            </label>
+          </div>
+          <div class="actions">
+            <button class="primary" id="sendTextButton" type="button">发送输入文本</button>
+            <button class="secondary" id="sendClipboardTextButton" type="button">发送当前剪贴板文本</button>
+            <button class="secondary" id="fetchLatestTextButton" type="button">拉取最新文本到剪贴板</button>
+          </div>
+        </div>
+
+        <div>
+          <h3 class="section-subtitle">文件动作</h3>
+          <div class="actions">
+            <button class="secondary" id="sendFileButton" type="button">选择文件并发送</button>
+            <button class="secondary" id="fetchLatestFileToClipboardButton" type="button">拉取最新文件到剪贴板</button>
+            <button class="secondary" id="downloadLatestFileButton" type="button">下载最新文件到本机</button>
+          </div>
+        </div>
+      </section>
+    </section>
+
+    <section class="tab-panel" data-tab-panel="advanced">
+      <section class="form-card stack">
+        <div>
+          <h2 class="form-title">快捷键与右键</h2>
+          <div class="form-grid">
+            <label class="field">
+              <span class="label">发送剪贴板文本热键</span>
+              <input id="sendClipboardHotkey" placeholder="Ctrl+Alt+C">
+            </label>
+            <label class="field">
+              <span class="label">拉取最新文本热键</span>
+              <input id="fetchLatestHotkey" placeholder="Ctrl+Alt+T">
+            </label>
+            <label class="field">
+              <span class="label">拉取最新文件到剪贴板热键</span>
+              <input id="fetchLatestFileHotkey" placeholder="Ctrl+Alt+G">
+            </label>
+            <label class="field">
+              <span class="label">下载最新文件热键</span>
+              <input id="downloadLatestHotkey" placeholder="Ctrl+Alt+B">
+            </label>
+            <label class="field">
+              <span class="label">Windows 右键菜单</span>
+              <select id="shellMenuEnabled">
+                <option value="false">关闭</option>
+                <option value="true">开启</option>
+              </select>
+            </label>
+          </div>
+        </div>
+
+        <details class="group" open>
+          <summary>文件确认与缓存<span class="summary-tip">不常改的确认窗口、下载目录和缓存策略收在一组里。</span></summary>
+          <div class="form-grid">
+            <label class="field">
+              <span class="label">剪贴板文件确认</span>
+              <select id="clipboardFileConfirmEnabled">
+                <option value="true">开启</option>
+                <option value="false">关闭</option>
+              </select>
+            </label>
+            <label class="field">
+              <span class="label">确认窗口（秒）</span>
+              <input id="clipboardFileConfirmWindowSec" type="number" min="3" max="30">
+            </label>
+            <label class="field full">
+              <span class="label">下载目录</span>
+              <input id="downloadDir" placeholder="C:\\Users\\用户名\\Downloads\\CloudClipboard">
+            </label>
+            <label class="field">
+              <span class="label">下载缓存保留（小时）</span>
+              <input id="downloadCacheRetentionHours" type="number" min="1" max="720">
+            </label>
+          </div>
+          <div class="actions">
+            <button class="secondary" id="clearDownloadDirButton" type="button">清空下载缓存</button>
+          </div>
+        </details>
+
+        <div class="helper">高级分组主要放不常变配置，避免主页面板总是过高。右键菜单相关入口继续保持折叠子菜单结构。</div>
+      </section>
     </section>
   </div>
 
@@ -339,7 +499,18 @@
     const pendingClipboardText = document.getElementById('pendingClipboardText');
     const cacheCleanupText = document.getElementById('cacheCleanupText');
     const message = document.getElementById('message');
+    const tabButtons = Array.from(document.querySelectorAll('[data-tab-button]'));
+    const tabPanels = Array.from(document.querySelectorAll('[data-tab-panel]'));
     let refreshTimer = null;
+
+    function switchTab(tabName) {
+      tabButtons.forEach((button) => {
+        button.classList.toggle('active', button.dataset.tabButton === tabName);
+      });
+      tabPanels.forEach((panel) => {
+        panel.classList.toggle('active', panel.dataset.tabPanel === tabName);
+      });
+    }
 
     function statusClass(status) {
       const normalized = String(status || '').toLowerCase();
@@ -622,6 +793,7 @@
 
     document.getElementById('saveButton').addEventListener('click', saveConfig);
     document.getElementById('reconnectButton').addEventListener('click', reconnect);
+    document.getElementById('connectionReconnectButton').addEventListener('click', reconnect);
     document.getElementById('openPanelButton').addEventListener('click', openPanelInBrowser);
     document.getElementById('sendFileButton').addEventListener('click', sendFile);
     document.getElementById('sendTextButton').addEventListener('click', () => sendText(false));
@@ -632,6 +804,9 @@
     document.getElementById('openDownloadDirButton').addEventListener('click', openDownloadDir);
     document.getElementById('clearDownloadDirButton').addEventListener('click', clearDownloadDir);
     document.getElementById('confirmPendingClipboardFilesButton').addEventListener('click', confirmPendingClipboardFiles);
+    tabButtons.forEach((button) => {
+      button.addEventListener('click', () => switchTab(button.dataset.tabButton));
+    });
 
     loadStatus();
     refreshTimer = setInterval(() => loadStatus(true), 2000);
