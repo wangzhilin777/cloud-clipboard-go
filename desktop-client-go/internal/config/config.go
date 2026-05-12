@@ -34,6 +34,7 @@ type Config struct {
 	MaxReconnectAttempts        int           `json:"maxReconnectAttempts"`
 	TipWidth                    int           `json:"tipWidth"`
 	TipHeight                   int           `json:"tipHeight"`
+	TipTheme                    string        `json:"tipTheme"`
 }
 
 func Default() Config {
@@ -63,6 +64,7 @@ func Default() Config {
 		MaxReconnectAttempts:        3,
 		TipWidth:                    348,
 		TipHeight:                   140,
+		TipTheme:                    "dark",
 	}
 }
 
@@ -186,6 +188,7 @@ func (c *Config) normalize() {
 	if c.TipHeight > 260 {
 		c.TipHeight = 260
 	}
+	c.TipTheme = normalizeTipTheme(c.TipTheme)
 }
 
 func (c *Config) Normalize() {
@@ -211,6 +214,15 @@ func defaultDownloadDir() string {
 		return ".\\downloads"
 	}
 	return filepath.Join(home, "Downloads", "CloudClipboard")
+}
+
+func normalizeTipTheme(value string) string {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "light":
+		return "light"
+	default:
+		return "dark"
+	}
 }
 
 func normalizeHotkey(value string) string {

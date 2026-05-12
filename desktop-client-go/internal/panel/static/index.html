@@ -443,6 +443,13 @@
               <span class="label">Tip 高度</span>
               <input id="tipHeight" type="number" min="120" max="260">
             </label>
+            <label class="field">
+              <span class="label">Tip 主题</span>
+              <select id="tipTheme">
+                <option value="dark">深色</option>
+                <option value="light">浅色</option>
+              </select>
+            </label>
           </div>
         </div>
 
@@ -502,6 +509,7 @@
       downloadLatestHotkey: document.getElementById('downloadLatestHotkey'),
       tipWidth: document.getElementById('tipWidth'),
       tipHeight: document.getElementById('tipHeight'),
+      tipTheme: document.getElementById('tipTheme'),
     };
     const manualText = document.getElementById('manualText');
     const statusText = document.getElementById('statusText');
@@ -590,7 +598,7 @@
       if (cfg.downloadLatestHotkey) items.push(`下：${cfg.downloadLatestHotkey}`);
       if (cfg.shellMenuEnabled) items.push('右键菜单：开');
       if (cfg.clipboardFileConfirmEnabled) items.push(`确认窗：${cfg.clipboardFileConfirmWindowSec || 0}s`);
-      if (cfg.noticeMode === 'tip') items.push(`Tip：${cfg.tipWidth || 0}x${cfg.tipHeight || 0}`);
+      if (cfg.noticeMode === 'tip') items.push(`Tip：${cfg.tipWidth || 0}x${cfg.tipHeight || 0} / ${cfg.tipTheme === 'light' ? '浅色' : '深色'}`);
       return items.length ? items.join(' / ') : '未配置';
     }
 
@@ -650,6 +658,7 @@
         downloadLatestHotkey: fields.downloadLatestHotkey.value,
         tipWidth: Number(fields.tipWidth.value || 0),
         tipHeight: Number(fields.tipHeight.value || 0),
+        tipTheme: fields.tipTheme.value,
       };
       try {
         const resp = await fetch('/api/config', {

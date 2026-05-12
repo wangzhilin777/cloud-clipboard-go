@@ -142,6 +142,7 @@ func buildNotifier(cfg config.Config, logger *log.Logger) Notifier {
 			logger: logger,
 			width:  cfg.TipWidth,
 			height: cfg.TipHeight,
+			theme:  cfg.TipTheme,
 		}
 	default:
 		return beeepNotifier{logger: logger}

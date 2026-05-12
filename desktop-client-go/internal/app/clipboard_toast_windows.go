@@ -18,7 +18,7 @@ func (a *App) showClipboardFilesToast(paths []string, windowSeconds int) bool {
 	body := clipboardToastBody(paths, windowSeconds)
 	switch strings.ToLower(strings.TrimSpace(cfg.NoticeMode)) {
 	case "tip":
-		if err := showWindowsTip("检测到新的剪贴板文件", body, "立即发送", confirmURL, "打开面板", panelURL, windowSeconds, cfg.TipWidth, cfg.TipHeight); err != nil {
+		if err := showWindowsTip("检测到新的剪贴板文件", body, "立即发送", confirmURL, "打开面板", panelURL, windowSeconds, cfg.TipWidth, cfg.TipHeight, cfg.TipTheme); err != nil {
 			a.logger.Printf("右下角剪贴板提示失败: %v", err)
 			return false
 		}
