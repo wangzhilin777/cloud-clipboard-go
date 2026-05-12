@@ -66,6 +66,15 @@
                 </v-card-text>
             </v-card>
 
+            <v-card class="mb-4" v-if="$root.sync.summary">
+                <v-card-title>同步状态摘要</v-card-title>
+                <v-card-text>
+                    <div class="text-body-2 mb-1">设备：{{ $root.sync.summary.totalDevices }} 台，在线 {{ $root.sync.summary.onlineDevices }} 台，待批准 {{ $root.sync.summary.pendingDevices }} 台</div>
+                    <div class="text-body-2 mb-1">最近文本：{{ formatSyncTime($root.sync.summary.lastMessageAt) }}，最近通知：{{ formatSyncTime($root.sync.summary.lastPayloadAt) }}</div>
+                    <div class="text-body-2">同步历史：文本 {{ $root.sync.summary.recentMessageCount }} 条，通知 {{ $root.sync.summary.recentPayloadCount }} 条</div>
+                </v-card-text>
+            </v-card>
+
             <v-list rounded two-line>
                 <v-list-item v-for="item in $root.sync.devices" :key="`${item.room}-${item.deviceId}`">
                     <v-list-item-avatar tile>
@@ -182,6 +191,10 @@ export default {
         },
         platformLabel(item) {
             return (item.platform || 'unknown').toLowerCase() === 'web' ? '网页' : item.platform;
+        },
+        formatSyncTime(value) {
+            if (!value) return '暂无';
+            return new Date(value).toLocaleString();
         },
     },
     mounted() {

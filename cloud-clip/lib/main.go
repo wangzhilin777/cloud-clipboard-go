@@ -331,6 +331,7 @@ func (s *ClipboardServer) setupRoutes() {
 	mux.HandleFunc(prefix+"/upload/chunk/", s.authMiddleware(s.handle_chunk))
 	mux.HandleFunc(prefix+"/upload/finish/", s.authMiddleware(s.handle_finish))
 	mux.HandleFunc(prefix+"/api/sync/devices", s.handleSyncDevices)
+	mux.HandleFunc(prefix+"/api/sync/status", s.handleSyncStatus)
 	mux.HandleFunc(prefix+"/api/sync/bootstrap", s.handleSyncBootstrap)
 	mux.HandleFunc(prefix+"/api/sync/pair/request", s.handleSyncPairRequest)
 	mux.HandleFunc(prefix+"/api/sync/pair/approve", s.handleSyncPairApprove)

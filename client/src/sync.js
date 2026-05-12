@@ -28,6 +28,7 @@ export default {
                 devices: [],
                 status: 'idle',
                 logs: [],
+                summary: null,
                 lastSentText: '',
                 lastAppliedText: '',
                 lastAppliedAt: 0,
@@ -55,6 +56,7 @@ export default {
                     params: { room: this.room || '' },
                 });
                 this.sync.devices = response.data.devices || [];
+                this.sync.summary = response.data.summary || null;
                 const current = this.sync.devices.find(device => device.deviceId === this.sync.deviceId);
                 if (current) {
                     this.sync.device = current;
@@ -76,6 +78,7 @@ export default {
                     this.sync.device = response.data.device;
                     this.sync.status = response.data.device.trusted ? 'trusted' : 'pending';
                 }
+                this.sync.summary = response.data.summary || this.sync.summary;
             } catch (error) {
                 this.syncLog(`刷新同步状态失败：${error.response?.data?.message || error.message}`);
             }

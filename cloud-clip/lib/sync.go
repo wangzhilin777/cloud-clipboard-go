@@ -255,6 +255,71 @@ func (h *SyncHub) sanitizeDeviceLocked(device SyncDevice) map[string]interface{}
 	}
 }
 
+func (h *SyncHub) buildRoomSummaryLocked(room string) map[string]interface{} {
+	normalizedRoom := normalizeSyncRoom(room)
+	totalDevices := 0
+	trustedDevices := 0
+	pendingDevices := 0
+	onlineDevices := 0
+	lastDeviceSeenAt := int64(0)
+	lastMessageAt := int64(0)
+	lastPayloadAt := int64(0)
+	recentMessageCount := 0
+	recentPayloadCount := 0
+
+	for _, device := range h.state.Devices {
+		if device.Room != normalizedRoom {
+			continue
+		}
+		totalDevices++
+		if device.Trusted {
+			trustedDevices++
+		} else {
+			pendingDevices++
+		}
+		if h.isDeviceOnlineLocked(device.Room, device.DeviceID) {
+			onlineDevices++
+		}
+		if device.LastSeenAt > lastDeviceSeenAt {
+			lastDeviceSeenAt = device.LastSeenAt
+		}
+	}
+
+	for _, message := range h.state.Messages {
+		if message.Room != normalizedRoom {
+			continue
+		}
+		recentMessageCount++
+		if message.CreatedAt > lastMessageAt {
+			lastMessageAt = message.CreatedAt
+		}
+	}
+
+	for _, payload := range h.state.Payloads {
+		if payload.Room != normalizedRoom {
+			continue
+		}
+		recentPayloadCount++
+		if payload.CreatedAt > lastPayloadAt {
+			lastPayloadAt = payload.CreatedAt
+		}
+	}
+
+	return map[string]interface{}{
+		"room":               normalizedRoom,
+		"totalDevices":       totalDevices,
+		"trustedDevices":     trustedDevices,
+		"pendingDevices":     pendingDevices,
+		"onlineDevices":      onlineDevices,
+		"offlineDevices":     totalDevices - onlineDevices,
+		"recentMessageCount": recentMessageCount,
+		"recentPayloadCount": recentPayloadCount,
+		"lastDeviceSeenAt":   lastDeviceSeenAt,
+		"lastMessageAt":      lastMessageAt,
+		"lastPayloadAt":      lastPayloadAt,
+	}
+}
+
 func (h *SyncHub) RequestPair(payload SyncDevice) (map[string]interface{}, error) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -346,6 +411,12 @@ func (h *SyncHub) ListDevices(room string) []map[string]interface{} {
 		result = append(result, h.sanitizeDeviceLocked(device))
 	}
 	return result
+}
+
+func (h *SyncHub) GetRoomSummary(room string) map[string]interface{} {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	return h.buildRoomSummaryLocked(room)
 }
 
 func (h *SyncHub) UpdateDeviceTrust(deviceID string, room string, trusted *bool, name string) (map[string]interface{}, bool, error) {

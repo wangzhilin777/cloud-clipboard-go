@@ -88,6 +88,25 @@ func (s *ClipboardServer) handleSyncDevices(w http.ResponseWriter, r *http.Reque
 	}
 	s.syncHub.WriteJSON(w, http.StatusOK, map[string]interface{}{
 		"devices": s.syncHub.ListDevices(room),
+		"summary": s.syncHub.GetRoomSummary(room),
+	})
+}
+
+func (s *ClipboardServer) handleSyncStatus(w http.ResponseWriter, r *http.Request) {
+	room := normalizeRoomName(r.URL.Query().Get("room"))
+	if !s.validateSyncRoomAccess(w, r, room) {
+		return
+	}
+	if r.Method != http.MethodGet {
+		http.Error(w, "仅允许 GET 请求", http.StatusMethodNotAllowed)
+		return
+	}
+	authRequirement := s.resolveRoomAuth(room)
+	s.syncHub.WriteJSON(w, http.StatusOK, map[string]interface{}{
+		"room":          room,
+		"roomProtected": s.hasRoomAuthEntry(room),
+		"authRequired":  authRequirement.Required,
+		"summary":       s.syncHub.GetRoomSummary(room),
 	})
 }
 
@@ -106,6 +125,7 @@ func (s *ClipboardServer) handleSyncBootstrap(w http.ResponseWriter, r *http.Req
 		"device":         s.syncHub.GetDevice(deviceID, room),
 		"recentMessages": s.syncHub.GetRecentMessages(room),
 		"recentPayloads": s.syncHub.GetRecentPayloads(room),
+		"summary":        s.syncHub.GetRoomSummary(room),
 	})
 }
 
