@@ -181,6 +181,9 @@ class MainActivity : AppCompatActivity() {
         findViewById<Button>(R.id.openProcessedReceivedButton).setOnClickListener {
             startActivity(ReceivedPayloadActivity.createIntent(this, ReceivedPayloadActivity.FilterMode.PROCESSED))
         }
+        findViewById<Button>(R.id.openSnoozedReceivedButton).setOnClickListener {
+            startActivity(ReceivedPayloadActivity.createIntent(this, ReceivedPayloadActivity.FilterMode.SNOOZED))
+        }
         findViewById<Button>(R.id.clearCacheButton).setOnClickListener {
             PayloadCacheStore.clearAll(this)
             lastSyncText.text = getString(R.string.cache_cleared_toast)
@@ -196,6 +199,17 @@ class MainActivity : AppCompatActivity() {
                 lastSyncText.text = getString(R.string.payload_clear_processed_toast, removed)
                 refreshRuntimeHints()
                 Toast.makeText(this, getString(R.string.payload_clear_processed_toast, removed), Toast.LENGTH_SHORT).show()
+            }
+        }
+        findViewById<Button>(R.id.restoreSnoozedButton).setOnClickListener {
+            val restored = PayloadCacheStore.clearSnoozed(this)
+            if (restored <= 0) {
+                Toast.makeText(this, R.string.payload_restore_snoozed_empty_toast, Toast.LENGTH_SHORT).show()
+            } else {
+                sendBroadcast(Intent(SyncService.ACTION_PAYLOAD_UPDATED).apply { setPackage(packageName) })
+                lastSyncText.text = getString(R.string.payload_restore_snoozed_toast, restored)
+                refreshRuntimeHints()
+                Toast.makeText(this, getString(R.string.payload_restore_snoozed_toast, restored), Toast.LENGTH_SHORT).show()
             }
         }
         findViewById<Button>(R.id.resetFloatingPositionButton).setOnClickListener {

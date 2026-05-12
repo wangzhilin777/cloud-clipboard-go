@@ -96,7 +96,9 @@
     <string name="open_received_button">打开接收页</string>
     <string name="open_pending_received_button">查看待处理</string>
     <string name="open_processed_received_button">查看已处理</string>
+    <string name="open_snoozed_received_button">查看稍后</string>
     <string name="clear_processed_cache_button">清理已处理</string>
+    <string name="restore_snoozed_button">恢复稍后提醒</string>
     <string name="config_saved_toast">配置已保存</string>
     <string name="cache_cleared_toast">本地缓存已清空</string>
     <string name="status_label">当前状态</string>
@@ -165,9 +167,13 @@
     <string name="payload_filter_all">全部</string>
     <string name="payload_filter_pending">待处理</string>
     <string name="payload_filter_processed">已处理</string>
+    <string name="payload_filter_snoozed">稍后提醒</string>
     <string name="payload_clear_processed_button">清理已处理</string>
     <string name="payload_clear_processed_toast">已清理 %1$d 条已处理内容</string>
     <string name="payload_clear_processed_empty_toast">当前没有可清理的已处理内容</string>
+    <string name="payload_restore_snoozed_button">恢复稍后提醒</string>
+    <string name="payload_restore_snoozed_toast">已恢复 %1$d 条稍后提醒</string>
+    <string name="payload_restore_snoozed_empty_toast">当前没有可恢复的稍后提醒</string>
     <string name="payload_status_processed">已处理</string>
     <string name="payload_status_pending">待处理</string>
     <string name="payload_status_cached">已缓存</string>

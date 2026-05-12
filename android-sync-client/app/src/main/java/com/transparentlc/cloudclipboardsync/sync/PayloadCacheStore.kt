@@ -159,6 +159,23 @@ object PayloadCacheStore {
         return removed
     }
 
+    fun clearSnoozed(context: Context): Int {
+        val entries = loadEntries(context).toMutableList()
+        var restored = 0
+        entries.replaceAll { entry ->
+            if (entry.snoozedUntil != null) {
+                restored++
+                entry.copy(snoozedUntil = null)
+            } else {
+                entry
+            }
+        }
+        if (restored > 0) {
+            saveEntries(context, entries)
+        }
+        return restored
+    }
+
     fun createCacheFile(context: Context, payloadId: String, title: String): File {
         val dir = cacheDir(context)
         dir.mkdirs()

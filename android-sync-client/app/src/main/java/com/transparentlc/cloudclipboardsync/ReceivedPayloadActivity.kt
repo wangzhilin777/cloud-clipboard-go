@@ -27,6 +27,7 @@ class ReceivedPayloadActivity : AppCompatActivity() {
         ALL,
         PENDING,
         PROCESSED,
+        SNOOZED,
     }
 
     private lateinit var titleText: TextView
@@ -48,6 +49,7 @@ class ReceivedPayloadActivity : AppCompatActivity() {
     private lateinit var filterAllButton: Button
     private lateinit var filterPendingButton: Button
     private lateinit var filterProcessedButton: Button
+    private lateinit var filterSnoozedButton: Button
 
     private var currentPayloadId: String? = null
     private var pendingSaveEntry: PayloadEntry? = null
@@ -102,6 +104,7 @@ class ReceivedPayloadActivity : AppCompatActivity() {
         filterAllButton = findViewById(R.id.filterAllButton)
         filterPendingButton = findViewById(R.id.filterPendingButton)
         filterProcessedButton = findViewById(R.id.filterProcessedButton)
+        filterSnoozedButton = findViewById(R.id.filterSnoozedButton)
 
         entries = PayloadCacheStore.list(this)
         currentPayloadId = intent.getStringExtra(SyncService.EXTRA_PAYLOAD_ID)
@@ -132,11 +135,13 @@ class ReceivedPayloadActivity : AppCompatActivity() {
             }
         }
         clearProcessedButton.setOnClickListener { clearProcessedEntries() }
+        findViewById<Button>(R.id.restoreSnoozedButton).setOnClickListener { restoreSnoozedEntries() }
         previousButton.setOnClickListener { showRelativeEntry(-1) }
         nextButton.setOnClickListener { showRelativeEntry(1) }
         filterAllButton.setOnClickListener { switchFilter(FilterMode.ALL) }
         filterPendingButton.setOnClickListener { switchFilter(FilterMode.PENDING) }
         filterProcessedButton.setOnClickListener { switchFilter(FilterMode.PROCESSED) }
+        filterSnoozedButton.setOnClickListener { switchFilter(FilterMode.SNOOZED) }
         handlePayloadIntent(intent)
     }
 
@@ -179,6 +184,7 @@ class ReceivedPayloadActivity : AppCompatActivity() {
             FilterMode.ALL -> true
             FilterMode.PENDING -> entry.processedAt == null
             FilterMode.PROCESSED -> entry.processedAt != null
+            FilterMode.SNOOZED -> PayloadCacheStore.isSnoozed(entry)
         }
     }
 
@@ -213,6 +219,7 @@ class ReceivedPayloadActivity : AppCompatActivity() {
         val filtered = filteredEntries()
         syncFilterButtons()
         clearProcessedButton.isEnabled = entries.any { it.processedAt != null }
+        findViewById<Button>(R.id.restoreSnoozedButton).isEnabled = entries.any { PayloadCacheStore.isSnoozed(it) }
         val targetEntry = entry?.takeIf { filtered.any { item -> item.payloadId == it.payloadId } } ?: filtered.firstOrNull()
         if (targetEntry == null) {
             currentPayloadId = null
@@ -331,11 +338,25 @@ class ReceivedPayloadActivity : AppCompatActivity() {
         Toast.makeText(this, getString(R.string.payload_clear_processed_toast, removed), Toast.LENGTH_SHORT).show()
     }
 
+    private fun restoreSnoozedEntries() {
+        val restored = PayloadCacheStore.clearSnoozed(this)
+        if (restored <= 0) {
+            Toast.makeText(this, R.string.payload_restore_snoozed_empty_toast, Toast.LENGTH_SHORT).show()
+            return
+        }
+        entries = PayloadCacheStore.list(this)
+        currentPayloadId = filteredEntries().firstOrNull()?.payloadId
+        notifyPayloadCollectionChanged(currentPayloadId)
+        bindEntry(currentEntry())
+        Toast.makeText(this, getString(R.string.payload_restore_snoozed_toast, restored), Toast.LENGTH_SHORT).show()
+    }
+
     private fun syncFilterButtons() {
         val buttons = listOf(
             filterAllButton to (filterMode == FilterMode.ALL),
             filterPendingButton to (filterMode == FilterMode.PENDING),
             filterProcessedButton to (filterMode == FilterMode.PROCESSED),
+            filterSnoozedButton to (filterMode == FilterMode.SNOOZED),
         )
         buttons.forEach { (button, selected) ->
             button.alpha = if (selected) 1f else 0.72f
