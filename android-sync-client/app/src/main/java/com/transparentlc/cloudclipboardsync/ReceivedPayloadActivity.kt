@@ -23,7 +23,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 
 class ReceivedPayloadActivity : AppCompatActivity() {
-    private enum class FilterMode {
+    enum class FilterMode {
         ALL,
         PENDING,
         PROCESSED,
@@ -74,6 +74,7 @@ class ReceivedPayloadActivity : AppCompatActivity() {
         if (uri != null) {
             copyToUri(entry, uri)
             PayloadCacheStore.markProcessed(this, entry.payloadId)
+            notifyPayloadCollectionChanged(entry.payloadId)
             moveAfterHandling(entry.payloadId)
         }
     }
@@ -126,6 +127,7 @@ class ReceivedPayloadActivity : AppCompatActivity() {
         markProcessedButton.setOnClickListener {
             currentPayloadId?.let { payloadId ->
                 PayloadCacheStore.markProcessed(this, payloadId)
+                notifyPayloadCollectionChanged(payloadId)
                 moveAfterHandling(payloadId)
             }
         }
@@ -188,6 +190,9 @@ class ReceivedPayloadActivity : AppCompatActivity() {
     }
 
     private fun handlePayloadIntent(intent: Intent?) {
+        filterMode = intent?.getStringExtra(EXTRA_FILTER_MODE)
+            ?.let { value -> FilterMode.entries.firstOrNull { it.name == value } }
+            ?: filterMode
         val payloadId = intent?.getStringExtra(SyncService.EXTRA_PAYLOAD_ID) ?: return
         currentPayloadId = payloadId
         PayloadCacheStore.clearSnooze(this, payloadId)
@@ -321,6 +326,7 @@ class ReceivedPayloadActivity : AppCompatActivity() {
         }
         entries = PayloadCacheStore.list(this)
         currentPayloadId = filteredEntries().firstOrNull()?.payloadId
+        notifyPayloadCollectionChanged(currentPayloadId)
         bindEntry(currentEntry())
         Toast.makeText(this, getString(R.string.payload_clear_processed_toast, removed), Toast.LENGTH_SHORT).show()
     }
@@ -339,6 +345,7 @@ class ReceivedPayloadActivity : AppCompatActivity() {
     private fun openFile(entry: PayloadEntry) {
         val uri = entry.localPath?.let(::File)?.takeIf { it.exists() }?.let(::buildFileUri) ?: return
         PayloadCacheStore.markProcessed(this, entry.payloadId)
+        notifyPayloadCollectionChanged(entry.payloadId)
         moveAfterHandling(entry.payloadId)
         startActivity(
             Intent(Intent.ACTION_VIEW)
@@ -350,6 +357,7 @@ class ReceivedPayloadActivity : AppCompatActivity() {
     private fun shareFile(entry: PayloadEntry) {
         val uri = entry.localPath?.let(::File)?.takeIf { it.exists() }?.let(::buildFileUri) ?: return
         PayloadCacheStore.markProcessed(this, entry.payloadId)
+        notifyPayloadCollectionChanged(entry.payloadId)
         moveAfterHandling(entry.payloadId)
         startActivity(
             Intent.createChooser(
@@ -369,6 +377,13 @@ class ReceivedPayloadActivity : AppCompatActivity() {
         }
     }
 
+    private fun notifyPayloadCollectionChanged(payloadId: String?) {
+        sendBroadcast(Intent(SyncService.ACTION_PAYLOAD_UPDATED).apply {
+            setPackage(packageName)
+            payloadId?.let { putExtra(SyncService.EXTRA_PAYLOAD_ID, it) }
+        })
+    }
+
     private fun buildFileUri(file: File): Uri = FileProvider.getUriForFile(
         this,
         "$packageName.fileprovider",
@@ -379,5 +394,12 @@ class ReceivedPayloadActivity : AppCompatActivity() {
         "image" -> getString(R.string.payload_kind_image)
         "file" -> getString(R.string.payload_kind_file)
         else -> getString(R.string.payload_kind_unknown)
+    }
+
+    companion object {
+        private const val EXTRA_FILTER_MODE = "extra_filter_mode"
+
+        fun createIntent(context: Context, filterMode: FilterMode): Intent = Intent(context, ReceivedPayloadActivity::class.java)
+            .putExtra(EXTRA_FILTER_MODE, filterMode.name)
     }
 }

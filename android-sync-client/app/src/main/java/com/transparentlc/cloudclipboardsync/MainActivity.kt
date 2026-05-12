@@ -86,6 +86,12 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private val payloadUpdateReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            refreshRuntimeHints()
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
@@ -169,11 +175,28 @@ class MainActivity : AppCompatActivity() {
         findViewById<Button>(R.id.openReceivedButton).setOnClickListener {
             startActivity(Intent(this, ReceivedPayloadActivity::class.java))
         }
+        findViewById<Button>(R.id.openPendingReceivedButton).setOnClickListener {
+            startActivity(ReceivedPayloadActivity.createIntent(this, ReceivedPayloadActivity.FilterMode.PENDING))
+        }
+        findViewById<Button>(R.id.openProcessedReceivedButton).setOnClickListener {
+            startActivity(ReceivedPayloadActivity.createIntent(this, ReceivedPayloadActivity.FilterMode.PROCESSED))
+        }
         findViewById<Button>(R.id.clearCacheButton).setOnClickListener {
             PayloadCacheStore.clearAll(this)
             lastSyncText.text = getString(R.string.cache_cleared_toast)
             refreshRuntimeHints()
             Toast.makeText(this, R.string.cache_cleared_toast, Toast.LENGTH_SHORT).show()
+        }
+        findViewById<Button>(R.id.clearProcessedCacheButton).setOnClickListener {
+            val removed = PayloadCacheStore.clearProcessed(this)
+            if (removed <= 0) {
+                Toast.makeText(this, R.string.payload_clear_processed_empty_toast, Toast.LENGTH_SHORT).show()
+            } else {
+                sendBroadcast(Intent(SyncService.ACTION_PAYLOAD_UPDATED).apply { setPackage(packageName) })
+                lastSyncText.text = getString(R.string.payload_clear_processed_toast, removed)
+                refreshRuntimeHints()
+                Toast.makeText(this, getString(R.string.payload_clear_processed_toast, removed), Toast.LENGTH_SHORT).show()
+            }
         }
         findViewById<Button>(R.id.resetFloatingPositionButton).setOnClickListener {
             SettingsStore.resetFloatingPosition(this)
@@ -227,6 +250,12 @@ class MainActivity : AppCompatActivity() {
             IntentFilter(SyncService.ACTION_STATUS),
             ContextCompat.RECEIVER_NOT_EXPORTED,
         )
+        ContextCompat.registerReceiver(
+            this,
+            payloadUpdateReceiver,
+            IntentFilter(SyncService.ACTION_PAYLOAD_UPDATED),
+            ContextCompat.RECEIVER_NOT_EXPORTED,
+        )
     }
 
     override fun onResume() {
@@ -238,6 +267,7 @@ class MainActivity : AppCompatActivity() {
     override fun onStop() {
         super.onStop()
         unregisterReceiver(statusReceiver)
+        unregisterReceiver(payloadUpdateReceiver)
     }
 
     private fun bindConfig() {

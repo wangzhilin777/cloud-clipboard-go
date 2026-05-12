@@ -94,6 +94,9 @@
     <string name="start_button">启动同步</string>
     <string name="stop_button">停止同步</string>
     <string name="open_received_button">打开接收页</string>
+    <string name="open_pending_received_button">查看待处理</string>
+    <string name="open_processed_received_button">查看已处理</string>
+    <string name="clear_processed_cache_button">清理已处理</string>
     <string name="config_saved_toast">配置已保存</string>
     <string name="cache_cleared_toast">本地缓存已清空</string>
     <string name="status_label">当前状态</string>

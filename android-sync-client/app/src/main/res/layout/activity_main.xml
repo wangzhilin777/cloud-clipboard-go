@@ -765,6 +765,34 @@
                         android:backgroundTint="@color/cc_secondary"
                         android:text="@string/open_received_button" />
 
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:orientation="horizontal">
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/openPendingReceivedButton"
+                            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="@string/open_pending_received_button"
+                            android:textColor="@color/cc_primary"
+                            app:strokeColor="@color/cc_primary_soft" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/openProcessedReceivedButton"
+                            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="12dp"
+                            android:layout_weight="1"
+                            android:text="@string/open_processed_received_button"
+                            android:textColor="@color/cc_primary"
+                            app:strokeColor="@color/cc_primary_soft" />
+                    </LinearLayout>
+
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/clearCacheButton"
                         style="@style/Widget.MaterialComponents.Button.OutlinedButton"
@@ -774,6 +802,14 @@
                         android:text="@string/clear_cache_button"
                         android:textColor="@color/cc_primary"
                         app:strokeColor="@color/cc_primary_soft" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/clearProcessedCacheButton"
+                        style="@style/Widget.MaterialComponents.Button.TextButton"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/clear_processed_cache_button"
+                        android:textColor="@color/cc_text_muted" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
         </LinearLayout>
