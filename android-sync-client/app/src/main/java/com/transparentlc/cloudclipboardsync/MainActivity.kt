@@ -375,6 +375,7 @@ class MainActivity : AppCompatActivity() {
         val config = SettingsStore.load(this)
         val status = PermissionStatusHelper.read(this)
         val validation = RuntimeModeValidator.validate(this, config)
+        val support = ClipboardModeSupportHelper.describe(this, config.clipboardMode, status)
         bindStatusBadge(
             runtimeModeBadgeText,
             ready = validation.ready,
@@ -382,7 +383,7 @@ class MainActivity : AppCompatActivity() {
             warningText = getString(R.string.runtime_recommendation_blocked),
         )
         runtimeAdviceText.text = buildClipboardModeAdvice(config, status, validation)
-        runtimeImplementationText.text = buildRuntimeImplementationSummary(config)
+        runtimeImplementationText.text = support.implementationSummary
         runtimeModeActionButton.text = runtimeModeActionLabel(config, status)
         autoResumeSummaryText.text = buildAutoResumeSummary(config, status)
         floatingLayoutSummaryText.text = getString(
@@ -547,8 +548,8 @@ class MainActivity : AppCompatActivity() {
 
         SettingsStore.CLIPBOARD_MODE_SHIZUKU -> {
             when {
-                !status.shizukuInstalled -> "当前模式：Shizuku\n启动状态：暂时被拦截\n原因：${validation.message}\n说明：它能力更强，但重启后通常要重新授权。"
-                else -> "当前模式：Shizuku\n启动状态：可尝试启动同步\n说明：更适合系统限制明显的设备，但重启后通常要重新授权。"
+                !status.shizukuInstalled -> "当前模式：Shizuku\n启动状态：当前版本暂不开放启动\n原因：${validation.message}\n说明：后续接入真实增强链路后，再开放给受系统限制明显的设备使用。"
+                else -> "当前模式：Shizuku\n启动状态：当前版本暂不开放启动\n原因：${validation.message}\n说明：当前已探测到 Shizuku 环境，但独立增强链路仍在接入中。"
             }
         }
 
@@ -585,20 +586,6 @@ class MainActivity : AppCompatActivity() {
             warnings += "未开启开机自动恢复，当前仅在你打开 App 时自动续连"
         }
         return "自动续连：已就绪\n${warnings.joinToString("；")}。"
-    }
-
-    private fun buildRuntimeImplementationSummary(config: SettingsStore.Config): String = when (config.clipboardMode) {
-        SettingsStore.CLIPBOARD_MODE_ACCESSIBILITY -> {
-            "当前阶段：无障碍模式的授权检查、启动前置校验和恢复流程已接好；一期同步链路仍以系统剪贴板监听为主，后续再继续补强后台增强细节。"
-        }
-
-        SettingsStore.CLIPBOARD_MODE_SHIZUKU -> {
-            "当前阶段：Shizuku 模式已接入配置入口、状态检测和启动前置校验；一期同步链路仍复用现有文本同步主链，后续再继续补真实增强能力。"
-        }
-
-        else -> {
-            "当前阶段：前台服务模式是一期开箱可用的主通道，文本同步、自动续连、图片/文件确认接收都按这条链路稳定运行。"
-        }
     }
 
     private fun buildPermissionSummary(
@@ -661,9 +648,7 @@ class MainActivity : AppCompatActivity() {
             }
 
             SettingsStore.CLIPBOARD_MODE_SHIZUKU -> {
-                if (!status.shizukuInstalled) {
-                    blockers += "Shizuku 模式还没有可用环境，当前模式下无法启动同步。"
-                }
+                blockers += "Shizuku 模式的独立增强链路仍在接入中，当前版本请先改用前台服务或无障碍模式。"
             }
         }
 

@@ -82,6 +82,7 @@
     <string name="runtime_mode_action_shizuku_missing_toast">当前设备还没有可打开的 Shizuku 入口，请先安装或检查系统应用页。</string>
     <string name="runtime_mode_accessibility_blocked">当前选的是无障碍增强模式，但系统还没开启无障碍服务，请先补开后再启动同步。</string>
     <string name="runtime_mode_shizuku_blocked">当前选的是 Shizuku 模式，但设备还没有可用的 Shizuku 环境，请先安装或授权后再启动同步。</string>
+    <string name="runtime_mode_shizuku_unavailable">当前版本的 Shizuku 模式仍在接入中，暂不开放启动；请先改用前台服务或无障碍模式。</string>
     <string name="permission_state_enabled">已开启</string>
     <string name="permission_state_disabled">未开启</string>
     <string name="open_notification_settings_button">通知设置</string>

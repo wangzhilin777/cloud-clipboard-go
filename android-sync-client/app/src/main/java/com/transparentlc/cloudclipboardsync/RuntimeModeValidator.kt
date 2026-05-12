@@ -18,32 +18,24 @@ enum class RuntimeModeAction {
 object RuntimeModeValidator {
     fun validate(context: Context, config: SettingsStore.Config): RuntimeModeValidation {
         val status = PermissionStatusHelper.read(context)
+        val support = ClipboardModeSupportHelper.describe(context, config.clipboardMode, status)
+        if (support.canStart) {
+            return RuntimeModeValidation(true, support.readyMessage)
+        }
         return when (config.clipboardMode) {
-            SettingsStore.CLIPBOARD_MODE_ACCESSIBILITY -> {
-                if (status.accessibilityEnabled) {
-                    RuntimeModeValidation(true, "无障碍增强模式已就绪。")
-                } else {
-                    RuntimeModeValidation(
-                        ready = false,
-                        message = context.getString(R.string.runtime_mode_accessibility_blocked),
-                        action = RuntimeModeAction.OPEN_ACCESSIBILITY,
-                    )
-                }
-            }
+            SettingsStore.CLIPBOARD_MODE_ACCESSIBILITY -> RuntimeModeValidation(
+                ready = false,
+                message = support.blockedMessage ?: context.getString(R.string.runtime_mode_accessibility_blocked),
+                action = RuntimeModeAction.OPEN_ACCESSIBILITY,
+            )
 
-            SettingsStore.CLIPBOARD_MODE_SHIZUKU -> {
-                if (status.shizukuInstalled) {
-                    RuntimeModeValidation(true, "Shizuku 模式已可尝试启动。")
-                } else {
-                    RuntimeModeValidation(
-                        ready = false,
-                        message = context.getString(R.string.runtime_mode_shizuku_blocked),
-                        action = RuntimeModeAction.OPEN_SHIZUKU,
-                    )
-                }
-            }
+            SettingsStore.CLIPBOARD_MODE_SHIZUKU -> RuntimeModeValidation(
+                ready = false,
+                message = support.blockedMessage ?: context.getString(R.string.runtime_mode_shizuku_blocked),
+                action = RuntimeModeAction.OPEN_SHIZUKU,
+            )
 
-            else -> RuntimeModeValidation(true, "前台服务模式已就绪。")
+            else -> RuntimeModeValidation(true, support.readyMessage)
         }
     }
 }
