@@ -14,9 +14,14 @@ import (
 )
 
 const (
-	sendMenuKey            = `Software\Classes\*\shell\CloudClipboardSend`
-	pasteDirMenuKey        = `Software\Classes\Directory\shell\CloudClipboardPasteHere`
-	pasteBackgroundMenuKey = `Software\Classes\Directory\Background\shell\CloudClipboardPasteHere`
+	fileMenuKey              = `Software\Classes\*\shell\CloudClipboard`
+	fileSendMenuKey          = `Software\Classes\*\shell\CloudClipboard\shell\Send`
+	dirMenuKey               = `Software\Classes\Directory\shell\CloudClipboard`
+	dirPasteMenuKey          = `Software\Classes\Directory\shell\CloudClipboard\shell\PasteHere`
+	dirFetchClipMenuKey      = `Software\Classes\Directory\shell\CloudClipboard\shell\FetchLatestClipboard`
+	backgroundMenuKey        = `Software\Classes\Directory\Background\shell\CloudClipboard`
+	backgroundPasteMenuKey   = `Software\Classes\Directory\Background\shell\CloudClipboard\shell\PasteHere`
+	backgroundFetchClipMenuKey = `Software\Classes\Directory\Background\shell\CloudClipboard\shell\FetchLatestClipboard`
 )
 
 type manager struct {
@@ -84,39 +89,67 @@ func ensureMenus(exePath string, configPath string) error {
 	sendCommand := fmt.Sprintf(`"%s" -config "%s" -shell-send "%%1"`, exePath, configPath)
 	pasteDirCommand := fmt.Sprintf(`"%s" -config "%s" -shell-download-dir "%%1"`, exePath, configPath)
 	pasteBackgroundCommand := fmt.Sprintf(`"%s" -config "%s" -shell-download-dir "%%V"`, exePath, configPath)
+	fetchLatestFileCommand := fmt.Sprintf(`"%s" -config "%s" -shell-fetch-latest-file`, exePath, configPath)
 
-	if err := writeMenu(sendMenuKey, "复制到剪贴板服务器", exePath, sendCommand); err != nil {
+	if err := writeParentMenu(fileMenuKey, "Cloud Clipboard", exePath); err != nil {
 		return err
 	}
-	if err := writeMenu(pasteDirMenuKey, "从剪贴板服务器粘贴到此处", exePath, pasteDirCommand); err != nil {
+	if err := writeCommandMenu(fileSendMenuKey, "复制到剪贴板服务器", exePath, sendCommand); err != nil {
 		return err
 	}
-	if err := writeMenu(pasteBackgroundMenuKey, "从剪贴板服务器粘贴到此处", exePath, pasteBackgroundCommand); err != nil {
+	if err := writeParentMenu(dirMenuKey, "Cloud Clipboard", exePath); err != nil {
+		return err
+	}
+	if err := writeCommandMenu(dirPasteMenuKey, "从剪贴板服务器粘贴到此处", exePath, pasteDirCommand); err != nil {
+		return err
+	}
+	if err := writeCommandMenu(dirFetchClipMenuKey, "拉取最新文件到剪贴板", exePath, fetchLatestFileCommand); err != nil {
+		return err
+	}
+	if err := writeParentMenu(backgroundMenuKey, "Cloud Clipboard", exePath); err != nil {
+		return err
+	}
+	if err := writeCommandMenu(backgroundPasteMenuKey, "从剪贴板服务器粘贴到此处", exePath, pasteBackgroundCommand); err != nil {
+		return err
+	}
+	if err := writeCommandMenu(backgroundFetchClipMenuKey, "拉取最新文件到剪贴板", exePath, fetchLatestFileCommand); err != nil {
 		return err
 	}
 	return nil
 }
 
 func removeMenus() error {
-	removePaths := []string{sendMenuKey, pasteDirMenuKey, pasteBackgroundMenuKey}
+	removePaths := []string{fileMenuKey, dirMenuKey, backgroundMenuKey}
 	for _, path := range removePaths {
-		if err := registry.DeleteKey(registry.CURRENT_USER, filepath.Join(path, "command")); err != nil && err != registry.ErrNotExist {
-			return err
-		}
-		if err := registry.DeleteKey(registry.CURRENT_USER, path); err != nil && err != registry.ErrNotExist {
+		if err := deleteKeyTree(registry.CURRENT_USER, path); err != nil && err != registry.ErrNotExist {
 			return err
 		}
 	}
 	return nil
 }
 
-func writeMenu(path string, title string, iconPath string, command string) error {
+func writeParentMenu(path string, title string, iconPath string) error {
 	key, _, err := registry.CreateKey(registry.CURRENT_USER, path, registry.SET_VALUE)
 	if err != nil {
 		return err
 	}
 	defer key.Close()
-	if err := key.SetStringValue("", title); err != nil {
+	if err := key.SetStringValue("MUIVerb", title); err != nil {
+		return err
+	}
+	if err := key.SetStringValue("Icon", iconPath); err != nil {
+		return err
+	}
+	return nil
+}
+
+func writeCommandMenu(path string, title string, iconPath string, command string) error {
+	key, _, err := registry.CreateKey(registry.CURRENT_USER, path, registry.SET_VALUE)
+	if err != nil {
+		return err
+	}
+	defer key.Close()
+	if err := key.SetStringValue("MUIVerb", title); err != nil {
 		return err
 	}
 	if err := key.SetStringValue("Icon", iconPath); err != nil {
@@ -128,4 +161,22 @@ func writeMenu(path string, title string, iconPath string, command string) error
 	}
 	defer commandKey.Close()
 	return commandKey.SetStringValue("", command)
+}
+
+func deleteKeyTree(root registry.Key, path string) error {
+	key, err := registry.OpenKey(root, path, registry.ENUMERATE_SUB_KEYS|registry.QUERY_VALUE|registry.SET_VALUE)
+	if err != nil {
+		return err
+	}
+	defer key.Close()
+	names, err := key.ReadSubKeyNames(-1)
+	if err != nil {
+		return err
+	}
+	for _, name := range names {
+		if err := deleteKeyTree(root, filepath.Join(path, name)); err != nil && err != registry.ErrNotExist {
+			return err
+		}
+	}
+	return registry.DeleteKey(root, path)
 }
