@@ -165,7 +165,7 @@ func (c *Client) runSession(ctx context.Context) error {
 }
 
 func (c *Client) fetchServerURL(ctx context.Context) (string, error) {
-	u := c.cfg.ServerBase + "/api/sync/server?room=" + url.QueryEscape(c.cfg.Room)
+	u := c.cfg.ServerBase + "/sync/server?room=" + url.QueryEscape(c.cfg.Room)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
 	if err != nil {
 		return "", err
