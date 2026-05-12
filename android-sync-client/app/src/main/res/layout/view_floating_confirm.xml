@@ -65,6 +65,14 @@
         android:textAppearance="@style/TextAppearance.MaterialComponents.Caption"
         android:textColor="@color/cc_text_muted" />
 
+    <TextView
+        android:id="@+id/floatingActionHintText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:textAppearance="@style/TextAppearance.MaterialComponents.Caption"
+        android:textColor="@color/cc_text_muted" />
+
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"

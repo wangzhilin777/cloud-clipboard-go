@@ -25,6 +25,7 @@ import kotlin.math.roundToInt
 
 class FloatingConfirmService : Service() {
     private val snoozeDurationMs = 10 * 60 * 1000L
+    private val snoozeMinutes = (snoozeDurationMs / 60_000L).toInt()
     private val handler = Handler(Looper.getMainLooper())
     private val pendingPayloadIds = ArrayDeque<String>()
     private var currentPayloadId: String? = null
@@ -118,6 +119,7 @@ class FloatingConfirmService : Service() {
             entry.sourceDeviceId.ifBlank { getString(R.string.floating_source_unknown_device) },
             entry.room.ifBlank { getString(R.string.floating_source_default_room) },
         )
+        root.findViewById<TextView>(R.id.floatingActionHintText).text = buildActionHint()
         root.findViewById<Button>(R.id.floatingConfirmButton).apply {
             text = getString(R.string.floating_confirm_button)
             setOnClickListener {
@@ -136,7 +138,7 @@ class FloatingConfirmService : Service() {
             }
         }
         root.findViewById<Button>(R.id.floatingIgnoreButton).apply {
-            text = getString(R.string.floating_ignore_button)
+            text = getString(R.string.floating_ignore_button_minutes, snoozeMinutes)
             setOnClickListener {
                 PayloadCacheStore.markSnoozed(
                     this@FloatingConfirmService,
@@ -147,7 +149,7 @@ class FloatingConfirmService : Service() {
             }
         }
         root.findViewById<Button>(R.id.floatingIgnoreAllButton).apply {
-            text = getString(R.string.floating_ignore_all_button)
+            text = getString(R.string.floating_ignore_all_button_minutes, snoozeMinutes)
             setOnClickListener {
                 val snoozedUntil = System.currentTimeMillis() + snoozeDurationMs
                 pendingPayloadIds.forEach { payloadId ->
@@ -198,6 +200,7 @@ class FloatingConfirmService : Service() {
         root.findViewById<TextView>(R.id.floatingTitleText).text = title.ifBlank { getString(R.string.reconnect_failure_alert_title) }
         root.findViewById<TextView>(R.id.floatingMetaText).text = message
         root.findViewById<TextView>(R.id.floatingSourceText).visibility = View.GONE
+        root.findViewById<TextView>(R.id.floatingActionHintText).text = getString(R.string.floating_action_hint_alert)
         root.findViewById<Button>(R.id.floatingConfirmButton).apply {
             text = getString(R.string.reconnect_failure_alert_button)
             setOnClickListener { dismissCurrent(showNext = false) }
@@ -253,6 +256,7 @@ class FloatingConfirmService : Service() {
             getString(R.string.floating_preview_source_device),
             getString(R.string.floating_preview_source_room),
         )
+        root.findViewById<TextView>(R.id.floatingActionHintText).text = getString(R.string.floating_action_hint_preview)
         root.findViewById<Button>(R.id.floatingConfirmButton).setOnClickListener {
             dismissCurrent(showNext = false)
         }
@@ -361,6 +365,12 @@ class FloatingConfirmService : Service() {
         getString(R.string.floating_queue_single)
     } else {
         getString(R.string.floating_queue_multiple, pendingPayloadIds.size)
+    }
+
+    private fun buildActionHint(): String = if (pendingPayloadIds.isEmpty()) {
+        getString(R.string.floating_action_hint_download)
+    } else {
+        getString(R.string.floating_action_hint_queue)
     }
 
     private fun canDrawOverlays(): Boolean {

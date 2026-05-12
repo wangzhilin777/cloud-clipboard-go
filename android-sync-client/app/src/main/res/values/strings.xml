@@ -120,6 +120,8 @@
     <string name="floating_open_button">打开接收页</string>
     <string name="floating_ignore_button">稍后处理</string>
     <string name="floating_ignore_all_button">全部稍后</string>
+    <string name="floating_ignore_button_minutes">稍后 %1$d 分钟</string>
+    <string name="floating_ignore_all_button_minutes">全部稍后 %1$d 分钟</string>
     <string name="floating_queue_single">待接收内容</string>
     <string name="floating_queue_multiple">待接收内容 · 还有 %1$d 条</string>
     <string name="floating_countdown_format">%1$d 秒后自动收起</string>
@@ -127,6 +129,10 @@
     <string name="floating_source_format">来自 %1$s · 房间 %2$s</string>
     <string name="floating_source_unknown_device">远端设备</string>
     <string name="floating_source_default_room">默认房间</string>
+    <string name="floating_action_hint_download">确认后才会下载到应用缓存；也可以先打开接收页查看详情。</string>
+    <string name="floating_action_hint_queue">处理完当前项后，会继续显示下一条待接收内容。</string>
+    <string name="floating_action_hint_preview">这是悬浮确认示例，拖动后会记住当前位置。</string>
+    <string name="floating_action_hint_alert">自动重试已经停止，请稍后检查服务端或重新手动启动同步。</string>
     <string name="payload_kind_image">图片</string>
     <string name="payload_kind_file">文件</string>
     <string name="payload_kind_unknown">内容</string>
