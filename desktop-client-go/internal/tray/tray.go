@@ -16,6 +16,7 @@ type Backend interface {
 	OpenPanel() error
 	OpenDownloadDir() error
 	ClearDownloadDir() (int, error)
+	ConfirmPendingClipboardFiles() ([]string, error)
 	SendFiles(paths []string) ([]string, error)
 	SendText(text string, fromClipboard bool) (string, error)
 	FetchLatestText() (string, error)
@@ -62,6 +63,20 @@ func Run(ctx context.Context, logger *log.Logger, backend Backend, stop func()) 
 		}
 		logger.Printf("托盘发送剪贴板文本成功: %s", previewText(text))
 	})
+	tray.AppendMenu("发送待确认剪贴板文件", func() {
+		files, err := backend.ConfirmPendingClipboardFiles()
+		if err != nil {
+			logger.Printf("托盘发送待确认剪贴板文件失败: %v", err)
+			return
+		}
+		if len(files) > 0 {
+			logger.Printf("托盘发送待确认剪贴板文件成功: %s", strings.Join(files, ", "))
+		}
+	})
+	pendingClipboardMenuIndex := len(tray.Menu) - 1
+	if pendingClipboardMenuIndex >= 0 && tray.Menu[pendingClipboardMenuIndex] != nil {
+		tray.Menu[pendingClipboardMenuIndex].Disabled = true
+	}
 	tray.AppendSeparator()
 	tray.AppendMenu("拉取最新文本到剪贴板", func() {
 		text, err := backend.FetchLatestText()
@@ -115,7 +130,7 @@ func Run(ctx context.Context, logger *log.Logger, backend Backend, stop func()) 
 		}
 	})
 
-	go refreshTooltipLoop(ctx, tray, backend)
+	go refreshTooltipLoop(ctx, tray, backend, pendingClipboardMenuIndex)
 	go func() {
 		<-ctx.Done()
 		if err := tray.Stop(); err != nil {
@@ -126,22 +141,22 @@ func Run(ctx context.Context, logger *log.Logger, backend Backend, stop func()) 
 	return tray.Run()
 }
 
-func refreshTooltipLoop(ctx context.Context, tray *systray.Systray, backend Backend) {
+func refreshTooltipLoop(ctx context.Context, tray *systray.Systray, backend Backend, pendingClipboardMenuIndex int) {
 	ticker := time.NewTicker(2 * time.Second)
 	defer ticker.Stop()
 
-	updateTrayState(tray, backend.Status())
+	updateTrayState(tray, backend.Status(), pendingClipboardMenuIndex)
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			updateTrayState(tray, backend.Status())
+			updateTrayState(tray, backend.Status(), pendingClipboardMenuIndex)
 		}
 	}
 }
 
-func updateTrayState(tray *systray.Systray, status panel.StatusView) {
+func updateTrayState(tray *systray.Systray, status panel.StatusView, pendingClipboardMenuIndex int) {
 	if tray == nil {
 		return
 	}
@@ -155,6 +170,16 @@ func updateTrayState(tray *systray.Systray, status panel.StatusView) {
 	_ = tray.SetTooltip(text)
 	if len(tray.Menu) > 0 && tray.Menu[0] != nil {
 		tray.Menu[0].Label = "状态：" + normalizeStatusLine(status)
+	}
+	if pendingClipboardMenuIndex >= 0 && pendingClipboardMenuIndex < len(tray.Menu) && tray.Menu[pendingClipboardMenuIndex] != nil {
+		files := status.State.PendingClipboardFiles
+		if len(files) == 0 {
+			tray.Menu[pendingClipboardMenuIndex].Label = "发送待确认剪贴板文件"
+			tray.Menu[pendingClipboardMenuIndex].Disabled = true
+			return
+		}
+		tray.Menu[pendingClipboardMenuIndex].Label = "发送待确认剪贴板文件：" + formatPendingClipboardName(files)
+		tray.Menu[pendingClipboardMenuIndex].Disabled = false
 	}
 }
 
@@ -202,4 +227,20 @@ func previewText(text string) string {
 		return string(runes[:24]) + "..."
 	}
 	return text
+}
+
+func formatPendingClipboardName(files []string) string {
+	if len(files) == 0 {
+		return "-"
+	}
+	name := strings.TrimSpace(files[0])
+	name = strings.ReplaceAll(name, "/", "\\")
+	parts := strings.Split(name, "\\")
+	if len(parts) > 0 && strings.TrimSpace(parts[len(parts)-1]) != "" {
+		name = strings.TrimSpace(parts[len(parts)-1])
+	}
+	if len(files) == 1 {
+		return name
+	}
+	return name + " 等"
 }
