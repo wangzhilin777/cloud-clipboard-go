@@ -25,6 +25,8 @@ import (
 	"golang.design/x/clipboard"
 )
 
+const clipboardNoticeCooldown = 30 * time.Second
+
 type App struct {
 	logger                           *log.Logger
 	cfg                              config.Config
@@ -215,7 +217,11 @@ func (a *App) OnClipboardFiles(paths []string) {
 	}
 	a.suppressedClipboardFileSignature = ""
 	a.lastClipboardNoticeSignature = signature
-	a.lastClipboardNoticeUntil = time.Now().Add(cfg.ClipboardFileConfirmWindow)
+	cooldown := cfg.ClipboardFileConfirmWindow
+	if cooldown < clipboardNoticeCooldown {
+		cooldown = clipboardNoticeCooldown
+	}
+	a.lastClipboardNoticeUntil = time.Now().Add(cooldown)
 	a.mu.Unlock()
 	now := time.Now()
 	expiresAt := now.Add(cfg.ClipboardFileConfirmWindow)

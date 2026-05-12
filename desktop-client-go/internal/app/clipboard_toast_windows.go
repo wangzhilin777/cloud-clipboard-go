@@ -36,7 +36,7 @@ func (a *App) showClipboardFilesToast(paths []string, windowSeconds int) bool {
 		Actions: []toast.Action{
 			{Type: toast.Protocol, Content: "立即发送", Arguments: confirmURL},
 		},
-		Duration: toast.Long,
+		Duration: toast.Short,
 	}
 	if strings.TrimSpace(panelURL) != "" {
 		notification.Actions = append(notification.Actions, toast.Action{
