@@ -27,6 +27,7 @@ type Config struct {
 	ClipboardFileConfirmWindow  time.Duration `json:"clipboardFileConfirmWindow"`
 	SendClipboardHotkey         string        `json:"sendClipboardHotkey"`
 	FetchLatestHotkey           string        `json:"fetchLatestHotkey"`
+	FetchLatestFileHotkey       string        `json:"fetchLatestFileHotkey"`
 	DownloadLatestHotkey        string        `json:"downloadLatestHotkey"`
 	ReconnectDelay              time.Duration `json:"reconnectDelay"`
 	MaxReconnectAttempts        int           `json:"maxReconnectAttempts"`
@@ -52,6 +53,7 @@ func Default() Config {
 		ClipboardFileConfirmWindow:  8 * time.Second,
 		SendClipboardHotkey:         "",
 		FetchLatestHotkey:           "",
+		FetchLatestFileHotkey:       "",
 		DownloadLatestHotkey:        "",
 		ReconnectDelay:              2 * time.Second,
 		MaxReconnectAttempts:        3,
@@ -134,6 +136,7 @@ func (c *Config) normalize() {
 	}
 	c.SendClipboardHotkey = normalizeHotkey(c.SendClipboardHotkey)
 	c.FetchLatestHotkey = normalizeHotkey(c.FetchLatestHotkey)
+	c.FetchLatestFileHotkey = normalizeHotkey(c.FetchLatestFileHotkey)
 	c.DownloadLatestHotkey = normalizeHotkey(c.DownloadLatestHotkey)
 	if c.ReconnectDelay <= 0 {
 		c.ReconnectDelay = def.ReconnectDelay

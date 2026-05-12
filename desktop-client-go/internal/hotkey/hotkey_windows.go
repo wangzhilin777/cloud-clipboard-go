@@ -28,6 +28,7 @@ const (
 const (
 	actionSendClipboard = iota + 1
 	actionFetchLatest
+	actionFetchLatestFile
 	actionDownloadLatest
 )
 
@@ -164,6 +165,13 @@ func (m *manager) bindingsForConfig(cfg config.Config) []hotkeyBinding {
 				m.logger.Printf("全局热键拉取最新文本失败: %v", err)
 			} else {
 				m.logger.Printf("全局热键拉取最新文本成功: %s", previewText(text))
+			}
+		}),
+		newBinding(actionFetchLatestFile, "拉取最新文件到剪贴板", cfg.FetchLatestFileHotkey, func() {
+			if path, err := m.actions.FetchLatestFileToClipboard(); err != nil {
+				m.logger.Printf("全局热键拉取最新文件到剪贴板失败: %v", err)
+			} else {
+				m.logger.Printf("全局热键拉取最新文件到剪贴板成功: %s", path)
 			}
 		}),
 		newBinding(actionDownloadLatest, "下载最新文件到本机", cfg.DownloadLatestHotkey, func() {

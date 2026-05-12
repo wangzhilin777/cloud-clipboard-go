@@ -81,6 +81,7 @@ type configView struct {
 	ClipboardFileConfirmWindowSec int64  `json:"clipboardFileConfirmWindowSec"`
 	SendClipboardHotkey           string `json:"sendClipboardHotkey"`
 	FetchLatestHotkey             string `json:"fetchLatestHotkey"`
+	FetchLatestFileHotkey         string `json:"fetchLatestFileHotkey"`
 	DownloadLatestHotkey          string `json:"downloadLatestHotkey"`
 	ReconnectDelayMs              int64  `json:"reconnectDelayMs"`
 	MaxReconnectAttempts          int    `json:"maxReconnectAttempts"`
@@ -179,6 +180,7 @@ func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
 		ClipboardFileConfirmWindow:  time.Duration(payload.ClipboardFileConfirmWindowSec) * time.Second,
 		SendClipboardHotkey:         payload.SendClipboardHotkey,
 		FetchLatestHotkey:           payload.FetchLatestHotkey,
+		FetchLatestFileHotkey:       payload.FetchLatestFileHotkey,
 		DownloadLatestHotkey:        payload.DownloadLatestHotkey,
 		ReconnectDelay:              time.Duration(payload.ReconnectDelayMs) * time.Millisecond,
 		MaxReconnectAttempts:        payload.MaxReconnectAttempts,
@@ -369,6 +371,7 @@ func toConfigView(cfg config.Config) configView {
 		ClipboardFileConfirmWindowSec: int64(cfg.ClipboardFileConfirmWindow / time.Second),
 		SendClipboardHotkey:           cfg.SendClipboardHotkey,
 		FetchLatestHotkey:             cfg.FetchLatestHotkey,
+		FetchLatestFileHotkey:         cfg.FetchLatestFileHotkey,
 		DownloadLatestHotkey:          cfg.DownloadLatestHotkey,
 		ReconnectDelayMs:              cfg.ReconnectDelay.Milliseconds(),
 		MaxReconnectAttempts:          cfg.MaxReconnectAttempts,

@@ -10,6 +10,7 @@ import (
 type Actions interface {
 	SendText(text string, fromClipboard bool) (string, error)
 	FetchLatestText() (string, error)
+	FetchLatestFileToClipboard() (string, error)
 	DownloadLatestFile() (string, error)
 }
 

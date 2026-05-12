@@ -257,7 +257,11 @@
         </label>
         <label class="field">
           <span class="label">拉取最新文本热键</span>
-          <input id="fetchLatestHotkey" placeholder="Ctrl+Alt+V">
+          <input id="fetchLatestHotkey" placeholder="Ctrl+Alt+T">
+        </label>
+        <label class="field">
+          <span class="label">拉取最新文件到剪贴板热键</span>
+          <input id="fetchLatestFileHotkey" placeholder="Ctrl+Alt+G">
         </label>
         <label class="field">
           <span class="label">下载最新文件热键</span>
@@ -313,6 +317,7 @@
       clipboardFileConfirmWindowSec: document.getElementById('clipboardFileConfirmWindowSec'),
       sendClipboardHotkey: document.getElementById('sendClipboardHotkey'),
       fetchLatestHotkey: document.getElementById('fetchLatestHotkey'),
+      fetchLatestFileHotkey: document.getElementById('fetchLatestFileHotkey'),
       downloadLatestHotkey: document.getElementById('downloadLatestHotkey'),
     };
     const manualText = document.getElementById('manualText');
@@ -385,6 +390,7 @@
       const items = [];
       if (cfg.sendClipboardHotkey) items.push(`发：${cfg.sendClipboardHotkey}`);
       if (cfg.fetchLatestHotkey) items.push(`拉：${cfg.fetchLatestHotkey}`);
+      if (cfg.fetchLatestFileHotkey) items.push(`贴：${cfg.fetchLatestFileHotkey}`);
       if (cfg.downloadLatestHotkey) items.push(`下：${cfg.downloadLatestHotkey}`);
       if (cfg.shellMenuEnabled) items.push('右键菜单：开');
       if (cfg.clipboardFileConfirmEnabled) items.push(`确认窗：${cfg.clipboardFileConfirmWindowSec || 0}s`);
@@ -434,6 +440,7 @@
         clipboardFileConfirmWindowSec: Number(fields.clipboardFileConfirmWindowSec.value || 0),
         sendClipboardHotkey: fields.sendClipboardHotkey.value,
         fetchLatestHotkey: fields.fetchLatestHotkey.value,
+        fetchLatestFileHotkey: fields.fetchLatestFileHotkey.value,
         downloadLatestHotkey: fields.downloadLatestHotkey.value,
       };
       try {
