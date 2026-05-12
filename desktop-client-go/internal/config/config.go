@@ -48,7 +48,7 @@ func Default() Config {
 		DeviceName:                  host,
 		DeviceID:                    uuid.NewString(),
 		PollInterval:                800 * time.Millisecond,
-		NoticeMode:                  "popup",
+		NoticeMode:                  "tip",
 		PanelAddress:                "127.0.0.1:9530",
 		OpenPanelOnLaunch:           true,
 		DownloadDir:                 defaultDownloadDir(),
