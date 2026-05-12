@@ -145,6 +145,11 @@
     <string name="payload_cache_expires_format">缓存保留至：%1$s</string>
     <string name="payload_cache_empty_hint">本地缓存会按设置的保留时长自动清理。</string>
     <string name="payload_index_format">第 %1$d / %2$d 条</string>
+    <string name="payload_action_hint_empty">当前没有待处理内容；后续收到图片或文件后会在这里集中查看。</string>
+    <string name="payload_action_hint_download">当前内容还没下载到本地缓存，先点“下载到缓存”再继续处理。</string>
+    <string name="payload_action_hint_image_ready">图片已经缓存完成，可以直接预览、分享、另存；处理后会自动切到下一条。</string>
+    <string name="payload_action_hint_file_ready">文件已经缓存完成，可以直接打开、分享、另存；处理后会自动切到下一条。</string>
+    <string name="payload_action_hint_processed">当前内容已经处理过，仍可重新下载或继续翻看其它条目。</string>
     <string name="payload_previous_button">上一条</string>
     <string name="payload_next_button">下一条</string>
     <string name="payload_status_processed">已处理</string>

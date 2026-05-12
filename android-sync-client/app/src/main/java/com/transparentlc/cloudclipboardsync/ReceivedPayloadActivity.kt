@@ -28,6 +28,7 @@ class ReceivedPayloadActivity : AppCompatActivity() {
     private lateinit var expiryText: TextView
     private lateinit var statusText: TextView
     private lateinit var indexText: TextView
+    private lateinit var actionHintText: TextView
     private lateinit var imagePreview: ImageView
     private lateinit var downloadButton: Button
     private lateinit var openButton: Button
@@ -61,7 +62,7 @@ class ReceivedPayloadActivity : AppCompatActivity() {
         if (uri != null) {
             copyToUri(entry, uri)
             PayloadCacheStore.markProcessed(this, entry.payloadId)
-            bindEntry(PayloadCacheStore.get(this, entry.payloadId))
+            moveAfterHandling(entry.payloadId)
         }
     }
 
@@ -75,6 +76,7 @@ class ReceivedPayloadActivity : AppCompatActivity() {
         expiryText = findViewById(R.id.payloadExpiryText)
         statusText = findViewById(R.id.payloadStatusText)
         indexText = findViewById(R.id.payloadIndexText)
+        actionHintText = findViewById(R.id.payloadActionHintText)
         imagePreview = findViewById(R.id.payloadImagePreview)
         downloadButton = findViewById(R.id.downloadButton)
         openButton = findViewById(R.id.openButton)
@@ -108,7 +110,7 @@ class ReceivedPayloadActivity : AppCompatActivity() {
         markProcessedButton.setOnClickListener {
             currentPayloadId?.let { payloadId ->
                 PayloadCacheStore.markProcessed(this, payloadId)
-                bindEntry(PayloadCacheStore.get(this, payloadId))
+                moveAfterHandling(payloadId)
             }
         }
         previousButton.setOnClickListener { showRelativeEntry(-1) }
@@ -174,6 +176,7 @@ class ReceivedPayloadActivity : AppCompatActivity() {
             expiryText.text = getString(R.string.payload_cache_empty_hint)
             statusText.text = getString(R.string.payload_empty_text)
             indexText.text = getString(R.string.payload_index_format, 0, 0)
+            actionHintText.text = getString(R.string.payload_action_hint_empty)
             imagePreview.visibility = View.GONE
             downloadButton.isEnabled = false
             openButton.isEnabled = false
@@ -199,6 +202,7 @@ class ReceivedPayloadActivity : AppCompatActivity() {
         statusText.text = buildStatus(entry)
         val currentIndex = entries.indexOfFirst { it.payloadId == entry.payloadId }.takeIf { it >= 0 } ?: 0
         indexText.text = getString(R.string.payload_index_format, currentIndex + 1, entries.size.coerceAtLeast(1))
+        actionHintText.text = buildActionHint(entry)
         downloadButton.isEnabled = true
         downloadButton.text = if (entry.isDownloaded) getString(R.string.payload_redownload_button) else getString(R.string.payload_download_button)
         openButton.isEnabled = entry.isDownloaded
@@ -241,9 +245,36 @@ class ReceivedPayloadActivity : AppCompatActivity() {
         return "$processed / $cacheState$snoozeState"
     }
 
+    private fun buildActionHint(entry: PayloadEntry): String = when {
+        !entry.isDownloaded -> getString(R.string.payload_action_hint_download)
+        entry.processedAt == null && entry.isImage -> getString(R.string.payload_action_hint_image_ready)
+        entry.processedAt == null -> getString(R.string.payload_action_hint_file_ready)
+        else -> getString(R.string.payload_action_hint_processed)
+    }
+
+    private fun moveAfterHandling(handledPayloadId: String) {
+        entries = PayloadCacheStore.list(this)
+        if (entries.isEmpty()) {
+            currentPayloadId = null
+            bindEntry(null)
+            return
+        }
+        val handledIndex = entries.indexOfFirst { it.payloadId == handledPayloadId }
+        if (handledIndex == -1) {
+            currentPayloadId = entries.firstOrNull()?.payloadId
+            bindEntry(currentEntry())
+            return
+        }
+        val nextEntry = entries.getOrNull(handledIndex + 1)
+        val previousEntry = entries.getOrNull(handledIndex - 1)
+        currentPayloadId = nextEntry?.payloadId ?: previousEntry?.payloadId
+        bindEntry(currentEntry())
+    }
+
     private fun openFile(entry: PayloadEntry) {
         val uri = entry.localPath?.let(::File)?.takeIf { it.exists() }?.let(::buildFileUri) ?: return
         PayloadCacheStore.markProcessed(this, entry.payloadId)
+        moveAfterHandling(entry.payloadId)
         startActivity(
             Intent(Intent.ACTION_VIEW)
                 .setDataAndType(uri, entry.mime)
@@ -254,6 +285,7 @@ class ReceivedPayloadActivity : AppCompatActivity() {
     private fun shareFile(entry: PayloadEntry) {
         val uri = entry.localPath?.let(::File)?.takeIf { it.exists() }?.let(::buildFileUri) ?: return
         PayloadCacheStore.markProcessed(this, entry.payloadId)
+        moveAfterHandling(entry.payloadId)
         startActivity(
             Intent.createChooser(
                 Intent(Intent.ACTION_SEND)
