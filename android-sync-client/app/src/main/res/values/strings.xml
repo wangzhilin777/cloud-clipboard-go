@@ -46,7 +46,8 @@
     <string name="floating_width_hint">悬浮宽度，默认 280</string>
     <string name="floating_height_hint">悬浮高度，默认 110</string>
     <string name="floating_seconds_hint">显示时长，默认 20 秒</string>
-    <string name="floating_layout_summary_format">当前位置：X %1$d / Y %2$d\n当前尺寸：宽 %3$ddp · 高 %4$ddp · 显示 %5$d 秒\n拖动悬浮卡片后会自动记住当前位置，并尽量贴在屏幕可见区域内。</string>
+    <string name="floating_snooze_hint">稍后时长，默认 10 分钟</string>
+    <string name="floating_layout_summary_format">当前位置：X %1$d / Y %2$d\n当前尺寸：宽 %3$ddp · 高 %4$ddp · 显示 %5$d 秒 · 稍后 %6$d 分钟\n拖动悬浮卡片后会自动记住当前位置，并尽量贴在屏幕可见区域内。</string>
     <string name="preview_floating_confirm_button">预览悬浮确认</string>
     <string name="preview_floating_confirm_permission_toast">需要先允许悬浮窗显示，才能直接预览悬浮确认。</string>
     <string name="floating_preview_badge">悬浮确认预览</string>
@@ -158,6 +159,12 @@
     <string name="payload_action_hint_processed">当前内容已经处理过，仍可重新下载或继续翻看其它条目。</string>
     <string name="payload_previous_button">上一条</string>
     <string name="payload_next_button">下一条</string>
+    <string name="payload_filter_all">全部</string>
+    <string name="payload_filter_pending">待处理</string>
+    <string name="payload_filter_processed">已处理</string>
+    <string name="payload_clear_processed_button">清理已处理</string>
+    <string name="payload_clear_processed_toast">已清理 %1$d 条已处理内容</string>
+    <string name="payload_clear_processed_empty_toast">当前没有可清理的已处理内容</string>
     <string name="payload_status_processed">已处理</string>
     <string name="payload_status_pending">待处理</string>
     <string name="payload_status_cached">已缓存</string>

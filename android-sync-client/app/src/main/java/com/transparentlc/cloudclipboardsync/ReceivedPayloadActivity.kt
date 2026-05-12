@@ -9,6 +9,7 @@ import android.view.View
 import android.widget.Button
 import android.widget.ImageView
 import android.widget.TextView
+import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
@@ -22,6 +23,12 @@ import android.content.BroadcastReceiver
 import android.content.Context
 
 class ReceivedPayloadActivity : AppCompatActivity() {
+    private enum class FilterMode {
+        ALL,
+        PENDING,
+        PROCESSED,
+    }
+
     private lateinit var titleText: TextView
     private lateinit var metaText: TextView
     private lateinit var originText: TextView
@@ -35,12 +42,17 @@ class ReceivedPayloadActivity : AppCompatActivity() {
     private lateinit var shareButton: Button
     private lateinit var saveButton: Button
     private lateinit var markProcessedButton: Button
+    private lateinit var clearProcessedButton: Button
     private lateinit var previousButton: Button
     private lateinit var nextButton: Button
+    private lateinit var filterAllButton: Button
+    private lateinit var filterPendingButton: Button
+    private lateinit var filterProcessedButton: Button
 
     private var currentPayloadId: String? = null
     private var pendingSaveEntry: PayloadEntry? = null
     private var entries: List<PayloadEntry> = emptyList()
+    private var filterMode = FilterMode.ALL
 
     private val payloadUpdateReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -83,8 +95,12 @@ class ReceivedPayloadActivity : AppCompatActivity() {
         shareButton = findViewById(R.id.shareButton)
         saveButton = findViewById(R.id.saveButton)
         markProcessedButton = findViewById(R.id.markProcessedButton)
+        clearProcessedButton = findViewById(R.id.clearProcessedButton)
         previousButton = findViewById(R.id.previousButton)
         nextButton = findViewById(R.id.nextButton)
+        filterAllButton = findViewById(R.id.filterAllButton)
+        filterPendingButton = findViewById(R.id.filterPendingButton)
+        filterProcessedButton = findViewById(R.id.filterProcessedButton)
 
         entries = PayloadCacheStore.list(this)
         currentPayloadId = intent.getStringExtra(SyncService.EXTRA_PAYLOAD_ID)
@@ -113,8 +129,12 @@ class ReceivedPayloadActivity : AppCompatActivity() {
                 moveAfterHandling(payloadId)
             }
         }
+        clearProcessedButton.setOnClickListener { clearProcessedEntries() }
         previousButton.setOnClickListener { showRelativeEntry(-1) }
         nextButton.setOnClickListener { showRelativeEntry(1) }
+        filterAllButton.setOnClickListener { switchFilter(FilterMode.ALL) }
+        filterPendingButton.setOnClickListener { switchFilter(FilterMode.PENDING) }
+        filterProcessedButton.setOnClickListener { switchFilter(FilterMode.PROCESSED) }
         handlePayloadIntent(intent)
     }
 
@@ -152,6 +172,21 @@ class ReceivedPayloadActivity : AppCompatActivity() {
 
     private fun currentEntry(): PayloadEntry? = currentPayloadId?.let { PayloadCacheStore.get(this, it) }
 
+    private fun filteredEntries(): List<PayloadEntry> = entries.filter { entry ->
+        when (filterMode) {
+            FilterMode.ALL -> true
+            FilterMode.PENDING -> entry.processedAt == null
+            FilterMode.PROCESSED -> entry.processedAt != null
+        }
+    }
+
+    private fun switchFilter(mode: FilterMode) {
+        filterMode = mode
+        entries = PayloadCacheStore.list(this)
+        currentPayloadId = filteredEntries().firstOrNull()?.payloadId
+        bindEntry(currentEntry())
+    }
+
     private fun handlePayloadIntent(intent: Intent?) {
         val payloadId = intent?.getStringExtra(SyncService.EXTRA_PAYLOAD_ID) ?: return
         currentPayloadId = payloadId
@@ -160,22 +195,28 @@ class ReceivedPayloadActivity : AppCompatActivity() {
     }
 
     private fun showRelativeEntry(offset: Int) {
-        if (entries.isEmpty()) return
-        val currentIndex = entries.indexOfFirst { it.payloadId == currentPayloadId }.takeIf { it >= 0 } ?: 0
-        val nextIndex = (currentIndex + offset).coerceIn(0, entries.lastIndex)
-        currentPayloadId = entries[nextIndex].payloadId
-        bindEntry(entries[nextIndex])
+        val filtered = filteredEntries()
+        if (filtered.isEmpty()) return
+        val currentIndex = filtered.indexOfFirst { it.payloadId == currentPayloadId }.takeIf { it >= 0 } ?: 0
+        val nextIndex = (currentIndex + offset).coerceIn(0, filtered.lastIndex)
+        currentPayloadId = filtered[nextIndex].payloadId
+        bindEntry(filtered[nextIndex])
     }
 
     private fun bindEntry(entry: PayloadEntry?) {
         entries = PayloadCacheStore.list(this)
-        if (entry == null) {
+        val filtered = filteredEntries()
+        syncFilterButtons()
+        clearProcessedButton.isEnabled = entries.any { it.processedAt != null }
+        val targetEntry = entry?.takeIf { filtered.any { item -> item.payloadId == it.payloadId } } ?: filtered.firstOrNull()
+        if (targetEntry == null) {
+            currentPayloadId = null
             titleText.text = getString(R.string.payload_empty_title)
             metaText.text = getString(R.string.payload_empty_text)
             originText.text = ""
             expiryText.text = getString(R.string.payload_cache_empty_hint)
             statusText.text = getString(R.string.payload_empty_text)
-            indexText.text = getString(R.string.payload_index_format, 0, 0)
+            indexText.text = getString(R.string.payload_index_format, 0, filtered.size)
             actionHintText.text = getString(R.string.payload_action_hint_empty)
             imagePreview.visibility = View.GONE
             downloadButton.isEnabled = false
@@ -187,28 +228,28 @@ class ReceivedPayloadActivity : AppCompatActivity() {
             nextButton.isEnabled = false
             return
         }
-        currentPayloadId = entry.payloadId
-        titleText.text = entry.title
-        metaText.text = buildMeta(entry)
+        currentPayloadId = targetEntry.payloadId
+        titleText.text = targetEntry.title
+        metaText.text = buildMeta(targetEntry)
         originText.text = getString(
             R.string.payload_origin_format,
-            entry.sourceDeviceId.ifBlank { "-" },
-            entry.room.ifBlank { "默认房间" },
+            targetEntry.sourceDeviceId.ifBlank { "-" },
+            targetEntry.room.ifBlank { "默认房间" },
         )
         expiryText.text = getString(
             R.string.payload_cache_expires_format,
-            DateFormat.getDateTimeInstance().format(entry.expiresAt),
+            DateFormat.getDateTimeInstance().format(targetEntry.expiresAt),
         )
-        statusText.text = buildStatus(entry)
-        val currentIndex = entries.indexOfFirst { it.payloadId == entry.payloadId }.takeIf { it >= 0 } ?: 0
-        indexText.text = getString(R.string.payload_index_format, currentIndex + 1, entries.size.coerceAtLeast(1))
-        actionHintText.text = buildActionHint(entry)
+        statusText.text = buildStatus(targetEntry)
+        val currentIndex = filtered.indexOfFirst { it.payloadId == targetEntry.payloadId }.takeIf { it >= 0 } ?: 0
+        indexText.text = getString(R.string.payload_index_format, currentIndex + 1, filtered.size.coerceAtLeast(1))
+        actionHintText.text = buildActionHint(targetEntry)
         downloadButton.isEnabled = true
-        downloadButton.text = if (entry.isDownloaded) getString(R.string.payload_redownload_button) else getString(R.string.payload_download_button)
-        openButton.isEnabled = entry.isDownloaded
-        shareButton.isEnabled = entry.isDownloaded
-        saveButton.isEnabled = entry.isDownloaded
-        val processed = entry.processedAt != null
+        downloadButton.text = if (targetEntry.isDownloaded) getString(R.string.payload_redownload_button) else getString(R.string.payload_download_button)
+        openButton.isEnabled = targetEntry.isDownloaded
+        shareButton.isEnabled = targetEntry.isDownloaded
+        saveButton.isEnabled = targetEntry.isDownloaded
+        val processed = targetEntry.processedAt != null
         markProcessedButton.isEnabled = !processed
         markProcessedButton.text = if (processed) {
             getString(R.string.payload_mark_processed_done_button)
@@ -216,10 +257,10 @@ class ReceivedPayloadActivity : AppCompatActivity() {
             getString(R.string.payload_mark_processed_button)
         }
         previousButton.isEnabled = currentIndex > 0
-        nextButton.isEnabled = currentIndex < entries.lastIndex
+        nextButton.isEnabled = currentIndex < filtered.lastIndex
 
-        val file = entry.localPath?.let(::File)
-        if (entry.isImage && file?.exists() == true) {
+        val file = targetEntry.localPath?.let(::File)
+        if (targetEntry.isImage && file?.exists() == true) {
             imagePreview.visibility = View.VISIBLE
             imagePreview.setImageBitmap(BitmapFactory.decodeFile(file.absolutePath))
         } else {
@@ -254,21 +295,45 @@ class ReceivedPayloadActivity : AppCompatActivity() {
 
     private fun moveAfterHandling(handledPayloadId: String) {
         entries = PayloadCacheStore.list(this)
-        if (entries.isEmpty()) {
+        val filtered = filteredEntries()
+        if (filtered.isEmpty()) {
             currentPayloadId = null
             bindEntry(null)
             return
         }
-        val handledIndex = entries.indexOfFirst { it.payloadId == handledPayloadId }
+        val handledIndex = filtered.indexOfFirst { it.payloadId == handledPayloadId }
         if (handledIndex == -1) {
-            currentPayloadId = entries.firstOrNull()?.payloadId
+            currentPayloadId = filtered.firstOrNull()?.payloadId
             bindEntry(currentEntry())
             return
         }
-        val nextEntry = entries.getOrNull(handledIndex + 1)
-        val previousEntry = entries.getOrNull(handledIndex - 1)
+        val nextEntry = filtered.getOrNull(handledIndex + 1)
+        val previousEntry = filtered.getOrNull(handledIndex - 1)
         currentPayloadId = nextEntry?.payloadId ?: previousEntry?.payloadId
         bindEntry(currentEntry())
+    }
+
+    private fun clearProcessedEntries() {
+        val removed = PayloadCacheStore.clearProcessed(this)
+        if (removed <= 0) {
+            Toast.makeText(this, R.string.payload_clear_processed_empty_toast, Toast.LENGTH_SHORT).show()
+            return
+        }
+        entries = PayloadCacheStore.list(this)
+        currentPayloadId = filteredEntries().firstOrNull()?.payloadId
+        bindEntry(currentEntry())
+        Toast.makeText(this, getString(R.string.payload_clear_processed_toast, removed), Toast.LENGTH_SHORT).show()
+    }
+
+    private fun syncFilterButtons() {
+        val buttons = listOf(
+            filterAllButton to (filterMode == FilterMode.ALL),
+            filterPendingButton to (filterMode == FilterMode.PENDING),
+            filterProcessedButton to (filterMode == FilterMode.PROCESSED),
+        )
+        buttons.forEach { (button, selected) ->
+            button.alpha = if (selected) 1f else 0.72f
+        }
     }
 
     private fun openFile(entry: PayloadEntry) {

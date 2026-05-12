@@ -23,6 +23,7 @@ object SettingsStore {
     private const val KEY_FLOATING_POS_X = "floating_pos_x"
     private const val KEY_FLOATING_POS_Y = "floating_pos_y"
     private const val KEY_FLOATING_SHOW_SECONDS = "floating_show_seconds"
+    private const val KEY_FLOATING_SNOOZE_MINUTES = "floating_snooze_minutes"
     private const val KEY_CACHE_RETENTION_HOURS = "cache_retention_hours"
     private const val KEY_LAST_DESIRED_RUNNING_STATE = "last_desired_running_state"
     private const val KEY_CLIPBOARD_MODE = "clipboard_mode"
@@ -38,6 +39,7 @@ object SettingsStore {
     private const val DEFAULT_FLOATING_POS_X = 48
     private const val DEFAULT_FLOATING_POS_Y = 220
     private const val DEFAULT_FLOATING_SHOW_SECONDS = 20
+    private const val DEFAULT_FLOATING_SNOOZE_MINUTES = 10
 
     data class Config(
         val serverBase: String,
@@ -55,6 +57,7 @@ object SettingsStore {
         val floatingPosX: Int,
         val floatingPosY: Int,
         val floatingShowSeconds: Int,
+        val floatingSnoozeMinutes: Int,
         val cacheRetentionHours: Int,
         val clipboardMode: String,
         val lastDesiredRunningState: String,
@@ -82,6 +85,7 @@ object SettingsStore {
             floatingPosX = prefs.getInt(KEY_FLOATING_POS_X, DEFAULT_FLOATING_POS_X),
             floatingPosY = prefs.getInt(KEY_FLOATING_POS_Y, DEFAULT_FLOATING_POS_Y),
             floatingShowSeconds = prefs.getInt(KEY_FLOATING_SHOW_SECONDS, DEFAULT_FLOATING_SHOW_SECONDS),
+            floatingSnoozeMinutes = prefs.getInt(KEY_FLOATING_SNOOZE_MINUTES, DEFAULT_FLOATING_SNOOZE_MINUTES),
             cacheRetentionHours = prefs.getInt(KEY_CACHE_RETENTION_HOURS, 24),
             clipboardMode = prefs.getString(KEY_CLIPBOARD_MODE, CLIPBOARD_MODE_FOREGROUND)
                 ?.takeIf { it == CLIPBOARD_MODE_FOREGROUND || it == CLIPBOARD_MODE_ACCESSIBILITY || it == CLIPBOARD_MODE_SHIZUKU }
@@ -110,6 +114,7 @@ object SettingsStore {
             .putInt(KEY_FLOATING_POS_X, config.floatingPosX)
             .putInt(KEY_FLOATING_POS_Y, config.floatingPosY)
             .putInt(KEY_FLOATING_SHOW_SECONDS, config.floatingShowSeconds)
+            .putInt(KEY_FLOATING_SNOOZE_MINUTES, config.floatingSnoozeMinutes)
             .putInt(KEY_CACHE_RETENTION_HOURS, config.cacheRetentionHours)
             .putString(KEY_CLIPBOARD_MODE, config.clipboardMode)
             .putString(KEY_LAST_DESIRED_RUNNING_STATE, config.lastDesiredRunningState)

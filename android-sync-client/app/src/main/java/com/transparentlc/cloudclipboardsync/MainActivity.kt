@@ -55,6 +55,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var floatingWidthInput: EditText
     private lateinit var floatingHeightInput: EditText
     private lateinit var floatingShowSecondsInput: EditText
+    private lateinit var floatingSnoozeMinutesInput: EditText
     private lateinit var floatingLayoutSummaryText: TextView
     private lateinit var receiveOverlayBadgeText: TextView
     private lateinit var receiveOverlaySummaryText: TextView
@@ -110,6 +111,7 @@ class MainActivity : AppCompatActivity() {
         floatingWidthInput = findViewById(R.id.floatingWidthInput)
         floatingHeightInput = findViewById(R.id.floatingHeightInput)
         floatingShowSecondsInput = findViewById(R.id.floatingShowSecondsInput)
+        floatingSnoozeMinutesInput = findViewById(R.id.floatingSnoozeMinutesInput)
         floatingLayoutSummaryText = findViewById(R.id.floatingLayoutSummaryText)
         receiveOverlayBadgeText = findViewById(R.id.receiveOverlayBadgeText)
         receiveOverlaySummaryText = findViewById(R.id.receiveOverlaySummaryText)
@@ -257,6 +259,7 @@ class MainActivity : AppCompatActivity() {
         floatingWidthInput.setText(config.floatingWidthDp.toString())
         floatingHeightInput.setText(config.floatingHeightDp.toString())
         floatingShowSecondsInput.setText(config.floatingShowSeconds.toString())
+        floatingSnoozeMinutesInput.setText(config.floatingSnoozeMinutes.toString())
         cacheRetentionInput.setText(config.cacheRetentionHours.toString())
         statusText.text = getString(R.string.status_idle)
         lastSyncText.text = getString(R.string.last_result_idle)
@@ -330,6 +333,7 @@ class MainActivity : AppCompatActivity() {
             floatingPosX = previous.floatingPosX,
             floatingPosY = previous.floatingPosY,
             floatingShowSeconds = floatingShowSecondsInput.text.toString().toIntOrNull()?.coerceIn(5, 60) ?: previous.floatingShowSeconds,
+            floatingSnoozeMinutes = floatingSnoozeMinutesInput.text.toString().toIntOrNull()?.coerceIn(1, 180) ?: previous.floatingSnoozeMinutes,
             cacheRetentionHours = cacheRetentionInput.text.toString().toIntOrNull()?.coerceAtLeast(1) ?: previous.cacheRetentionHours,
             clipboardMode = selectedClipboardMode(),
             lastDesiredRunningState = previous.lastDesiredRunningState,
@@ -393,6 +397,7 @@ class MainActivity : AppCompatActivity() {
             config.floatingWidthDp,
             config.floatingHeightDp,
             config.floatingShowSeconds,
+            config.floatingSnoozeMinutes,
         )
         val overlayReady = config.floatingEnabled && status.overlayEnabled
         bindStatusBadge(

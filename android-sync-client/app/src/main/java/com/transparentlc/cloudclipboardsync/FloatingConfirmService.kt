@@ -24,8 +24,6 @@ import java.util.Locale
 import kotlin.math.roundToInt
 
 class FloatingConfirmService : Service() {
-    private val snoozeDurationMs = 10 * 60 * 1000L
-    private val snoozeMinutes = (snoozeDurationMs / 60_000L).toInt()
     private val handler = Handler(Looper.getMainLooper())
     private val pendingPayloadIds = ArrayDeque<String>()
     private var currentPayloadId: String? = null
@@ -106,6 +104,8 @@ class FloatingConfirmService : Service() {
         overlayView?.let { windowManager?.removeViewImmediate(it) }
 
         val config = SettingsStore.load(this)
+        val snoozeMinutes = config.floatingSnoozeMinutes.coerceAtLeast(1)
+        val snoozeDurationMs = snoozeMinutes * 60_000L
         val root = LayoutInflater.from(this).inflate(R.layout.view_floating_confirm, null)
         root.findViewById<TextView>(R.id.floatingBadgeText).text = pendingBadgeText()
         root.findViewById<TextView>(R.id.floatingTitleText).text = entry.title

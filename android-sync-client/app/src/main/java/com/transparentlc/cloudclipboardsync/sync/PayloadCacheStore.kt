@@ -142,6 +142,23 @@ object PayloadCacheStore {
         saveEntries(context, emptyList())
     }
 
+    fun clearProcessed(context: Context): Int {
+        val entries = loadEntries(context)
+        var removed = 0
+        val kept = entries.filterNot { entry ->
+            val shouldRemove = entry.processedAt != null
+            if (shouldRemove) {
+                entry.localPath?.let(::File)?.takeIf { it.exists() }?.delete()
+                removed++
+            }
+            shouldRemove
+        }
+        if (removed > 0) {
+            saveEntries(context, kept)
+        }
+        return removed
+    }
+
     fun createCacheFile(context: Context, payloadId: String, title: String): File {
         val dir = cacheDir(context)
         dir.mkdirs()
