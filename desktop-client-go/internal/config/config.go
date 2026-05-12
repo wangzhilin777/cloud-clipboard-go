@@ -12,22 +12,24 @@ import (
 )
 
 type Config struct {
-	ServerBase           string        `json:"serverBase"`
-	Room                 string        `json:"room"`
-	RoomPassword         string        `json:"roomPassword"`
-	DeviceName           string        `json:"deviceName"`
-	DeviceID             string        `json:"deviceId"`
-	PollInterval         time.Duration `json:"pollInterval"`
-	NoticeMode           string        `json:"noticeMode"`
-	PanelAddress         string        `json:"panelAddress"`
-	OpenPanelOnLaunch    bool          `json:"openPanelOnLaunch"`
-	DownloadDir          string        `json:"downloadDir"`
-	ShellMenuEnabled     bool          `json:"shellMenuEnabled"`
-	SendClipboardHotkey  string        `json:"sendClipboardHotkey"`
-	FetchLatestHotkey    string        `json:"fetchLatestHotkey"`
-	DownloadLatestHotkey string        `json:"downloadLatestHotkey"`
-	ReconnectDelay       time.Duration `json:"reconnectDelay"`
-	MaxReconnectAttempts int           `json:"maxReconnectAttempts"`
+	ServerBase                  string        `json:"serverBase"`
+	Room                        string        `json:"room"`
+	RoomPassword                string        `json:"roomPassword"`
+	DeviceName                  string        `json:"deviceName"`
+	DeviceID                    string        `json:"deviceId"`
+	PollInterval                time.Duration `json:"pollInterval"`
+	NoticeMode                  string        `json:"noticeMode"`
+	PanelAddress                string        `json:"panelAddress"`
+	OpenPanelOnLaunch           bool          `json:"openPanelOnLaunch"`
+	DownloadDir                 string        `json:"downloadDir"`
+	ShellMenuEnabled            bool          `json:"shellMenuEnabled"`
+	ClipboardFileConfirmEnabled bool          `json:"clipboardFileConfirmEnabled"`
+	ClipboardFileConfirmWindow  time.Duration `json:"clipboardFileConfirmWindow"`
+	SendClipboardHotkey         string        `json:"sendClipboardHotkey"`
+	FetchLatestHotkey           string        `json:"fetchLatestHotkey"`
+	DownloadLatestHotkey        string        `json:"downloadLatestHotkey"`
+	ReconnectDelay              time.Duration `json:"reconnectDelay"`
+	MaxReconnectAttempts        int           `json:"maxReconnectAttempts"`
 }
 
 func Default() Config {
@@ -36,21 +38,23 @@ func Default() Config {
 		host = "Desktop Client"
 	}
 	return Config{
-		ServerBase:           "http://127.0.0.1:9501",
-		Room:                 "",
-		RoomPassword:         "",
-		DeviceName:           host,
-		DeviceID:             uuid.NewString(),
-		PollInterval:         800 * time.Millisecond,
-		NoticeMode:           "popup",
-		PanelAddress:         "127.0.0.1:9530",
-		OpenPanelOnLaunch:    true,
-		DownloadDir:          defaultDownloadDir(),
-		SendClipboardHotkey:  "",
-		FetchLatestHotkey:    "",
-		DownloadLatestHotkey: "",
-		ReconnectDelay:       2 * time.Second,
-		MaxReconnectAttempts: 3,
+		ServerBase:                  "http://127.0.0.1:9501",
+		Room:                        "",
+		RoomPassword:                "",
+		DeviceName:                  host,
+		DeviceID:                    uuid.NewString(),
+		PollInterval:                800 * time.Millisecond,
+		NoticeMode:                  "popup",
+		PanelAddress:                "127.0.0.1:9530",
+		OpenPanelOnLaunch:           true,
+		DownloadDir:                 defaultDownloadDir(),
+		ClipboardFileConfirmEnabled: true,
+		ClipboardFileConfirmWindow:  8 * time.Second,
+		SendClipboardHotkey:         "",
+		FetchLatestHotkey:           "",
+		DownloadLatestHotkey:        "",
+		ReconnectDelay:              2 * time.Second,
+		MaxReconnectAttempts:        3,
 	}
 }
 
@@ -118,6 +122,15 @@ func (c *Config) normalize() {
 	c.DownloadDir = strings.TrimSpace(c.DownloadDir)
 	if c.DownloadDir == "" {
 		c.DownloadDir = def.DownloadDir
+	}
+	if c.ClipboardFileConfirmWindow <= 0 {
+		c.ClipboardFileConfirmWindow = def.ClipboardFileConfirmWindow
+	}
+	if c.ClipboardFileConfirmWindow < 3*time.Second {
+		c.ClipboardFileConfirmWindow = 3 * time.Second
+	}
+	if c.ClipboardFileConfirmWindow > 30*time.Second {
+		c.ClipboardFileConfirmWindow = 30 * time.Second
 	}
 	c.SendClipboardHotkey = normalizeHotkey(c.SendClipboardHotkey)
 	c.FetchLatestHotkey = normalizeHotkey(c.FetchLatestHotkey)

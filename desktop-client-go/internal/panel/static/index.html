@@ -173,6 +173,10 @@
         <span class="label">快捷键概览</span>
         <div id="hotkeyText" class="value">-</div>
       </article>
+      <article class="card">
+        <span class="label">待确认剪贴板文件</span>
+        <div id="pendingClipboardText" class="value">-</div>
+      </article>
     </section>
 
     <section class="form-card">
@@ -237,6 +241,17 @@
           </select>
         </label>
         <label class="field">
+          <span class="label">剪贴板文件确认</span>
+          <select id="clipboardFileConfirmEnabled">
+            <option value="true">开启</option>
+            <option value="false">关闭</option>
+          </select>
+        </label>
+        <label class="field">
+          <span class="label">确认窗口（秒）</span>
+          <input id="clipboardFileConfirmWindowSec" type="number" min="3" max="30">
+        </label>
+        <label class="field">
           <span class="label">发送剪贴板文本热键</span>
           <input id="sendClipboardHotkey" placeholder="Ctrl+Alt+C">
         </label>
@@ -258,6 +273,7 @@
         <button class="secondary" id="downloadLatestFileButton" type="button">下载最新文件到本机</button>
         <button class="secondary" id="openDownloadDirButton" type="button">打开下载目录</button>
         <button class="secondary" id="clearDownloadDirButton" type="button">清空下载缓存</button>
+        <button class="secondary" id="confirmPendingClipboardFilesButton" type="button">发送待确认剪贴板文件</button>
       </div>
       <div class="message" id="message"></div>
       <div class="footer">配置保存后会立即触发桌面客户端重连。若修改了面板监听地址，本页面需要手动用新地址重新打开。</div>
@@ -292,6 +308,8 @@
       panelAddress: document.getElementById('panelAddress'),
       downloadDir: document.getElementById('downloadDir'),
       shellMenuEnabled: document.getElementById('shellMenuEnabled'),
+      clipboardFileConfirmEnabled: document.getElementById('clipboardFileConfirmEnabled'),
+      clipboardFileConfirmWindowSec: document.getElementById('clipboardFileConfirmWindowSec'),
       sendClipboardHotkey: document.getElementById('sendClipboardHotkey'),
       fetchLatestHotkey: document.getElementById('fetchLatestHotkey'),
       downloadLatestHotkey: document.getElementById('downloadLatestHotkey'),
@@ -303,6 +321,7 @@
     const errorText = document.getElementById('errorText');
     const actionText = document.getElementById('actionText');
     const hotkeyText = document.getElementById('hotkeyText');
+    const pendingClipboardText = document.getElementById('pendingClipboardText');
     const message = document.getElementById('message');
     let refreshTimer = null;
 
@@ -333,6 +352,7 @@
       payloadText.textContent = state.lastPayloadTitle ? `${state.lastPayloadKind || 'file'} / ${state.lastPayloadTitle}` : '-';
       errorText.textContent = state.lastError || '-';
       actionText.textContent = state.lastActionDetail ? `${actionLabel(state.lastActionType)} / ${state.lastActionDetail}` : '-';
+      pendingClipboardText.textContent = formatPendingClipboard(state);
     }
 
     function actionLabel(actionType) {
@@ -351,6 +371,8 @@
           return '打开下载目录';
         case 'clear-download-dir':
           return '清空下载缓存';
+        case 'clipboard-file-send':
+          return '发送待确认剪贴板文件';
         default:
           return actionType || '动作';
       }
@@ -362,7 +384,19 @@
       if (cfg.fetchLatestHotkey) items.push(`拉：${cfg.fetchLatestHotkey}`);
       if (cfg.downloadLatestHotkey) items.push(`下：${cfg.downloadLatestHotkey}`);
       if (cfg.shellMenuEnabled) items.push('右键菜单：开');
+      if (cfg.clipboardFileConfirmEnabled) items.push(`确认窗：${cfg.clipboardFileConfirmWindowSec || 0}s`);
       return items.length ? items.join(' / ') : '未配置';
+    }
+
+    function formatPendingClipboard(state) {
+      const files = Array.isArray(state.pendingClipboardFiles) ? state.pendingClipboardFiles : [];
+      if (!files.length) return '-';
+      const now = Date.now();
+      const expiresAt = Number(state.pendingClipboardExpiresAt || 0);
+      const remaining = expiresAt > now ? Math.max(0, Math.ceil((expiresAt - now) / 1000)) : 0;
+      const name = String(files[0] || '').split(/[\\\\/]/).pop();
+      const extra = files.length > 1 ? ` 等 ${files.length} 项` : '';
+      return remaining > 0 ? `${name}${extra} / 剩余 ${remaining}s` : `${name}${extra} / 已过期`;
     }
 
     async function loadStatus(silent = false) {
@@ -393,6 +427,8 @@
         panelAddress: fields.panelAddress.value,
         downloadDir: fields.downloadDir.value,
         shellMenuEnabled: fields.shellMenuEnabled.value === 'true',
+        clipboardFileConfirmEnabled: fields.clipboardFileConfirmEnabled.value === 'true',
+        clipboardFileConfirmWindowSec: Number(fields.clipboardFileConfirmWindowSec.value || 0),
         sendClipboardHotkey: fields.sendClipboardHotkey.value,
         fetchLatestHotkey: fields.fetchLatestHotkey.value,
         downloadLatestHotkey: fields.downloadLatestHotkey.value,
@@ -527,6 +563,20 @@
       }
     }
 
+    async function confirmPendingClipboardFiles() {
+      message.textContent = '正在发送待确认剪贴板文件...';
+      try {
+        const resp = await fetch('/api/confirm-pending-clipboard-files', { method: 'POST' });
+        const text = await resp.text();
+        if (!resp.ok) throw new Error(text || `HTTP ${resp.status}`);
+        const data = JSON.parse(text || '{}');
+        message.textContent = `已发送待确认剪贴板文件：${(data.files || []).join('，')}`;
+        await loadStatus(true);
+      } catch (err) {
+        message.textContent = `发送待确认剪贴板文件失败：${err.message}`;
+      }
+    }
+
     document.getElementById('saveButton').addEventListener('click', saveConfig);
     document.getElementById('reconnectButton').addEventListener('click', reconnect);
     document.getElementById('openPanelButton').addEventListener('click', openPanelInBrowser);
@@ -537,6 +587,7 @@
     document.getElementById('downloadLatestFileButton').addEventListener('click', downloadLatestFile);
     document.getElementById('openDownloadDirButton').addEventListener('click', openDownloadDir);
     document.getElementById('clearDownloadDirButton').addEventListener('click', clearDownloadDir);
+    document.getElementById('confirmPendingClipboardFilesButton').addEventListener('click', confirmPendingClipboardFiles);
 
     loadStatus();
     refreshTimer = setInterval(() => loadStatus(true), 2000);

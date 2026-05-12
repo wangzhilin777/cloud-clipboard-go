@@ -23,6 +23,7 @@ type Backend interface {
 	OpenPanel() error
 	OpenDownloadDir() error
 	ClearDownloadDir() (int, error)
+	ConfirmPendingClipboardFiles() ([]string, error)
 	SendFiles(paths []string) ([]string, error)
 	SendText(text string, fromClipboard bool) (string, error)
 	FetchLatestText() (string, error)
@@ -37,18 +38,21 @@ type Server struct {
 }
 
 type StateSnapshot struct {
-	Connected        bool   `json:"connected"`
-	Trusted          bool   `json:"trusted"`
-	Status           string `json:"status"`
-	LastError        string `json:"lastError,omitempty"`
-	LastRemoteTextAt int64  `json:"lastRemoteTextAt,omitempty"`
-	LastPayloadTitle string `json:"lastPayloadTitle,omitempty"`
-	LastPayloadKind  string `json:"lastPayloadKind,omitempty"`
-	LastPayloadAt    int64  `json:"lastPayloadAt,omitempty"`
-	LastActionType   string `json:"lastActionType,omitempty"`
-	LastActionDetail string `json:"lastActionDetail,omitempty"`
-	LastActionAt     int64  `json:"lastActionAt,omitempty"`
-	LastUpdatedAt    int64  `json:"lastUpdatedAt"`
+	Connected                  bool     `json:"connected"`
+	Trusted                    bool     `json:"trusted"`
+	Status                     string   `json:"status"`
+	LastError                  string   `json:"lastError,omitempty"`
+	LastRemoteTextAt           int64    `json:"lastRemoteTextAt,omitempty"`
+	LastPayloadTitle           string   `json:"lastPayloadTitle,omitempty"`
+	LastPayloadKind            string   `json:"lastPayloadKind,omitempty"`
+	LastPayloadAt              int64    `json:"lastPayloadAt,omitempty"`
+	PendingClipboardFiles      []string `json:"pendingClipboardFiles,omitempty"`
+	PendingClipboardDetectedAt int64    `json:"pendingClipboardDetectedAt,omitempty"`
+	PendingClipboardExpiresAt  int64    `json:"pendingClipboardExpiresAt,omitempty"`
+	LastActionType             string   `json:"lastActionType,omitempty"`
+	LastActionDetail           string   `json:"lastActionDetail,omitempty"`
+	LastActionAt               int64    `json:"lastActionAt,omitempty"`
+	LastUpdatedAt              int64    `json:"lastUpdatedAt"`
 }
 
 type StatusView struct {
@@ -62,21 +66,23 @@ type statusResponse struct {
 }
 
 type configView struct {
-	ServerBase           string `json:"serverBase"`
-	Room                 string `json:"room"`
-	RoomPassword         string `json:"roomPassword"`
-	DeviceName           string `json:"deviceName"`
-	PollIntervalMs       int64  `json:"pollIntervalMs"`
-	NoticeMode           string `json:"noticeMode"`
-	PanelAddress         string `json:"panelAddress"`
-	OpenPanelOnLaunch    bool   `json:"openPanelOnLaunch"`
-	DownloadDir          string `json:"downloadDir"`
-	ShellMenuEnabled     bool   `json:"shellMenuEnabled"`
-	SendClipboardHotkey  string `json:"sendClipboardHotkey"`
-	FetchLatestHotkey    string `json:"fetchLatestHotkey"`
-	DownloadLatestHotkey string `json:"downloadLatestHotkey"`
-	ReconnectDelayMs     int64  `json:"reconnectDelayMs"`
-	MaxReconnectAttempts int    `json:"maxReconnectAttempts"`
+	ServerBase                    string `json:"serverBase"`
+	Room                          string `json:"room"`
+	RoomPassword                  string `json:"roomPassword"`
+	DeviceName                    string `json:"deviceName"`
+	PollIntervalMs                int64  `json:"pollIntervalMs"`
+	NoticeMode                    string `json:"noticeMode"`
+	PanelAddress                  string `json:"panelAddress"`
+	OpenPanelOnLaunch             bool   `json:"openPanelOnLaunch"`
+	DownloadDir                   string `json:"downloadDir"`
+	ShellMenuEnabled              bool   `json:"shellMenuEnabled"`
+	ClipboardFileConfirmEnabled   bool   `json:"clipboardFileConfirmEnabled"`
+	ClipboardFileConfirmWindowSec int64  `json:"clipboardFileConfirmWindowSec"`
+	SendClipboardHotkey           string `json:"sendClipboardHotkey"`
+	FetchLatestHotkey             string `json:"fetchLatestHotkey"`
+	DownloadLatestHotkey          string `json:"downloadLatestHotkey"`
+	ReconnectDelayMs              int64  `json:"reconnectDelayMs"`
+	MaxReconnectAttempts          int    `json:"maxReconnectAttempts"`
 }
 
 func New(address string, backend Backend) *Server {
@@ -99,6 +105,7 @@ func New(address string, backend Backend) *Server {
 	mux.HandleFunc("/api/clear-download-dir", s.handleClearDownloadDir)
 	mux.HandleFunc("/api/send-file", s.handleSendFile)
 	mux.HandleFunc("/api/send-text", s.handleSendText)
+	mux.HandleFunc("/api/confirm-pending-clipboard-files", s.handleConfirmPendingClipboardFiles)
 	mux.HandleFunc("/api/fetch-latest-text", s.handleFetchLatestText)
 	mux.HandleFunc("/api/download-latest-file", s.handleDownloadLatestFile)
 	mux.Handle("/", http.FileServer(http.FS(staticRoot)))
@@ -150,22 +157,24 @@ func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	cfg := config.Config{
-		ServerBase:           payload.ServerBase,
-		Room:                 payload.Room,
-		RoomPassword:         payload.RoomPassword,
-		DeviceName:           payload.DeviceName,
-		DeviceID:             s.backend.Status().Config.DeviceID,
-		PollInterval:         time.Duration(payload.PollIntervalMs) * time.Millisecond,
-		NoticeMode:           payload.NoticeMode,
-		PanelAddress:         payload.PanelAddress,
-		OpenPanelOnLaunch:    payload.OpenPanelOnLaunch,
-		DownloadDir:          payload.DownloadDir,
-		ShellMenuEnabled:     payload.ShellMenuEnabled,
-		SendClipboardHotkey:  payload.SendClipboardHotkey,
-		FetchLatestHotkey:    payload.FetchLatestHotkey,
-		DownloadLatestHotkey: payload.DownloadLatestHotkey,
-		ReconnectDelay:       time.Duration(payload.ReconnectDelayMs) * time.Millisecond,
-		MaxReconnectAttempts: payload.MaxReconnectAttempts,
+		ServerBase:                  payload.ServerBase,
+		Room:                        payload.Room,
+		RoomPassword:                payload.RoomPassword,
+		DeviceName:                  payload.DeviceName,
+		DeviceID:                    s.backend.Status().Config.DeviceID,
+		PollInterval:                time.Duration(payload.PollIntervalMs) * time.Millisecond,
+		NoticeMode:                  payload.NoticeMode,
+		PanelAddress:                payload.PanelAddress,
+		OpenPanelOnLaunch:           payload.OpenPanelOnLaunch,
+		DownloadDir:                 payload.DownloadDir,
+		ShellMenuEnabled:            payload.ShellMenuEnabled,
+		ClipboardFileConfirmEnabled: payload.ClipboardFileConfirmEnabled,
+		ClipboardFileConfirmWindow:  time.Duration(payload.ClipboardFileConfirmWindowSec) * time.Second,
+		SendClipboardHotkey:         payload.SendClipboardHotkey,
+		FetchLatestHotkey:           payload.FetchLatestHotkey,
+		DownloadLatestHotkey:        payload.DownloadLatestHotkey,
+		ReconnectDelay:              time.Duration(payload.ReconnectDelayMs) * time.Millisecond,
+		MaxReconnectAttempts:        payload.MaxReconnectAttempts,
 	}
 	if err := s.backend.UpdateConfig(cfg); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -240,6 +249,19 @@ func (s *Server) handleSendText(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"text": result})
 }
 
+func (s *Server) handleConfirmPendingClipboardFiles(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	results, err := s.backend.ConfirmPendingClipboardFiles()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"files": results})
+}
+
 func (s *Server) handleOpenDownloadDir(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -293,21 +315,23 @@ func (s *Server) handleDownloadLatestFile(w http.ResponseWriter, r *http.Request
 
 func toConfigView(cfg config.Config) configView {
 	return configView{
-		ServerBase:           cfg.ServerBase,
-		Room:                 cfg.Room,
-		RoomPassword:         cfg.RoomPassword,
-		DeviceName:           cfg.DeviceName,
-		PollIntervalMs:       cfg.PollInterval.Milliseconds(),
-		NoticeMode:           cfg.NoticeMode,
-		PanelAddress:         cfg.PanelAddress,
-		OpenPanelOnLaunch:    cfg.OpenPanelOnLaunch,
-		DownloadDir:          cfg.DownloadDir,
-		ShellMenuEnabled:     cfg.ShellMenuEnabled,
-		SendClipboardHotkey:  cfg.SendClipboardHotkey,
-		FetchLatestHotkey:    cfg.FetchLatestHotkey,
-		DownloadLatestHotkey: cfg.DownloadLatestHotkey,
-		ReconnectDelayMs:     cfg.ReconnectDelay.Milliseconds(),
-		MaxReconnectAttempts: cfg.MaxReconnectAttempts,
+		ServerBase:                    cfg.ServerBase,
+		Room:                          cfg.Room,
+		RoomPassword:                  cfg.RoomPassword,
+		DeviceName:                    cfg.DeviceName,
+		PollIntervalMs:                cfg.PollInterval.Milliseconds(),
+		NoticeMode:                    cfg.NoticeMode,
+		PanelAddress:                  cfg.PanelAddress,
+		OpenPanelOnLaunch:             cfg.OpenPanelOnLaunch,
+		DownloadDir:                   cfg.DownloadDir,
+		ShellMenuEnabled:              cfg.ShellMenuEnabled,
+		ClipboardFileConfirmEnabled:   cfg.ClipboardFileConfirmEnabled,
+		ClipboardFileConfirmWindowSec: int64(cfg.ClipboardFileConfirmWindow / time.Second),
+		SendClipboardHotkey:           cfg.SendClipboardHotkey,
+		FetchLatestHotkey:             cfg.FetchLatestHotkey,
+		DownloadLatestHotkey:          cfg.DownloadLatestHotkey,
+		ReconnectDelayMs:              cfg.ReconnectDelay.Milliseconds(),
+		MaxReconnectAttempts:          cfg.MaxReconnectAttempts,
 	}
 }
 

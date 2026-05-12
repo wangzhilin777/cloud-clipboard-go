@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"os"
 	"os/exec"
@@ -12,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/jonnyan404/cloud-clipboard-go/desktop-client-go/internal/clipwatch"
 	"github.com/jonnyan404/cloud-clipboard-go/desktop-client-go/internal/config"
 	"github.com/jonnyan404/cloud-clipboard-go/desktop-client-go/internal/hotkey"
 	"github.com/jonnyan404/cloud-clipboard-go/desktop-client-go/internal/panel"
@@ -23,17 +25,18 @@ import (
 )
 
 type App struct {
-	logger     *log.Logger
-	cfg        config.Config
-	configPath string
-	configDir  string
-	state      *StateStore
-	notifier   Notifier
-	panel      *panel.Server
-	hotkeys    hotkey.Manager
-	shellMenu  shellmenu.Manager
-	reloadCh   chan struct{}
-	mu         sync.Mutex
+	logger                           *log.Logger
+	cfg                              config.Config
+	configPath                       string
+	configDir                        string
+	state                            *StateStore
+	notifier                         Notifier
+	panel                            *panel.Server
+	hotkeys                          hotkey.Manager
+	shellMenu                        shellmenu.Manager
+	reloadCh                         chan struct{}
+	suppressedClipboardFileSignature string
+	mu                               sync.Mutex
 }
 
 func New(logger *log.Logger, cfg config.Config, configPath string) *App {
@@ -56,6 +59,7 @@ func (a *App) Run(ctx context.Context) error {
 	a.logger.Printf("桌面同步客户端启动，服务端: %s 房间: %s 设备: %s", a.cfg.ServerBase, a.cfg.Room, a.cfg.DeviceName)
 	_ = a.state.Save(StateSnapshot{Status: "starting"})
 	a.hotkeys = hotkey.Start(ctx, a.logger, a.currentConfig(), a)
+	clipwatch.Start(ctx, a.logger, a)
 	if exePath, err := os.Executable(); err == nil {
 		a.shellMenu = shellmenu.Start(ctx, a.logger, a.currentConfig(), exePath, a.configPath)
 	}
@@ -129,11 +133,16 @@ func buildNotifier(cfg config.Config, logger *log.Logger) Notifier {
 }
 
 func (a *App) OnConnecting() {
-	_ = a.state.Save(StateSnapshot{Status: "connecting"})
+	_ = a.state.Update(func(snapshot *StateSnapshot) {
+		snapshot.Status = "connecting"
+	})
 }
 
 func (a *App) OnConnected() {
-	_ = a.state.Save(StateSnapshot{Connected: true, Status: "connected"})
+	_ = a.state.Update(func(snapshot *StateSnapshot) {
+		snapshot.Connected = true
+		snapshot.Status = "connected"
+	})
 }
 
 func (a *App) OnTrustedChanged(trusted bool) {
@@ -144,19 +153,19 @@ func (a *App) OnTrustedChanged(trusted bool) {
 	} else {
 		a.notifier.Notify("Cloud Clipboard", "设备已连接，等待网页端批准。")
 	}
-	_ = a.state.Save(StateSnapshot{
-		Connected: true,
-		Trusted:   trusted,
-		Status:    status,
+	_ = a.state.Update(func(snapshot *StateSnapshot) {
+		snapshot.Connected = true
+		snapshot.Trusted = trusted
+		snapshot.Status = status
 	})
 }
 
 func (a *App) OnRemoteText(text string) {
-	_ = a.state.Save(StateSnapshot{
-		Connected:        true,
-		Trusted:          true,
-		Status:           "trusted",
-		LastRemoteTextAt: time.Now().UnixMilli(),
+	_ = a.state.Update(func(snapshot *StateSnapshot) {
+		snapshot.Connected = true
+		snapshot.Trusted = true
+		snapshot.Status = "trusted"
+		snapshot.LastRemoteTextAt = time.Now().UnixMilli()
 	})
 }
 
@@ -169,23 +178,46 @@ func (a *App) OnPayloadNotice(kind string, title string) {
 		displayKind = "图片"
 	}
 	a.notifier.Notify("Cloud Clipboard", "收到远端"+displayKind+"："+title)
-	_ = a.state.Save(StateSnapshot{
-		Connected:        true,
-		Trusted:          true,
-		Status:           "trusted",
-		LastPayloadTitle: title,
-		LastPayloadKind:  kind,
-		LastPayloadAt:    time.Now().UnixMilli(),
+	_ = a.state.Update(func(snapshot *StateSnapshot) {
+		snapshot.Connected = true
+		snapshot.Trusted = true
+		snapshot.Status = "trusted"
+		snapshot.LastPayloadTitle = title
+		snapshot.LastPayloadKind = kind
+		snapshot.LastPayloadAt = time.Now().UnixMilli()
 	})
+}
+
+func (a *App) OnClipboardFiles(paths []string) {
+	cfg := a.currentConfig()
+	if !cfg.ClipboardFileConfirmEnabled || len(paths) == 0 {
+		return
+	}
+	signature := clipboardFilesSignature(paths)
+	a.mu.Lock()
+	if signature == a.suppressedClipboardFileSignature {
+		a.mu.Unlock()
+		return
+	}
+	a.suppressedClipboardFileSignature = ""
+	a.mu.Unlock()
+	now := time.Now()
+	expiresAt := now.Add(cfg.ClipboardFileConfirmWindow)
+	_ = a.state.Update(func(snapshot *StateSnapshot) {
+		snapshot.PendingClipboardFiles = append([]string(nil), paths...)
+		snapshot.PendingClipboardDetectedAt = now.UnixMilli()
+		snapshot.PendingClipboardExpiresAt = expiresAt.UnixMilli()
+	})
+	a.notifier.Notify("Cloud Clipboard", fmt.Sprintf("检测到 %d 个剪贴板文件，可在 %d 秒内确认发送。", len(paths), int(cfg.ClipboardFileConfirmWindow/time.Second)))
 }
 
 func (a *App) OnError(err error) {
 	if err == nil {
 		return
 	}
-	_ = a.state.Save(StateSnapshot{
-		Status:    "error",
-		LastError: err.Error(),
+	_ = a.state.Update(func(snapshot *StateSnapshot) {
+		snapshot.Status = "error"
+		snapshot.LastError = err.Error()
 	})
 }
 
@@ -194,9 +226,9 @@ func (a *App) OnRetrying(attempt int, maxAttempts int, delay time.Duration, err 
 	if err != nil {
 		message = err.Error()
 	}
-	_ = a.state.Save(StateSnapshot{
-		Status:    "retrying",
-		LastError: message,
+	_ = a.state.Update(func(snapshot *StateSnapshot) {
+		snapshot.Status = "retrying"
+		snapshot.LastError = message
 	})
 	a.logger.Printf("同步失败，%d/%d 次后将在 %s 后重试", attempt, maxAttempts, delay.String())
 }
@@ -207,15 +239,16 @@ func (a *App) OnReconnectStopped(lastErr error) {
 		message = message + " 最近错误：" + lastErr.Error()
 	}
 	a.notifier.Notify("Cloud Clipboard", "自动重连已暂停，请打开面板检查后手动重连。")
-	_ = a.state.Save(StateSnapshot{
-		Status:    "stopped",
-		LastError: message,
+	_ = a.state.Update(func(snapshot *StateSnapshot) {
+		snapshot.Status = "stopped"
+		snapshot.LastError = message
 	})
 }
 
 func (a *App) Status() panel.StatusView {
 	a.mu.Lock()
 	defer a.mu.Unlock()
+	a.clearExpiredClipboardPendingLocked()
 	return panel.StatusView{
 		Config: a.cfg,
 		State:  panel.StateSnapshot(a.state.Current()),
@@ -243,6 +276,26 @@ func (a *App) UpdateConfig(cfg config.Config) error {
 	default:
 	}
 	return nil
+}
+
+func (a *App) ConfirmPendingClipboardFiles() ([]string, error) {
+	current := a.state.Current()
+	if len(current.PendingClipboardFiles) == 0 {
+		return nil, errors.New("当前没有待确认的剪贴板文件")
+	}
+	if current.PendingClipboardExpiresAt > 0 && time.Now().UnixMilli() > current.PendingClipboardExpiresAt {
+		a.clearPendingClipboard()
+		return nil, errors.New("待确认的剪贴板文件已过期")
+	}
+	a.mu.Lock()
+	a.suppressedClipboardFileSignature = clipboardFilesSignature(current.PendingClipboardFiles)
+	a.mu.Unlock()
+	names, err := a.SendFiles(append([]string(nil), current.PendingClipboardFiles...))
+	if err != nil {
+		return nil, err
+	}
+	a.clearPendingClipboard()
+	return names, nil
 }
 
 func (a *App) RequestReconnect() {
@@ -394,18 +447,33 @@ func (a *App) DownloadLatestFile() (string, error) {
 }
 
 func (a *App) saveLastAction(actionType string, detail string) {
-	current := a.state.Current()
-	_ = a.state.Save(StateSnapshot{
-		Status:           current.Status,
-		Connected:        current.Connected,
-		Trusted:          current.Trusted,
-		LastError:        current.LastError,
-		LastRemoteTextAt: current.LastRemoteTextAt,
-		LastPayloadTitle: current.LastPayloadTitle,
-		LastPayloadKind:  current.LastPayloadKind,
-		LastPayloadAt:    current.LastPayloadAt,
-		LastActionType:   actionType,
-		LastActionDetail: detail,
-		LastActionAt:     time.Now().UnixMilli(),
+	_ = a.state.Update(func(snapshot *StateSnapshot) {
+		snapshot.LastActionType = actionType
+		snapshot.LastActionDetail = detail
+		snapshot.LastActionAt = time.Now().UnixMilli()
 	})
+}
+
+func (a *App) clearPendingClipboard() {
+	_ = a.state.Update(func(snapshot *StateSnapshot) {
+		snapshot.PendingClipboardFiles = nil
+		snapshot.PendingClipboardDetectedAt = 0
+		snapshot.PendingClipboardExpiresAt = 0
+	})
+}
+
+func (a *App) clearExpiredClipboardPendingLocked() {
+	current := a.state.Current()
+	if current.PendingClipboardExpiresAt == 0 || time.Now().UnixMilli() <= current.PendingClipboardExpiresAt {
+		return
+	}
+	_ = a.state.Update(func(snapshot *StateSnapshot) {
+		snapshot.PendingClipboardFiles = nil
+		snapshot.PendingClipboardDetectedAt = 0
+		snapshot.PendingClipboardExpiresAt = 0
+	})
+}
+
+func clipboardFilesSignature(paths []string) string {
+	return strings.Join(paths, "\n")
 }
