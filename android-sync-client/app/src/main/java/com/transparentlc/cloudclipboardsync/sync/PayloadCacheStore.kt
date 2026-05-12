@@ -14,7 +14,9 @@ object PayloadCacheStore {
     data class Summary(
         val totalCount: Int,
         val pendingCount: Int,
+        val processedCount: Int,
         val downloadedCount: Int,
+        val snoozedCount: Int,
         val totalSizeBytes: Long,
     )
 
@@ -156,7 +158,9 @@ object PayloadCacheStore {
         return Summary(
             totalCount = entries.size,
             pendingCount = entries.count { it.processedAt == null },
+            processedCount = entries.count { it.processedAt != null },
             downloadedCount = entries.count { it.isDownloaded },
+            snoozedCount = entries.count { isSnoozed(it) },
             totalSizeBytes = entries.filter { it.isDownloaded }.sumOf { it.size.coerceAtLeast(0L) },
         )
     }

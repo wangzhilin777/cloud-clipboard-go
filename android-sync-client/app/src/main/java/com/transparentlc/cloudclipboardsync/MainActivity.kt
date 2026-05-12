@@ -677,6 +677,8 @@ class MainActivity : AppCompatActivity() {
             R.string.receive_cache_summary_format,
             summary.totalCount,
             summary.pendingCount,
+            summary.processedCount,
+            summary.snoozedCount,
             summary.downloadedCount,
             formatBytes(summary.totalSizeBytes),
         )
