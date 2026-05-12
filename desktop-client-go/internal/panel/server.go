@@ -88,6 +88,8 @@ type configView struct {
 	DownloadLatestHotkey          string `json:"downloadLatestHotkey"`
 	ReconnectDelayMs              int64  `json:"reconnectDelayMs"`
 	MaxReconnectAttempts          int    `json:"maxReconnectAttempts"`
+	TipWidth                      int    `json:"tipWidth"`
+	TipHeight                     int    `json:"tipHeight"`
 }
 
 func New(address string, backend Backend) *Server {
@@ -188,6 +190,8 @@ func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
 		DownloadLatestHotkey:        payload.DownloadLatestHotkey,
 		ReconnectDelay:              time.Duration(payload.ReconnectDelayMs) * time.Millisecond,
 		MaxReconnectAttempts:        payload.MaxReconnectAttempts,
+		TipWidth:                    payload.TipWidth,
+		TipHeight:                   payload.TipHeight,
 	}
 	if err := s.backend.UpdateConfig(cfg); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -380,6 +384,8 @@ func toConfigView(cfg config.Config) configView {
 		DownloadLatestHotkey:          cfg.DownloadLatestHotkey,
 		ReconnectDelayMs:              cfg.ReconnectDelay.Milliseconds(),
 		MaxReconnectAttempts:          cfg.MaxReconnectAttempts,
+		TipWidth:                      cfg.TipWidth,
+		TipHeight:                     cfg.TipHeight,
 	}
 }
 

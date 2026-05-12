@@ -432,6 +432,14 @@
                 <option value="true">开启</option>
               </select>
             </label>
+            <label class="field">
+              <span class="label">Tip 宽度</span>
+              <input id="tipWidth" type="number" min="300" max="560">
+            </label>
+            <label class="field">
+              <span class="label">Tip 高度</span>
+              <input id="tipHeight" type="number" min="120" max="260">
+            </label>
           </div>
         </div>
 
@@ -489,6 +497,8 @@
       fetchLatestHotkey: document.getElementById('fetchLatestHotkey'),
       fetchLatestFileHotkey: document.getElementById('fetchLatestFileHotkey'),
       downloadLatestHotkey: document.getElementById('downloadLatestHotkey'),
+      tipWidth: document.getElementById('tipWidth'),
+      tipHeight: document.getElementById('tipHeight'),
     };
     const manualText = document.getElementById('manualText');
     const statusText = document.getElementById('statusText');
@@ -577,6 +587,7 @@
       if (cfg.downloadLatestHotkey) items.push(`下：${cfg.downloadLatestHotkey}`);
       if (cfg.shellMenuEnabled) items.push('右键菜单：开');
       if (cfg.clipboardFileConfirmEnabled) items.push(`确认窗：${cfg.clipboardFileConfirmWindowSec || 0}s`);
+      if (cfg.noticeMode === 'tip') items.push(`Tip：${cfg.tipWidth || 0}x${cfg.tipHeight || 0}`);
       return items.length ? items.join(' / ') : '未配置';
     }
 
@@ -634,6 +645,8 @@
         fetchLatestHotkey: fields.fetchLatestHotkey.value,
         fetchLatestFileHotkey: fields.fetchLatestFileHotkey.value,
         downloadLatestHotkey: fields.downloadLatestHotkey.value,
+        tipWidth: Number(fields.tipWidth.value || 0),
+        tipHeight: Number(fields.tipHeight.value || 0),
       };
       try {
         const resp = await fetch('/api/config', {

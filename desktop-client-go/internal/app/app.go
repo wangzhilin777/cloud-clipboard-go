@@ -138,7 +138,11 @@ func buildNotifier(cfg config.Config, logger *log.Logger) Notifier {
 	case "log":
 		return logNotifier{logger: logger}
 	case "tip":
-		return windowsTipNotifier{logger: logger}
+		return windowsTipNotifier{
+			logger: logger,
+			width:  cfg.TipWidth,
+			height: cfg.TipHeight,
+		}
 	default:
 		return beeepNotifier{logger: logger}
 	}

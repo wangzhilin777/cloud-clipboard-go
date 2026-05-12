@@ -32,6 +32,8 @@ type Config struct {
 	DownloadLatestHotkey        string        `json:"downloadLatestHotkey"`
 	ReconnectDelay              time.Duration `json:"reconnectDelay"`
 	MaxReconnectAttempts        int           `json:"maxReconnectAttempts"`
+	TipWidth                    int           `json:"tipWidth"`
+	TipHeight                   int           `json:"tipHeight"`
 }
 
 func Default() Config {
@@ -59,6 +61,8 @@ func Default() Config {
 		DownloadLatestHotkey:        "",
 		ReconnectDelay:              2 * time.Second,
 		MaxReconnectAttempts:        3,
+		TipWidth:                    348,
+		TipHeight:                   140,
 	}
 }
 
@@ -163,6 +167,24 @@ func (c *Config) normalize() {
 	}
 	if c.MaxReconnectAttempts > 20 {
 		c.MaxReconnectAttempts = 20
+	}
+	if c.TipWidth <= 0 {
+		c.TipWidth = def.TipWidth
+	}
+	if c.TipWidth < 300 {
+		c.TipWidth = 300
+	}
+	if c.TipWidth > 560 {
+		c.TipWidth = 560
+	}
+	if c.TipHeight <= 0 {
+		c.TipHeight = def.TipHeight
+	}
+	if c.TipHeight < 120 {
+		c.TipHeight = 120
+	}
+	if c.TipHeight > 260 {
+		c.TipHeight = 260
 	}
 }
 
