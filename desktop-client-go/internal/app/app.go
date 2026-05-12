@@ -37,6 +37,8 @@ type App struct {
 	shellMenu                        shellmenu.Manager
 	reloadCh                         chan struct{}
 	suppressedClipboardFileSignature string
+	lastClipboardNoticeSignature     string
+	lastClipboardNoticeUntil         time.Time
 	mu                               sync.Mutex
 }
 
@@ -133,6 +135,8 @@ func buildNotifier(cfg config.Config, logger *log.Logger) Notifier {
 		return noopNotifier{}
 	case "log":
 		return logNotifier{logger: logger}
+	case "tip":
+		return windowsTipNotifier{logger: logger}
 	default:
 		return beeepNotifier{logger: logger}
 	}
@@ -205,7 +209,13 @@ func (a *App) OnClipboardFiles(paths []string) {
 		a.mu.Unlock()
 		return
 	}
+	if signature == a.lastClipboardNoticeSignature && time.Now().Before(a.lastClipboardNoticeUntil) {
+		a.mu.Unlock()
+		return
+	}
 	a.suppressedClipboardFileSignature = ""
+	a.lastClipboardNoticeSignature = signature
+	a.lastClipboardNoticeUntil = time.Now().Add(cfg.ClipboardFileConfirmWindow)
 	a.mu.Unlock()
 	now := time.Now()
 	expiresAt := now.Add(cfg.ClipboardFileConfirmWindow)

@@ -11,14 +11,22 @@ import (
 
 func (a *App) showClipboardFilesToast(paths []string, windowSeconds int) bool {
 	cfg := a.currentConfig()
-	if strings.ToLower(strings.TrimSpace(cfg.NoticeMode)) != "popup" {
-		return false
-	}
 	panelURL, confirmURL := a.pendingClipboardToastURLs()
 	if strings.TrimSpace(confirmURL) == "" {
 		return false
 	}
 	body := clipboardToastBody(paths, windowSeconds)
+	switch strings.ToLower(strings.TrimSpace(cfg.NoticeMode)) {
+	case "tip":
+		if err := showWindowsTip("检测到新的剪贴板文件", body, "立即发送", confirmURL, "打开面板", panelURL, windowSeconds); err != nil {
+			a.logger.Printf("右下角剪贴板提示失败: %v", err)
+			return false
+		}
+		return true
+	case "popup":
+	default:
+		return false
+	}
 	notification := toast.Notification{
 		AppID:               "Cloud Clipboard Desktop",
 		Title:               "检测到新的剪贴板文件",
