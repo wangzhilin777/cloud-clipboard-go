@@ -75,6 +75,16 @@
                 </v-card-text>
             </v-card>
 
+            <v-card class="mb-4" v-if="$root.sync.statusInfo">
+                <v-card-title>同步诊断</v-card-title>
+                <v-card-text>
+                    <div class="text-body-2 mb-1">房间：{{ $root.sync.statusInfo.room }} / {{ authModeText }}</div>
+                    <div class="text-body-2 mb-1">当前设备：{{ currentDeviceText }}</div>
+                    <div class="text-body-2 mb-1">文本限制：{{ $root.sync.statusInfo.limits?.textLimit || 0 }}，历史上限：{{ $root.sync.statusInfo.limits?.historyLimit || 0 }}</div>
+                    <div class="text-body-2">状态清理：{{ cleanupText }}</div>
+                </v-card-text>
+            </v-card>
+
             <v-list rounded two-line>
                 <v-list-item v-for="item in $root.sync.devices" :key="`${item.room}-${item.deviceId}`">
                     <v-list-item-avatar tile>
@@ -166,11 +176,33 @@ export default {
                     return '未连接';
             }
         },
+        authModeText() {
+            const info = this.$root.sync.statusInfo;
+            if (!info) return '未知';
+            const usesGlobal = !!info.authMode?.usesGlobalPassword;
+            const usesRoom = !!info.authMode?.usesRoomPassword;
+            if (!info.authRequired) return '当前房间无需密码';
+            if (usesGlobal && usesRoom) return '支持全局密码 + 房间密码';
+            if (usesRoom) return '仅房间密码';
+            if (usesGlobal) return '仅全局密码';
+            return '需要访问密码';
+        },
+        currentDeviceText() {
+            const device = this.$root.sync.statusInfo?.currentDevice;
+            if (!device) return '当前网页设备尚未在服务端登记';
+            return `${device.name} / ${device.online ? '在线' : '离线'} / ${device.trusted ? '已信任' : '待批准'}`;
+        },
+        cleanupText() {
+            const cleanup = this.$root.sync.statusInfo?.cleanup;
+            if (!cleanup) return '未知';
+            return `间隔 ${cleanup.stateCleanup || 0}s，文本 ${cleanup.messageExpire || 0}s，通知 ${cleanup.payloadExpire || 0}s，待批准设备 ${cleanup.pendingDeviceExpire || 0}s，已信任设备 ${cleanup.trustedDeviceExpire || 0}s`;
+        },
     },
     methods: {
         refreshSyncDevices() {
             this.$root.syncLoadDevices();
             this.$root.syncRefreshBootstrap();
+            this.$root.syncLoadStatus();
         },
         iconFor(platform) {
             switch ((platform || '').toLowerCase()) {

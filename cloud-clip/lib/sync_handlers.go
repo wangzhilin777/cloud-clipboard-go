@@ -102,11 +102,34 @@ func (s *ClipboardServer) handleSyncStatus(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	authRequirement := s.resolveRoomAuth(room)
+	deviceID := strings.TrimSpace(r.URL.Query().Get("deviceId"))
+	globalPasswordConfigured := normalizeAuthValue(s.config.Server.Auth) != ""
+	roomPasswordConfigured := false
+	if roomPassword, ok := s.config.Server.RoomAuth[room]; ok && strings.TrimSpace(roomPassword) != "" {
+		roomPasswordConfigured = true
+	}
 	s.syncHub.WriteJSON(w, http.StatusOK, map[string]interface{}{
 		"room":          room,
 		"roomProtected": s.hasRoomAuthEntry(room),
 		"authRequired":  authRequirement.Required,
+		"authMode": map[string]interface{}{
+			"usesGlobalPassword": globalPasswordConfigured,
+			"usesRoomPassword":   roomPasswordConfigured,
+		},
+		"currentDevice": s.syncHub.GetDevice(deviceID, room),
 		"summary":       s.syncHub.GetRoomSummary(room),
+		"limits": map[string]interface{}{
+			"textLimit":    s.config.Text.Limit,
+			"historyLimit": s.config.Server.History,
+		},
+		"cleanup": map[string]interface{}{
+			"stateCleanup":        s.config.Sync.StateCleanup,
+			"messageExpire":       s.config.Sync.MessageExpire,
+			"payloadExpire":       s.config.Sync.PayloadExpire,
+			"pendingDeviceExpire": s.config.Sync.PendingDeviceExpire,
+			"trustedDeviceExpire": s.config.Sync.TrustedDeviceExpire,
+		},
+		"serverTime": time.Now().UnixMilli(),
 	})
 }
 

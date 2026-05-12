@@ -29,6 +29,7 @@ export default {
                 status: 'idle',
                 logs: [],
                 summary: null,
+                statusInfo: null,
                 lastSentText: '',
                 lastAppliedText: '',
                 lastAppliedAt: 0,
@@ -83,6 +84,24 @@ export default {
                 this.syncLog(`刷新同步状态失败：${error.response?.data?.message || error.message}`);
             }
         },
+        async syncLoadStatus() {
+            try {
+                const response = await this.$http.get('api/sync/status', {
+                    params: {
+                        room: this.room || '',
+                        deviceId: this.sync.deviceId,
+                    },
+                });
+                this.sync.statusInfo = response.data || null;
+                this.sync.summary = response.data?.summary || this.sync.summary;
+                if (response.data?.currentDevice) {
+                    this.sync.device = response.data.currentDevice;
+                    this.sync.status = response.data.currentDevice.trusted ? 'trusted' : 'pending';
+                }
+            } catch (error) {
+                this.syncLog(`加载同步诊断失败：${error.response?.data?.message || error.message}`);
+            }
+        },
         async syncConnect() {
             if (this.sync.connecting || this.sync.websocket) return;
 
@@ -133,6 +152,7 @@ export default {
                                 this.sync.status = payload.data.device.trusted ? 'trusted' : 'pending';
                                 this.syncLog(payload.data.device.trusted ? '同步设备已连接' : '同步设备等待批准');
                                 await this.syncLoadDevices();
+                                await this.syncLoadStatus();
                                 this.syncStartClipboardPolling();
                                 break;
                             case 'clipboardSync':
@@ -151,6 +171,7 @@ export default {
                             case 'deviceState':
                                 await this.syncLoadDevices();
                                 await this.syncRefreshBootstrap();
+                                await this.syncLoadStatus();
                                 break;
                             case 'forbidden':
                                 this.sync.status = 'forbidden';
@@ -249,6 +270,7 @@ export default {
             });
             await this.syncLoadDevices();
             await this.syncRefreshBootstrap();
+            await this.syncLoadStatus();
         },
         async syncToggleTrust(device) {
             await this.$http.post(`api/sync/device/${device.deviceId}/trust`, {
@@ -258,6 +280,7 @@ export default {
             });
             await this.syncLoadDevices();
             await this.syncRefreshBootstrap();
+            await this.syncLoadStatus();
         },
     },
     watch: {
