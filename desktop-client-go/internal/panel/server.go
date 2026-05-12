@@ -108,6 +108,7 @@ func New(address string, backend Backend) *Server {
 	mux.HandleFunc("/api/confirm-pending-clipboard-files", s.handleConfirmPendingClipboardFiles)
 	mux.HandleFunc("/api/fetch-latest-text", s.handleFetchLatestText)
 	mux.HandleFunc("/api/download-latest-file", s.handleDownloadLatestFile)
+	mux.HandleFunc("/tips/confirm-pending-clipboard-files", s.handleConfirmPendingClipboardFilesTip)
 	mux.Handle("/", http.FileServer(http.FS(staticRoot)))
 	return s
 }
@@ -130,6 +131,10 @@ func (s *Server) Shutdown(ctx context.Context) error {
 
 func (s *Server) URL() string {
 	return fmt.Sprintf("http://%s/", s.address)
+}
+
+func (s *Server) PendingClipboardConfirmURL() string {
+	return fmt.Sprintf("http://%s/tips/confirm-pending-clipboard-files", s.address)
 }
 
 func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
@@ -262,6 +267,26 @@ func (s *Server) handleConfirmPendingClipboardFiles(w http.ResponseWriter, r *ht
 	writeJSON(w, http.StatusOK, map[string]any{"files": results})
 }
 
+func (s *Server) handleConfirmPendingClipboardFilesTip(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	results, err := s.backend.ConfirmPendingClipboardFiles()
+	if err != nil {
+		writeTipHTML(w, http.StatusBadRequest, "发送失败", err.Error())
+		return
+	}
+	detail := "待确认剪贴板文件已发送。"
+	if len(results) > 0 {
+		detail = "已发送：" + results[0]
+		if len(results) > 1 {
+			detail = fmt.Sprintf("已发送：%s 等 %d 项", results[0], len(results))
+		}
+	}
+	writeTipHTML(w, http.StatusOK, "发送完成", detail)
+}
+
 func (s *Server) handleOpenDownloadDir(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -339,4 +364,52 @@ func writeJSON(w http.ResponseWriter, code int, v interface{}) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(code)
 	_ = json.NewEncoder(w).Encode(v)
+}
+
+func writeTipHTML(w http.ResponseWriter, code int, title string, detail string) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(code)
+	_, _ = fmt.Fprintf(w, `<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>%s</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: "Microsoft YaHei UI", "Segoe UI", sans-serif;
+      background: linear-gradient(180deg, #eef4ff 0%%, #f7faff 100%%);
+      color: #18324f;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+    }
+    .card {
+      width: min(92vw, 420px);
+      border-radius: 18px;
+      background: #fff;
+      box-shadow: 0 18px 40px rgba(24, 50, 79, 0.14);
+      padding: 24px;
+    }
+    h1 {
+      margin: 0 0 10px;
+      font-size: 22px;
+    }
+    p {
+      margin: 0;
+      color: #66788f;
+      line-height: 1.7;
+      word-break: break-all;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>%s</h1>
+    <p>%s</p>
+  </div>
+</body>
+</html>`, title, title, detail)
 }

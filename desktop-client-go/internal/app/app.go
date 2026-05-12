@@ -208,6 +208,9 @@ func (a *App) OnClipboardFiles(paths []string) {
 		snapshot.PendingClipboardDetectedAt = now.UnixMilli()
 		snapshot.PendingClipboardExpiresAt = expiresAt.UnixMilli()
 	})
+	if a.showClipboardFilesToast(paths, int(cfg.ClipboardFileConfirmWindow/time.Second)) {
+		return
+	}
 	a.notifier.Notify("Cloud Clipboard", fmt.Sprintf("检测到 %d 个剪贴板文件，可在 %d 秒内确认发送。", len(paths), int(cfg.ClipboardFileConfirmWindow/time.Second)))
 }
 
