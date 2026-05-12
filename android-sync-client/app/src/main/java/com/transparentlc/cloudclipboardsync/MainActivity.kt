@@ -540,7 +540,7 @@ class MainActivity : AppCompatActivity() {
     ): String = when (config.clipboardMode) {
         SettingsStore.CLIPBOARD_MODE_ACCESSIBILITY -> {
             if (status.accessibilityEnabled) {
-                "当前模式：无障碍增强\n启动状态：可直接启动同步\n说明：后台文本监听会更稳，但会比前台模式更耗电。"
+                "当前模式：无障碍增强\n启动状态：可直接启动同步\n说明：除了系统剪贴板回调，还会在界面交互时主动触发补检查，后台文本监听会更稳，但会比前台模式更耗电。"
             } else {
                 "当前模式：无障碍增强\n启动状态：暂时被拦截\n原因：${validation.message}\n说明：开启后后台复制会更稳，但耗电略高。"
             }

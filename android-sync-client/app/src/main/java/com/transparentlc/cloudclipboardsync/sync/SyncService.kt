@@ -84,6 +84,7 @@ class SyncService : Service() {
         }
         when (intent?.action) {
             ACTION_CONFIRM_PAYLOAD -> intent.getStringExtra(EXTRA_PAYLOAD_ID)?.let(::confirmPayloadDownload)
+            ACTION_ACCESSIBILITY_PULSE -> publishLocalClipboardIfNeeded("accessibility")
         }
         if (!serviceStarted) {
             startForeground(NOTIFICATION_ID, buildNotification(getString(R.string.status_connecting)))
@@ -428,6 +429,7 @@ class SyncService : Service() {
         const val EXTRA_PAYLOAD_ID = "extra_payload_id"
 
         private const val ACTION_CONFIRM_PAYLOAD = "com.transparentlc.cloudclipboardsync.action.CONFIRM_PAYLOAD"
+        private const val ACTION_ACCESSIBILITY_PULSE = "com.transparentlc.cloudclipboardsync.action.ACCESSIBILITY_PULSE"
 
         private const val CHANNEL_ID = "cloud_clipboard_sync"
         private const val RECEIVE_CHANNEL_ID = "cloud_clipboard_receive"
@@ -449,6 +451,13 @@ class SyncService : Service() {
                 Intent(context, SyncService::class.java)
                     .setAction(ACTION_CONFIRM_PAYLOAD)
                     .putExtra(EXTRA_PAYLOAD_ID, payloadId),
+            )
+        }
+
+        fun requestAccessibilityPulse(context: Context) {
+            ContextCompat.startForegroundService(
+                context,
+                Intent(context, SyncService::class.java).setAction(ACTION_ACCESSIBILITY_PULSE),
             )
         }
 

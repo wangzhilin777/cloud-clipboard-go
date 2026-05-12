@@ -17,14 +17,14 @@ object ClipboardModeSupportHelper {
                 ClipboardModeSupport(
                     canStart = true,
                     readyMessage = "无障碍增强模式已就绪。",
-                    implementationSummary = "当前阶段：无障碍模式已接入授权检查、启动前置校验和恢复流程；一期同步链路仍以系统剪贴板监听为主，后续会继续补强后台增强细节。",
+                    implementationSummary = "当前阶段：无障碍模式已接入授权检查、启动前置校验、恢复流程，以及界面交互触发的剪贴板补检查；后续会继续补强后台增强细节。",
                 )
             } else {
                 ClipboardModeSupport(
                     canStart = false,
                     readyMessage = "",
                     blockedMessage = context.getString(R.string.runtime_mode_accessibility_blocked),
-                    implementationSummary = "当前阶段：无障碍模式已经接好配置入口，但还需要先开启系统无障碍服务，开启后才会按该模式启动同步。",
+                    implementationSummary = "当前阶段：无障碍模式已经接好配置入口和补检查链路，但还需要先开启系统无障碍服务，开启后才会按该模式启动同步。",
                 )
             }
         }
