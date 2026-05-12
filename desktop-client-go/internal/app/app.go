@@ -331,6 +331,7 @@ func (a *App) ConfirmPendingClipboardFiles() ([]string, error) {
 		return nil, err
 	}
 	a.clearPendingClipboard()
+	a.notifyActionSuccess("已发送待确认文件到服务器")
 	return names, nil
 }
 
@@ -439,6 +440,9 @@ func (a *App) SendFiles(paths []string) ([]string, error) {
 		names = append(names, result.Name)
 	}
 	a.saveLastAction("file-send", strings.Join(names, "，"))
+	if len(names) > 0 {
+		a.notifyActionSuccess("已发送文件到服务器")
+	}
 	return names, nil
 }
 
@@ -459,6 +463,9 @@ func (a *App) SendText(text string, fromClipboard bool) (string, error) {
 		label = "clipboard-text"
 	}
 	a.saveLastAction(label, result.Text)
+	if fromClipboard {
+		a.notifyActionSuccess("已发送剪贴板文本到服务器")
+	}
 	return result.Text, nil
 }
 
@@ -469,6 +476,7 @@ func (a *App) FetchLatestText() (string, error) {
 		return "", err
 	}
 	a.saveLastAction("fetch-latest-text", result.Text)
+	a.notifyActionSuccess("已拉取最新文本到本地剪贴板")
 	return result.Text, nil
 }
 
@@ -482,6 +490,7 @@ func (a *App) DownloadLatestFile() (string, error) {
 		return "", err
 	}
 	a.saveLastAction("download-latest-file", result.Path)
+	a.notifyActionSuccess("已下载最新文件到本机")
 	return result.Path, nil
 }
 
@@ -501,7 +510,23 @@ func (a *App) FetchLatestFileToClipboard() (string, error) {
 		return "", err
 	}
 	a.saveLastAction("fetch-latest-file", result.Path)
+	a.notifyActionSuccess("已拉取最新文件到本地剪贴板")
 	return result.Path, nil
+}
+
+func (a *App) notifyActionSuccess(message string) {
+	message = strings.TrimSpace(message)
+	if message == "" {
+		return
+	}
+	cfg := a.currentConfig()
+	if !cfg.SuccessNoticeEnabled {
+		return
+	}
+	if strings.EqualFold(cfg.NoticeMode, "tip") {
+		_ = closeWindowsTip(a.configPath)
+	}
+	a.notifier.Notify("Cloud Clipboard", message)
 }
 
 func (a *App) saveLastAction(actionType string, detail string) {

@@ -3,9 +3,14 @@
 package app
 
 import (
+	"crypto/sha1"
+	"encoding/hex"
 	"encoding/base64"
 	"fmt"
+	"os"
 	"os/exec"
+	"path/filepath"
+	"strconv"
 	"strings"
 )
 
@@ -27,11 +32,37 @@ func showWindowsTip(title string, body string, primaryLabel string, primaryURL s
 	if strings.TrimSpace(theme) == "" {
 		theme = "dark"
 	}
+	_ = closeWindowsTip(configPath)
 	script := buildWindowsTipScript(title, body, primaryLabel, primaryURL, secondaryLabel, secondaryURL, seconds, width, height, theme, left, top, configPath)
 	encoded := base64.StdEncoding.EncodeToString([]byte(script))
 	ps := fmt.Sprintf("[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('%s')) | Invoke-Expression", encoded)
 	cmd := exec.Command("powershell", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-STA", "-WindowStyle", "Hidden", "-Command", ps)
 	return cmd.Start()
+}
+
+func closeWindowsTip(configPath string) error {
+	markerPath := activeTipMarkerPath(configPath)
+	data, err := os.ReadFile(markerPath)
+	if err != nil {
+		return nil
+	}
+	pid, err := strconv.Atoi(strings.TrimSpace(string(data)))
+	if err != nil || pid <= 0 {
+		_ = os.Remove(markerPath)
+		return nil
+	}
+	process, err := os.FindProcess(pid)
+	if err == nil {
+		_ = process.Kill()
+	}
+	_ = os.Remove(markerPath)
+	return nil
+}
+
+func activeTipMarkerPath(configPath string) string {
+	sum := sha1.Sum([]byte(strings.ToLower(strings.TrimSpace(configPath))))
+	name := "cloud-clipboard-tip-" + hex.EncodeToString(sum[:8]) + ".pid"
+	return filepath.Join(os.TempDir(), name)
 }
 
 func buildWindowsTipScript(title string, body string, primaryLabel string, primaryURL string, secondaryLabel string, secondaryURL string, seconds int, width int, height int, theme string, left int, top int, configPath string) string {
@@ -74,6 +105,27 @@ function Save-TipPosition($configPath, $left, $top) {
   }
 }
 
+function Save-TipMarker($markerPath) {
+  if ([string]::IsNullOrWhiteSpace($markerPath)) { return }
+  try {
+    $PID | Set-Content -LiteralPath $markerPath -Encoding UTF8
+  } catch {
+  }
+}
+
+function Clear-TipMarker($markerPath) {
+  if ([string]::IsNullOrWhiteSpace($markerPath)) { return }
+  try {
+    if (Test-Path -LiteralPath $markerPath) {
+      $saved = Get-Content -LiteralPath $markerPath -Raw -ErrorAction SilentlyContinue
+      if ([string]::Trim($saved) -eq [string]$PID) {
+        Remove-Item -LiteralPath $markerPath -Force -ErrorAction SilentlyContinue
+      }
+    }
+  } catch {
+  }
+}
+
 $titleText = %s
 $bodyText = %s
 $primaryLabel = %s
@@ -87,6 +139,7 @@ $theme = %s
 $savedLeft = %d
 $savedTop = %d
 $configPath = %s
+$markerPath = %s
 
 if ($theme -eq 'light') {
   $outerBg = '#d7deea'
@@ -284,10 +337,13 @@ Register-DragTarget $body
 
 $form.Add_FormClosing({
   Save-TipPosition $configPath $form.Left $form.Top
+  Clear-TipMarker $markerPath
 })
 
+Save-TipMarker $markerPath
+
 [System.Windows.Forms.Application]::Run($form)
-`, toPSString(title), toPSString(body), toPSString(primaryLabel), toPSString(primaryURL), toPSString(secondaryLabel), toPSString(secondaryURL), seconds*1000, width, height, toPSString(strings.ToLower(strings.TrimSpace(theme))), left, top, toPSString(configPath))
+`, toPSString(title), toPSString(body), toPSString(primaryLabel), toPSString(primaryURL), toPSString(secondaryLabel), toPSString(secondaryURL), seconds*1000, width, height, toPSString(strings.ToLower(strings.TrimSpace(theme))), left, top, toPSString(configPath), toPSString(activeTipMarkerPath(configPath)))
 }
 
 func toPSString(value string) string {

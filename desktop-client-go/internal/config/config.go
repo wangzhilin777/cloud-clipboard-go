@@ -37,6 +37,7 @@ type Config struct {
 	TipTheme                    string        `json:"tipTheme"`
 	TipLeft                     int           `json:"tipLeft"`
 	TipTop                      int           `json:"tipTop"`
+	SuccessNoticeEnabled        bool          `json:"successNoticeEnabled"`
 }
 
 func Default() Config {
@@ -69,6 +70,7 @@ func Default() Config {
 		TipTheme:                    "dark",
 		TipLeft:                     -1,
 		TipTop:                      -1,
+		SuccessNoticeEnabled:        true,
 	}
 }
 

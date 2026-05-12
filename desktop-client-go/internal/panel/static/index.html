@@ -458,6 +458,13 @@
                 <span class="label">Tip 顶部坐标</span>
                 <input id="tipTop" type="number" min="-1" placeholder="-1 表示自动靠右下">
               </label>
+              <label class="field">
+                <span class="label">成功提示</span>
+                <select id="successNoticeEnabled">
+                  <option value="true">开启</option>
+                  <option value="false">关闭</option>
+                </select>
+              </label>
             </div>
           </div>
 
@@ -520,6 +527,7 @@
         tipTheme: document.getElementById('tipTheme'),
         tipLeft: document.getElementById('tipLeft'),
         tipTop: document.getElementById('tipTop'),
+        successNoticeEnabled: document.getElementById('successNoticeEnabled'),
       };
     const manualText = document.getElementById('manualText');
     const statusText = document.getElementById('statusText');
@@ -610,6 +618,7 @@
       if (cfg.clipboardFileConfirmEnabled) items.push(`确认窗：${cfg.clipboardFileConfirmWindowSec || 0}s`);
       if (cfg.noticeMode === 'tip') items.push(`Tip：${cfg.tipWidth || 0}x${cfg.tipHeight || 0} / ${cfg.tipTheme === 'light' ? '浅色' : '深色'}`);
       if (cfg.noticeMode === 'tip' && Number(cfg.tipLeft) >= 0 && Number(cfg.tipTop) >= 0) items.push(`位置：${cfg.tipLeft},${cfg.tipTop}`);
+      if (cfg.successNoticeEnabled) items.push('成功提示：开');
       return items.length ? items.join(' / ') : '未配置';
     }
 
@@ -672,6 +681,7 @@
         tipTheme: fields.tipTheme.value,
         tipLeft: Number(fields.tipLeft.value || 0),
         tipTop: Number(fields.tipTop.value || 0),
+        successNoticeEnabled: fields.successNoticeEnabled.value === 'true',
       };
       try {
         const resp = await fetch('/api/config', {

@@ -93,6 +93,7 @@ type configView struct {
 	TipTheme                      string `json:"tipTheme"`
 	TipLeft                       int    `json:"tipLeft"`
 	TipTop                        int    `json:"tipTop"`
+	SuccessNoticeEnabled          bool   `json:"successNoticeEnabled"`
 }
 
 func New(address string, backend Backend) *Server {
@@ -198,6 +199,7 @@ func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
 		TipTheme:                    payload.TipTheme,
 		TipLeft:                     payload.TipLeft,
 		TipTop:                      payload.TipTop,
+		SuccessNoticeEnabled:        payload.SuccessNoticeEnabled,
 	}
 	if err := s.backend.UpdateConfig(cfg); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -395,6 +397,7 @@ func toConfigView(cfg config.Config) configView {
 		TipTheme:                      cfg.TipTheme,
 		TipLeft:                       cfg.TipLeft,
 		TipTop:                        cfg.TipTop,
+		SuccessNoticeEnabled:          cfg.SuccessNoticeEnabled,
 	}
 }
 
