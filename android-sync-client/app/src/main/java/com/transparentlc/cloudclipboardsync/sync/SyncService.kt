@@ -129,7 +129,7 @@ class SyncService : Service() {
             override fun onPayloadNotice(notice: PayloadNotice) {
                 val existing = PayloadCacheStore.get(this@SyncService, notice.payloadId)
                 val entry = PayloadCacheStore.upsertNotice(this@SyncService, notice)
-                if (existing?.isDownloaded != true) {
+                if (existing?.isDownloaded != true && !PayloadCacheStore.isSnoozed(entry)) {
                     if (shouldUseFloatingConfirm()) {
                         FloatingConfirmService.show(this@SyncService, entry.payloadId)
                     } else {

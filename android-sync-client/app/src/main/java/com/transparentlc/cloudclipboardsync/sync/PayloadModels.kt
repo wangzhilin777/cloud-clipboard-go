@@ -45,6 +45,7 @@ data class PayloadEntry(
     val downloadedAt: Long?,
     val expiresAt: Long,
     val processedAt: Long?,
+    val snoozedUntil: Long?,
 ) {
     val isDownloaded: Boolean
         get() = !localPath.isNullOrBlank()
@@ -67,6 +68,7 @@ data class PayloadEntry(
         .put("downloadedAt", downloadedAt)
         .put("expiresAt", expiresAt)
         .put("processedAt", processedAt)
+        .put("snoozedUntil", snoozedUntil)
 
     companion object {
         fun fromJson(json: JSONObject): PayloadEntry = PayloadEntry(
@@ -84,6 +86,7 @@ data class PayloadEntry(
             downloadedAt = json.optLong("downloadedAt").takeIf { json.has("downloadedAt") },
             expiresAt = json.optLong("expiresAt", System.currentTimeMillis() + PayloadCacheStore.DEFAULT_RETENTION_MS),
             processedAt = json.optLong("processedAt").takeIf { json.has("processedAt") },
+            snoozedUntil = json.optLong("snoozedUntil").takeIf { json.has("snoozedUntil") },
         )
     }
 }

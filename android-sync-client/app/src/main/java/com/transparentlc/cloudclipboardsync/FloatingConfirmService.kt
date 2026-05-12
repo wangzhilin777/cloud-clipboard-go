@@ -24,6 +24,7 @@ import java.util.Locale
 import kotlin.math.roundToInt
 
 class FloatingConfirmService : Service() {
+    private val snoozeDurationMs = 10 * 60 * 1000L
     private val handler = Handler(Looper.getMainLooper())
     private val pendingPayloadIds = ArrayDeque<String>()
     private var currentPayloadId: String? = null
@@ -73,6 +74,8 @@ class FloatingConfirmService : Service() {
             stopSelf()
             return
         }
+        val entry = PayloadCacheStore.get(this, payloadId) ?: return
+        if (PayloadCacheStore.isSnoozed(entry)) return
         if (payloadId == currentPayloadId || pendingPayloadIds.contains(payloadId)) return
         pendingPayloadIds.addLast(payloadId)
         if (currentPayloadId == null) {
@@ -118,6 +121,7 @@ class FloatingConfirmService : Service() {
         root.findViewById<Button>(R.id.floatingConfirmButton).apply {
             text = getString(R.string.floating_confirm_button)
             setOnClickListener {
+                PayloadCacheStore.clearSnooze(this@FloatingConfirmService, entry.payloadId)
                 SyncService.confirmPayload(this@FloatingConfirmService, entry.payloadId)
                 openReceivedPage(entry.payloadId)
                 dismissCurrent(showNext = true)
@@ -126,17 +130,30 @@ class FloatingConfirmService : Service() {
         root.findViewById<Button>(R.id.floatingOpenButton).apply {
             text = getString(R.string.floating_open_button)
             setOnClickListener {
+                PayloadCacheStore.clearSnooze(this@FloatingConfirmService, entry.payloadId)
                 openReceivedPage(entry.payloadId)
                 dismissCurrent(showNext = true)
             }
         }
         root.findViewById<Button>(R.id.floatingIgnoreButton).apply {
             text = getString(R.string.floating_ignore_button)
-            setOnClickListener { dismissCurrent(showNext = true) }
+            setOnClickListener {
+                PayloadCacheStore.markSnoozed(
+                    this@FloatingConfirmService,
+                    entry.payloadId,
+                    System.currentTimeMillis() + snoozeDurationMs,
+                )
+                dismissCurrent(showNext = true)
+            }
         }
         root.findViewById<Button>(R.id.floatingIgnoreAllButton).apply {
             text = getString(R.string.floating_ignore_all_button)
             setOnClickListener {
+                val snoozedUntil = System.currentTimeMillis() + snoozeDurationMs
+                pendingPayloadIds.forEach { payloadId ->
+                    PayloadCacheStore.markSnoozed(this@FloatingConfirmService, payloadId, snoozedUntil)
+                }
+                PayloadCacheStore.markSnoozed(this@FloatingConfirmService, entry.payloadId, snoozedUntil)
                 pendingPayloadIds.clear()
                 dismissCurrent(showNext = false)
             }

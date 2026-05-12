@@ -119,7 +119,7 @@
     <string name="floating_confirm_button">确认下载</string>
     <string name="floating_open_button">打开接收页</string>
     <string name="floating_ignore_button">稍后处理</string>
-    <string name="floating_ignore_all_button">收起全部</string>
+    <string name="floating_ignore_all_button">全部稍后</string>
     <string name="floating_queue_single">待接收内容</string>
     <string name="floating_queue_multiple">待接收内容 · 还有 %1$d 条</string>
     <string name="floating_countdown_format">%1$d 秒后自动收起</string>
@@ -151,5 +151,6 @@
     <string name="payload_status_pending">待处理</string>
     <string name="payload_status_cached">已缓存</string>
     <string name="payload_status_not_downloaded">未下载</string>
+    <string name="payload_status_snoozed">稍后提醒中</string>
     <string name="payload_mark_processed_done_button">已标记为已处理</string>
 </resources>

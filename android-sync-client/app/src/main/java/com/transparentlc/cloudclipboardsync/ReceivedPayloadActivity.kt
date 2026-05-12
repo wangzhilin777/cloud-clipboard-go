@@ -153,6 +153,7 @@ class ReceivedPayloadActivity : AppCompatActivity() {
     private fun handlePayloadIntent(intent: Intent?) {
         val payloadId = intent?.getStringExtra(SyncService.EXTRA_PAYLOAD_ID) ?: return
         currentPayloadId = payloadId
+        PayloadCacheStore.clearSnooze(this, payloadId)
         entries = PayloadCacheStore.list(this)
     }
 
@@ -232,7 +233,12 @@ class ReceivedPayloadActivity : AppCompatActivity() {
     private fun buildStatus(entry: PayloadEntry): String {
         val processed = if (entry.processedAt != null) getString(R.string.payload_status_processed) else getString(R.string.payload_status_pending)
         val cacheState = if (entry.isDownloaded) getString(R.string.payload_status_cached) else getString(R.string.payload_status_not_downloaded)
-        return "$processed / $cacheState"
+        val snoozeState = if (PayloadCacheStore.isSnoozed(entry)) {
+            " / ${getString(R.string.payload_status_snoozed)}"
+        } else {
+            ""
+        }
+        return "$processed / $cacheState$snoozeState"
     }
 
     private fun openFile(entry: PayloadEntry) {

@@ -45,6 +45,7 @@ object PayloadCacheStore {
             downloadedAt = existing?.downloadedAt,
             expiresAt = existing?.expiresAt ?: (notice.createdAt + retentionMs),
             processedAt = existing?.processedAt,
+            snoozedUntil = existing?.snoozedUntil,
         )
         if (index >= 0) {
             entries[index] = updated
@@ -66,6 +67,7 @@ object PayloadCacheStore {
             mime = mime ?: entries[index].mime,
             downloadedAt = now,
             expiresAt = now + retentionMs(context),
+            snoozedUntil = null,
         )
         entries[index] = updated
         saveEntries(context, entries)
@@ -80,6 +82,32 @@ object PayloadCacheStore {
         entries[index] = updated
         saveEntries(context, entries)
         return updated
+    }
+
+    fun markSnoozed(context: Context, payloadId: String, until: Long): PayloadEntry? {
+        val entries = loadEntries(context).toMutableList()
+        val index = entries.indexOfFirst { it.payloadId == payloadId }
+        if (index == -1) return null
+        val updated = entries[index].copy(snoozedUntil = until)
+        entries[index] = updated
+        saveEntries(context, entries)
+        return updated
+    }
+
+    fun clearSnooze(context: Context, payloadId: String): PayloadEntry? {
+        val entries = loadEntries(context).toMutableList()
+        val index = entries.indexOfFirst { it.payloadId == payloadId }
+        if (index == -1) return null
+        if (entries[index].snoozedUntil == null) return entries[index]
+        val updated = entries[index].copy(snoozedUntil = null)
+        entries[index] = updated
+        saveEntries(context, entries)
+        return updated
+    }
+
+    fun isSnoozed(entry: PayloadEntry, now: Long = System.currentTimeMillis()): Boolean {
+        val until = entry.snoozedUntil ?: return false
+        return until > now
     }
 
     fun pruneExpired(context: Context) {
