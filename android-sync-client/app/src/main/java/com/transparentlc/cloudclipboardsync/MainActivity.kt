@@ -136,6 +136,17 @@ class MainActivity : AppCompatActivity() {
                 showLoopbackHint()
                 return@setOnClickListener
             }
+            val validation = RuntimeModeValidator.validate(this, config)
+            if (!validation.ready) {
+                statusText.text = getString(R.string.status_idle)
+                lastSyncText.text = validation.message
+                Toast.makeText(this, validation.message, Toast.LENGTH_LONG).show()
+                selectedTabIndex = TAB_RUNTIME
+                settingsBottomNav.selectedItemId = R.id.nav_runtime
+                updateVisibleSection()
+                openRuntimeModeAction(validation.action)
+                return@setOnClickListener
+            }
             SyncService.start(this)
             if (config.removeTaskFromRecents) {
                 finishAndRemoveTask()
@@ -258,6 +269,12 @@ class MainActivity : AppCompatActivity() {
             return
         }
         autoResumeAttempted = true
+        val validation = RuntimeModeValidator.validate(this, config)
+        if (!validation.ready) {
+            statusText.text = getString(R.string.status_idle)
+            lastSyncText.text = validation.message
+            return
+        }
         statusText.text = getString(R.string.status_connecting)
         lastSyncText.text = getString(R.string.auto_resume_restored)
         SyncService.start(this)
@@ -414,6 +431,20 @@ class MainActivity : AppCompatActivity() {
                     openBatteryOptimizationSettings()
                 }
             }
+        }
+    }
+
+    private fun openRuntimeModeAction(action: RuntimeModeAction) {
+        when (action) {
+            RuntimeModeAction.OPEN_ACCESSIBILITY -> {
+                startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+            }
+
+            RuntimeModeAction.OPEN_SHIZUKU -> {
+                openShizuku(PermissionStatusHelper.read(this).shizukuInstalled)
+            }
+
+            RuntimeModeAction.NONE -> Unit
         }
     }
 

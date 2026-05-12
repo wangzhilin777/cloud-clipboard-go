@@ -13,6 +13,7 @@ class BootCompletedReceiver : BroadcastReceiver() {
         val config = SettingsStore.load(context)
         if (!config.startOnBootEnabled) return
         if (!SettingsStore.shouldResumeSync(context)) return
+        if (!RuntimeModeValidator.validate(context, config).ready) return
         SyncService.start(context)
     }
 }

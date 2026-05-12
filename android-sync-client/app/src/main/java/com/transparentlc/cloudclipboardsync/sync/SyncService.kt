@@ -20,6 +20,7 @@ import com.transparentlc.cloudclipboardsync.ReceivedPayloadActivity
 import com.transparentlc.cloudclipboardsync.MainActivity
 import com.transparentlc.cloudclipboardsync.PermissionStatusHelper
 import com.transparentlc.cloudclipboardsync.R
+import com.transparentlc.cloudclipboardsync.RuntimeModeValidator
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONObject
@@ -75,6 +76,13 @@ class SyncService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         config = SettingsStore.load(this)
         PayloadCacheStore.pruneExpired(this)
+        val runtimeValidation = RuntimeModeValidator.validate(this, config)
+        if (!runtimeValidation.ready) {
+            broadcastStatus(getString(R.string.status_idle), runtimeValidation.message)
+            showReconnectFailureAlert(runtimeValidation.message)
+            stopSelf()
+            return START_NOT_STICKY
+        }
         when (intent?.action) {
             ACTION_CONFIRM_PAYLOAD -> intent.getStringExtra(EXTRA_PAYLOAD_ID)?.let(::confirmPayloadDownload)
         }
