@@ -270,6 +270,7 @@
         <button class="secondary" id="openPanelButton" type="button">系统浏览器打开</button>
         <button class="secondary" id="sendFileButton" type="button">选择文件并发送</button>
         <button class="secondary" id="fetchLatestTextButton" type="button">拉取最新文本到剪贴板</button>
+        <button class="secondary" id="fetchLatestFileToClipboardButton" type="button">拉取最新文件到剪贴板</button>
         <button class="secondary" id="downloadLatestFileButton" type="button">下载最新文件到本机</button>
         <button class="secondary" id="openDownloadDirButton" type="button">打开下载目录</button>
         <button class="secondary" id="clearDownloadDirButton" type="button">清空下载缓存</button>
@@ -365,6 +366,8 @@
           return '发送剪贴板文本';
         case 'fetch-latest-text':
           return '拉取最新文本';
+        case 'fetch-latest-file':
+          return '拉取最新文件到剪贴板';
         case 'download-latest-file':
           return '下载最新文件';
         case 'open-download-dir':
@@ -538,6 +541,19 @@
       }
     }
 
+    async function fetchLatestFileToClipboard() {
+      message.textContent = '正在拉取最新文件到剪贴板...';
+      try {
+        const resp = await fetch('/api/fetch-latest-file-to-clipboard', { method: 'POST' });
+        const text = await resp.text();
+        if (!resp.ok) throw new Error(text || `HTTP ${resp.status}`);
+        const data = JSON.parse(text || '{}');
+        message.textContent = `已写入文件剪贴板：${data.path || ''}`;
+      } catch (err) {
+        message.textContent = `拉取最新文件到剪贴板失败：${err.message}`;
+      }
+    }
+
     async function openDownloadDir() {
       message.textContent = '正在打开下载目录...';
       try {
@@ -584,6 +600,7 @@
     document.getElementById('sendTextButton').addEventListener('click', () => sendText(false));
     document.getElementById('sendClipboardTextButton').addEventListener('click', () => sendText(true));
     document.getElementById('fetchLatestTextButton').addEventListener('click', fetchLatestText);
+    document.getElementById('fetchLatestFileToClipboardButton').addEventListener('click', fetchLatestFileToClipboard);
     document.getElementById('downloadLatestFileButton').addEventListener('click', downloadLatestFile);
     document.getElementById('openDownloadDirButton').addEventListener('click', openDownloadDir);
     document.getElementById('clearDownloadDirButton').addEventListener('click', clearDownloadDir);

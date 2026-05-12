@@ -20,6 +20,7 @@ type Backend interface {
 	SendFiles(paths []string) ([]string, error)
 	SendText(text string, fromClipboard bool) (string, error)
 	FetchLatestText() (string, error)
+	FetchLatestFileToClipboard() (string, error)
 	DownloadLatestFile() (string, error)
 }
 
@@ -85,6 +86,14 @@ func Run(ctx context.Context, logger *log.Logger, backend Backend, stop func()) 
 			return
 		}
 		logger.Printf("托盘拉取最新文本成功: %s", previewText(text))
+	})
+	tray.AppendMenu("拉取最新文件到剪贴板", func() {
+		path, err := backend.FetchLatestFileToClipboard()
+		if err != nil {
+			logger.Printf("托盘拉取最新文件到剪贴板失败: %v", err)
+			return
+		}
+		logger.Printf("托盘拉取最新文件到剪贴板成功: %s", path)
 	})
 	tray.AppendMenu("下载最新文件到本机", func() {
 		path, err := backend.DownloadLatestFile()

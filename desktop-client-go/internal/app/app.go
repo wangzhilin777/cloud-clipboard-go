@@ -15,6 +15,7 @@ import (
 
 	"github.com/jonnyan404/cloud-clipboard-go/desktop-client-go/internal/clipwatch"
 	"github.com/jonnyan404/cloud-clipboard-go/desktop-client-go/internal/config"
+	"github.com/jonnyan404/cloud-clipboard-go/desktop-client-go/internal/fileclip"
 	"github.com/jonnyan404/cloud-clipboard-go/desktop-client-go/internal/hotkey"
 	"github.com/jonnyan404/cloud-clipboard-go/desktop-client-go/internal/panel"
 	"github.com/jonnyan404/cloud-clipboard-go/desktop-client-go/internal/picker"
@@ -446,6 +447,22 @@ func (a *App) DownloadLatestFile() (string, error) {
 		return "", err
 	}
 	a.saveLastAction("download-latest-file", result.Path)
+	return result.Path, nil
+}
+
+func (a *App) FetchLatestFileToClipboard() (string, error) {
+	sender := transfer.NewSender(a.currentConfig(), a.logger)
+	result, err := sender.DownloadLatestFile(context.Background())
+	if err != nil {
+		return "", err
+	}
+	a.mu.Lock()
+	a.suppressedClipboardFileSignature = clipboardFilesSignature([]string{result.Path})
+	a.mu.Unlock()
+	if err := fileclip.SetFileList([]string{result.Path}); err != nil {
+		return "", err
+	}
+	a.saveLastAction("fetch-latest-file", result.Path)
 	return result.Path, nil
 }
 

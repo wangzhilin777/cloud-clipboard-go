@@ -28,6 +28,7 @@ type Backend interface {
 	SendText(text string, fromClipboard bool) (string, error)
 	FetchLatestText() (string, error)
 	DownloadLatestFile() (string, error)
+	FetchLatestFileToClipboard() (string, error)
 }
 
 type Server struct {
@@ -108,6 +109,7 @@ func New(address string, backend Backend) *Server {
 	mux.HandleFunc("/api/confirm-pending-clipboard-files", s.handleConfirmPendingClipboardFiles)
 	mux.HandleFunc("/api/fetch-latest-text", s.handleFetchLatestText)
 	mux.HandleFunc("/api/download-latest-file", s.handleDownloadLatestFile)
+	mux.HandleFunc("/api/fetch-latest-file-to-clipboard", s.handleFetchLatestFileToClipboard)
 	mux.HandleFunc("/tips/confirm-pending-clipboard-files", s.handleConfirmPendingClipboardFilesTip)
 	mux.Handle("/", http.FileServer(http.FS(staticRoot)))
 	return s
@@ -331,6 +333,19 @@ func (s *Server) handleDownloadLatestFile(w http.ResponseWriter, r *http.Request
 		return
 	}
 	path, err := s.backend.DownloadLatestFile()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"path": path})
+}
+
+func (s *Server) handleFetchLatestFileToClipboard(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	path, err := s.backend.FetchLatestFileToClipboard()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
