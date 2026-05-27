@@ -1,8 +1,14 @@
 <resources>
-    <string name="app_name">Cloud Clipboard Sync</string>
-    <string name="home_badge">Cloud Clipboard 工具台</string>
+    <string name="app_name">云剪同步</string>
+    <string name="home_badge">云剪同步工具台</string>
     <string name="home_subtitle">把连接状态、后台策略、权限检查和接收入口集中到一个更顺手的面板里。</string>
     <string name="home_quick_tip">建议先填好连接信息，再开启自动续连和后台保活。</string>
+    <string name="home_expand_button">展开</string>
+    <string name="home_collapse_button">收起</string>
+    <string name="home_collapsed_summary_format">%1$s · %2$s · %3$s</string>
+    <string name="home_receive_mode_floating">悬浮确认</string>
+    <string name="home_receive_mode_notification">通知确认</string>
+    <string name="default_room_label">默认房间</string>
     <string name="server_base_hint">服务端地址，例如 http://192.168.1.10:9501</string>
     <string name="server_base_tip">如果 Go 服务跑在 Windows 上，这里要填 Windows 的局域网 IP，不要填 127.0.0.1。</string>
     <string name="server_base_loopback_hint">当前地址指向安卓设备自己；如果服务端在 Windows，请改成 http://Windows局域网IP:9501</string>
@@ -10,6 +16,21 @@
     <string name="tab_runtime">运行</string>
     <string name="tab_permissions">权限</string>
     <string name="tab_receive">接收</string>
+    <string name="share_receive_badge">分享到云剪同步</string>
+    <string name="share_receive_title_files">准备发送图片或文件</string>
+    <string name="share_receive_title_text">准备发送文本</string>
+    <string name="share_receive_title_empty">没有可发送的内容</string>
+    <string name="share_receive_summary_files">共 %1$d 项，发送到 %2$s</string>
+    <string name="share_receive_summary_text">发送到 %1$s</string>
+    <string name="share_receive_summary_empty">当前分享内容为空</string>
+    <string name="share_receive_detail_title">发送确认</string>
+    <string name="share_receive_detail_empty">当前没有解析到可发送的数据，请返回原应用重试。</string>
+    <string name="share_receive_send_button">直接发送</string>
+    <string name="share_receive_cancel_button">取消</string>
+    <string name="share_receive_open_app_button">打开主界面</string>
+    <string name="share_receive_sending">正在上传并通知其他设备…</string>
+    <string name="share_receive_failed">发送失败，请稍后重试</string>
+    <string name="share_receive_missing_config">请先在云剪同步里完成服务端地址和房间配置</string>
     <string name="connection_section_title">连接配置</string>
     <string name="connection_section_desc">服务地址、房间密码和设备名都在这里维护。</string>
     <string name="runtime_section_title">后台与续连</string>
@@ -23,6 +44,10 @@
     <string name="receive_overlay_disabled_summary">当前仍使用通知确认。如需悬浮确认，请先打开悬浮确认开关。</string>
     <string name="receive_overlay_permission_summary">已开启悬浮确认，但系统尚未允许悬浮窗显示，请补开悬浮窗权限。</string>
     <string name="receive_overlay_action_button">打开悬浮窗设置</string>
+    <string name="receive_section_expand_floating">展开悬浮卡片参数</string>
+    <string name="receive_section_collapse_floating">收起悬浮卡片参数</string>
+    <string name="receive_section_expand_cache">展开缓存与接收入口</string>
+    <string name="receive_section_collapse_cache">收起缓存与接收入口</string>
     <string name="runtime_recommendation_ready">当前模式已就绪</string>
     <string name="runtime_recommendation_attention">建议继续完善</string>
     <string name="runtime_recommendation_blocked">当前模式存在阻塞</string>
@@ -41,6 +66,7 @@
     <string name="close_after_start_switch">启动同步后自动关闭设置页</string>
     <string name="remove_task_switch">启动同步后从最近任务中移除本应用</string>
     <string name="floating_confirm_switch">收到图片/文件通知时优先用悬浮确认</string>
+    <string name="floating_compact_switch">悬浮卡片用紧凑样式（推荐）</string>
     <string name="floating_size_title">悬浮确认样式</string>
     <string name="floating_size_desc">悬浮确认的位置可以直接拖动保存，显示时长和尺寸可按使用习惯调整。</string>
     <string name="floating_width_hint">悬浮宽度，默认 280</string>
@@ -97,6 +123,7 @@
     <string name="open_pending_received_button">查看待处理</string>
     <string name="open_processed_received_button">查看已处理</string>
     <string name="open_snoozed_received_button">查看稍后</string>
+    <string name="received_page_open_failed">接收页打开失败，请稍后再试</string>
     <string name="clear_processed_cache_button">清理已处理</string>
     <string name="restore_snoozed_button">恢复稍后提醒</string>
     <string name="config_saved_toast">配置已保存</string>
@@ -126,6 +153,12 @@
     <string name="floating_open_button">打开接收页</string>
     <string name="floating_ignore_button">稍后处理</string>
     <string name="floating_ignore_all_button">全部稍后</string>
+    <string name="floating_close_button">关闭</string>
+    <string name="floating_close_symbol">×</string>
+    <string name="floating_compact_confirm_button">接收</string>
+    <string name="floating_compact_open_button">详情</string>
+    <string name="floating_compact_ignore_button">稍后</string>
+    <string name="floating_compact_ignore_all_button">全稍后</string>
     <string name="floating_ignore_button_minutes">稍后 %1$d 分钟</string>
     <string name="floating_ignore_all_button_minutes">全部稍后 %1$d 分钟</string>
     <string name="floating_queue_single">待接收内容</string>
@@ -139,6 +172,8 @@
     <string name="floating_action_hint_queue">处理完当前项后，会继续显示下一条待接收内容。</string>
     <string name="floating_action_hint_preview">这是悬浮确认示例，拖动后会记住当前位置。</string>
     <string name="floating_action_hint_alert">自动重试已经停止，请稍后检查服务端或重新手动启动同步。</string>
+    <string name="floating_layout_compact_on">紧凑样式</string>
+    <string name="floating_layout_compact_off">详细样式</string>
     <string name="payload_kind_image">图片</string>
     <string name="payload_kind_file">文件</string>
     <string name="payload_kind_unknown">内容</string>
@@ -157,6 +192,7 @@
     <string name="payload_cache_expires_format">缓存保留至：%1$s</string>
     <string name="payload_cache_empty_hint">本地缓存会按设置的保留时长自动清理。</string>
     <string name="payload_index_format">第 %1$d / %2$d 条</string>
+    <string name="payload_collapsed_summary_format">%1$s · %2$s · %3$s</string>
     <string name="payload_action_hint_empty">当前没有待处理内容；后续收到图片或文件后会在这里集中查看。</string>
     <string name="payload_action_hint_download">当前内容还没下载到本地缓存，先点“下载到缓存”再继续处理。</string>
     <string name="payload_action_hint_image_ready">图片已经缓存完成，可以直接预览、分享、另存；处理后会自动切到下一条。</string>

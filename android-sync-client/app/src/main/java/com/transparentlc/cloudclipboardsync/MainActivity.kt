@@ -12,6 +12,7 @@ import android.os.Bundle
 import android.provider.Settings
 import android.view.View
 import android.widget.Button
+import android.widget.CheckBox
 import android.widget.EditText
 import android.widget.RadioButton
 import android.widget.RadioGroup
@@ -22,8 +23,8 @@ import androidx.annotation.DrawableRes
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.core.widget.doAfterTextChanged
 import com.google.android.material.bottomnavigation.BottomNavigationView
-import com.google.android.material.materialswitch.MaterialSwitch
 import com.transparentlc.cloudclipboardsync.sync.PayloadCacheStore
 import com.transparentlc.cloudclipboardsync.sync.SettingsStore
 import com.transparentlc.cloudclipboardsync.sync.SyncService
@@ -35,10 +36,18 @@ private data class StatusChecklist(
 
 class MainActivity : AppCompatActivity() {
     private lateinit var settingsBottomNav: BottomNavigationView
+    private lateinit var homeHeaderCard: View
     private lateinit var connectionSection: View
     private lateinit var runtimeSection: View
     private lateinit var permissionSection: View
     private lateinit var receiveSection: View
+    private lateinit var receiveFloatingSettingsGroup: View
+    private lateinit var receiveCacheSettingsGroup: View
+    private lateinit var receiveFloatingSettingsToggleButton: Button
+    private lateinit var receiveCacheSettingsToggleButton: Button
+    private lateinit var homeHeaderDetailGroup: View
+    private lateinit var homeCollapsedSummaryText: TextView
+    private lateinit var homeHeaderToggleButton: Button
     private lateinit var serverBaseInput: EditText
     private lateinit var roomInput: EditText
     private lateinit var roomPasswordInput: EditText
@@ -47,11 +56,12 @@ class MainActivity : AppCompatActivity() {
     private lateinit var clipboardModeForeground: RadioButton
     private lateinit var clipboardModeAccessibility: RadioButton
     private lateinit var clipboardModeShizuku: RadioButton
-    private lateinit var autoConnectSwitch: MaterialSwitch
-    private lateinit var startOnBootSwitch: MaterialSwitch
-    private lateinit var closeAfterStartSwitch: MaterialSwitch
-    private lateinit var removeTaskSwitch: MaterialSwitch
-    private lateinit var floatingConfirmSwitch: MaterialSwitch
+    private lateinit var autoConnectSwitch: CheckBox
+    private lateinit var startOnBootSwitch: CheckBox
+    private lateinit var closeAfterStartSwitch: CheckBox
+    private lateinit var removeTaskSwitch: CheckBox
+    private lateinit var floatingConfirmSwitch: CheckBox
+    private lateinit var floatingCompactSwitch: CheckBox
     private lateinit var floatingWidthInput: EditText
     private lateinit var floatingHeightInput: EditText
     private lateinit var floatingShowSecondsInput: EditText
@@ -74,6 +84,10 @@ class MainActivity : AppCompatActivity() {
 
     private var selectedTabIndex = TAB_CONNECTION
     private var autoResumeAttempted = false
+    private var homeHeaderExpanded = false
+    private var receiveFloatingSettingsExpanded = false
+    private var receiveCacheSettingsExpanded = false
+    private var suppressAutoSave = false
 
     private val notificationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -83,6 +97,7 @@ class MainActivity : AppCompatActivity() {
         override fun onReceive(context: Context?, intent: Intent?) {
             statusText.text = intent?.getStringExtra(SyncService.EXTRA_STATUS) ?: getString(R.string.status_idle)
             lastSyncText.text = intent?.getStringExtra(SyncService.EXTRA_LAST_RESULT) ?: getString(R.string.last_result_idle)
+            updateHomeHeaderSummary()
         }
     }
 
@@ -97,10 +112,18 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
 
         settingsBottomNav = findViewById(R.id.settingsBottomNav)
+        homeHeaderCard = findViewById(R.id.homeHeaderCard)
         connectionSection = findViewById(R.id.connectionSection)
         runtimeSection = findViewById(R.id.runtimeSection)
         permissionSection = findViewById(R.id.permissionSection)
         receiveSection = findViewById(R.id.receiveSection)
+        receiveFloatingSettingsGroup = findViewById(R.id.receiveFloatingSettingsGroup)
+        receiveCacheSettingsGroup = findViewById(R.id.receiveCacheSettingsGroup)
+        receiveFloatingSettingsToggleButton = findViewById(R.id.receiveFloatingSettingsToggleButton)
+        receiveCacheSettingsToggleButton = findViewById(R.id.receiveCacheSettingsToggleButton)
+        homeHeaderDetailGroup = findViewById(R.id.homeHeaderDetailGroup)
+        homeCollapsedSummaryText = findViewById(R.id.homeCollapsedSummaryText)
+        homeHeaderToggleButton = findViewById(R.id.homeHeaderToggleButton)
         serverBaseInput = findViewById(R.id.serverBaseInput)
         roomInput = findViewById(R.id.roomInput)
         roomPasswordInput = findViewById(R.id.roomPasswordInput)
@@ -114,6 +137,7 @@ class MainActivity : AppCompatActivity() {
         closeAfterStartSwitch = findViewById(R.id.closeAfterStartSwitch)
         removeTaskSwitch = findViewById(R.id.removeTaskSwitch)
         floatingConfirmSwitch = findViewById(R.id.floatingConfirmSwitch)
+        floatingCompactSwitch = findViewById(R.id.floatingCompactSwitch)
         floatingWidthInput = findViewById(R.id.floatingWidthInput)
         floatingHeightInput = findViewById(R.id.floatingHeightInput)
         floatingShowSecondsInput = findViewById(R.id.floatingShowSecondsInput)
@@ -135,7 +159,9 @@ class MainActivity : AppCompatActivity() {
         lastSyncText = findViewById(R.id.lastSyncText)
 
         bindBottomNav()
+        bindHomeHeader()
         bindConfig()
+        bindReceiveSection()
         maybeResumeSyncOnLaunch()
         findViewById<Button>(R.id.saveButton).setOnClickListener {
             val config = saveConfig()
@@ -173,16 +199,16 @@ class MainActivity : AppCompatActivity() {
             SyncService.stop(this)
         }
         findViewById<Button>(R.id.openReceivedButton).setOnClickListener {
-            startActivity(Intent(this, ReceivedPayloadActivity::class.java))
+            openReceivedActivity(Intent(this, ReceivedPayloadActivity::class.java))
         }
         findViewById<Button>(R.id.openPendingReceivedButton).setOnClickListener {
-            startActivity(ReceivedPayloadActivity.createIntent(this, ReceivedPayloadActivity.FilterMode.PENDING))
+            openReceivedActivity(ReceivedPayloadActivity.createIntent(this, ReceivedPayloadActivity.FilterMode.PENDING))
         }
         findViewById<Button>(R.id.openProcessedReceivedButton).setOnClickListener {
-            startActivity(ReceivedPayloadActivity.createIntent(this, ReceivedPayloadActivity.FilterMode.PROCESSED))
+            openReceivedActivity(ReceivedPayloadActivity.createIntent(this, ReceivedPayloadActivity.FilterMode.PROCESSED))
         }
         findViewById<Button>(R.id.openSnoozedReceivedButton).setOnClickListener {
-            startActivity(ReceivedPayloadActivity.createIntent(this, ReceivedPayloadActivity.FilterMode.SNOOZED))
+            openReceivedActivity(ReceivedPayloadActivity.createIntent(this, ReceivedPayloadActivity.FilterMode.SNOOZED))
         }
         findViewById<Button>(R.id.clearCacheButton).setOnClickListener {
             PayloadCacheStore.clearAll(this)
@@ -213,11 +239,13 @@ class MainActivity : AppCompatActivity() {
             }
         }
         findViewById<Button>(R.id.resetFloatingPositionButton).setOnClickListener {
+            saveReceiveSettings(refreshAfter = false)
             SettingsStore.resetFloatingPosition(this)
             refreshRuntimeHints()
             Toast.makeText(this, R.string.floating_position_reset_toast, Toast.LENGTH_SHORT).show()
         }
         findViewById<Button>(R.id.previewFloatingConfirmButton).setOnClickListener {
+            saveReceiveSettings(refreshAfter = false)
             if (!PermissionStatusHelper.read(this).overlayEnabled) {
                 Toast.makeText(this, R.string.preview_floating_confirm_permission_toast, Toast.LENGTH_SHORT).show()
                 openOverlaySettings()
@@ -232,6 +260,7 @@ class MainActivity : AppCompatActivity() {
             openOverlaySettings()
         }
         findViewById<Button>(R.id.openReceiveOverlaySettingsButton).setOnClickListener {
+            saveReceiveSettings(refreshAfter = false)
             openOverlaySettings()
         }
         findViewById<Button>(R.id.openAccessibilitySettingsButton).setOnClickListener {
@@ -248,7 +277,12 @@ class MainActivity : AppCompatActivity() {
         }
         autoConnectSwitch.setOnCheckedChangeListener { _, _ -> refreshRuntimeHints() }
         startOnBootSwitch.setOnCheckedChangeListener { _, _ -> refreshRuntimeHints() }
-        floatingConfirmSwitch.setOnCheckedChangeListener { _, _ -> refreshRuntimeHints() }
+        floatingConfirmSwitch.setOnCheckedChangeListener { _, _ ->
+            if (!suppressAutoSave) saveReceiveSettings()
+        }
+        floatingCompactSwitch.setOnCheckedChangeListener { _, _ ->
+            if (!suppressAutoSave) saveReceiveSettings()
+        }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
@@ -274,8 +308,14 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        saveReceiveSettings(refreshAfter = false)
         refreshPermissionSummary()
         maybeResumeSyncOnLaunch()
+    }
+
+    override fun onPause() {
+        saveReceiveSettings(refreshAfter = false)
+        super.onPause()
     }
 
     override fun onStop() {
@@ -284,7 +324,47 @@ class MainActivity : AppCompatActivity() {
         unregisterReceiver(payloadUpdateReceiver)
     }
 
+    private fun bindHomeHeader() {
+        homeHeaderToggleButton.setOnClickListener {
+            homeHeaderExpanded = !homeHeaderExpanded
+            updateHomeHeaderSummary()
+        }
+        updateHomeHeaderSummary()
+    }
+
+    private fun bindReceiveSection() {
+        receiveFloatingSettingsToggleButton.setOnClickListener {
+            receiveFloatingSettingsExpanded = !receiveFloatingSettingsExpanded
+            syncReceiveSectionToggles()
+        }
+        receiveCacheSettingsToggleButton.setOnClickListener {
+            receiveCacheSettingsExpanded = !receiveCacheSettingsExpanded
+            syncReceiveSectionToggles()
+        }
+        listOf(
+            floatingWidthInput,
+            floatingHeightInput,
+            floatingShowSecondsInput,
+            floatingSnoozeMinutesInput,
+            cacheRetentionInput,
+        ).forEach { input ->
+            input.setOnFocusChangeListener { _, hasFocus ->
+                if (!hasFocus) {
+                    saveReceiveSettings(refreshAfter = true)
+                }
+            }
+            input.doAfterTextChanged {
+                if (!suppressAutoSave) {
+                    refreshFloatingDraftSummary()
+                }
+            }
+        }
+        syncReceiveSectionToggles()
+        refreshFloatingDraftSummary()
+    }
+
     private fun bindConfig() {
+        suppressAutoSave = true
         val config = SettingsStore.load(this)
         serverBaseInput.setText(config.serverBase)
         roomInput.setText(config.room)
@@ -300,6 +380,7 @@ class MainActivity : AppCompatActivity() {
         closeAfterStartSwitch.isChecked = config.closeActivityAfterStart
         removeTaskSwitch.isChecked = config.removeTaskFromRecents
         floatingConfirmSwitch.isChecked = config.floatingEnabled
+        floatingCompactSwitch.isChecked = config.floatingCompactEnabled
         floatingWidthInput.setText(config.floatingWidthDp.toString())
         floatingHeightInput.setText(config.floatingHeightDp.toString())
         floatingShowSecondsInput.setText(config.floatingShowSeconds.toString())
@@ -307,8 +388,11 @@ class MainActivity : AppCompatActivity() {
         cacheRetentionInput.setText(config.cacheRetentionHours.toString())
         statusText.text = getString(R.string.status_idle)
         lastSyncText.text = getString(R.string.last_result_idle)
+        suppressAutoSave = false
         refreshPermissionSummary()
         refreshRuntimeHints()
+        refreshFloatingDraftSummary()
+        updateHomeHeaderSummary()
     }
 
     private fun maybeResumeSyncOnLaunch() {
@@ -353,6 +437,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun updateVisibleSection() {
+        homeHeaderCard.visibility = if (selectedTabIndex == TAB_CONNECTION) View.VISIBLE else View.GONE
         connectionSection.visibility = if (selectedTabIndex == TAB_CONNECTION) View.VISIBLE else View.GONE
         runtimeSection.visibility = if (selectedTabIndex == TAB_RUNTIME) View.VISIBLE else View.GONE
         permissionSection.visibility = if (selectedTabIndex == TAB_PERMISSIONS) View.VISIBLE else View.GONE
@@ -372,8 +457,9 @@ class MainActivity : AppCompatActivity() {
             closeActivityAfterStart = closeAfterStartSwitch.isChecked,
             removeTaskFromRecents = removeTaskSwitch.isChecked,
             floatingEnabled = floatingConfirmSwitch.isChecked,
-            floatingWidthDp = floatingWidthInput.text.toString().toIntOrNull()?.coerceIn(220, 420) ?: previous.floatingWidthDp,
-            floatingHeightDp = floatingHeightInput.text.toString().toIntOrNull()?.coerceIn(96, 220) ?: previous.floatingHeightDp,
+            floatingCompactEnabled = floatingCompactSwitch.isChecked,
+            floatingWidthDp = floatingWidthInput.text.toString().toIntOrNull()?.coerceIn(240, 420) ?: previous.floatingWidthDp,
+            floatingHeightDp = floatingHeightInput.text.toString().toIntOrNull()?.coerceIn(100, 240) ?: previous.floatingHeightDp,
             floatingPosX = previous.floatingPosX,
             floatingPosY = previous.floatingPosY,
             floatingShowSeconds = floatingShowSecondsInput.text.toString().toIntOrNull()?.coerceIn(5, 60) ?: previous.floatingShowSeconds,
@@ -390,6 +476,28 @@ class MainActivity : AppCompatActivity() {
         R.id.clipboardModeAccessibility -> SettingsStore.CLIPBOARD_MODE_ACCESSIBILITY
         R.id.clipboardModeShizuku -> SettingsStore.CLIPBOARD_MODE_SHIZUKU
         else -> SettingsStore.CLIPBOARD_MODE_FOREGROUND
+    }
+
+    private fun saveReceiveSettings(refreshAfter: Boolean = true) {
+        if (suppressAutoSave) {
+            return
+        }
+        val previous = SettingsStore.load(this)
+        val updated = previous.copy(
+            floatingEnabled = floatingConfirmSwitch.isChecked,
+            floatingCompactEnabled = floatingCompactSwitch.isChecked,
+            floatingWidthDp = floatingWidthInput.text.toString().toIntOrNull()?.coerceIn(240, 420) ?: previous.floatingWidthDp,
+            floatingHeightDp = floatingHeightInput.text.toString().toIntOrNull()?.coerceIn(100, 240) ?: previous.floatingHeightDp,
+            floatingShowSeconds = floatingShowSecondsInput.text.toString().toIntOrNull()?.coerceIn(5, 60) ?: previous.floatingShowSeconds,
+            floatingSnoozeMinutes = floatingSnoozeMinutesInput.text.toString().toIntOrNull()?.coerceIn(1, 180) ?: previous.floatingSnoozeMinutes,
+            cacheRetentionHours = cacheRetentionInput.text.toString().toIntOrNull()?.coerceAtLeast(1) ?: previous.cacheRetentionHours,
+        )
+        SettingsStore.save(this, updated)
+        if (refreshAfter) {
+            refreshRuntimeHints()
+        } else {
+            refreshFloatingDraftSummary()
+        }
     }
 
     private fun isLoopbackServerBase(serverBase: String): Boolean {
@@ -442,6 +550,12 @@ class MainActivity : AppCompatActivity() {
             config.floatingHeightDp,
             config.floatingShowSeconds,
             config.floatingSnoozeMinutes,
+        ) + "\n" + getString(
+            if (config.floatingCompactEnabled) {
+                R.string.floating_layout_compact_on
+            } else {
+                R.string.floating_layout_compact_off
+            },
         )
         val overlayReady = config.floatingEnabled && status.overlayEnabled
         bindStatusBadge(
@@ -453,9 +567,77 @@ class MainActivity : AppCompatActivity() {
         receiveOverlaySummaryText.text = when {
             !config.floatingEnabled -> getString(R.string.receive_overlay_disabled_summary)
             !status.overlayEnabled -> getString(R.string.receive_overlay_permission_summary)
-            else -> getString(R.string.receive_overlay_ready_summary)
+            config.floatingCompactEnabled -> getString(R.string.receive_overlay_ready_summary) + "\n当前已启用紧凑卡片，会优先显示标题和操作按钮。"
+            else -> getString(R.string.receive_overlay_ready_summary) + "\n当前使用详细卡片，会显示来源、大小和操作提示。"
         }
         receiveCacheSummaryText.text = buildReceiveCacheSummary()
+        refreshFloatingDraftSummary()
+        updateHomeHeaderSummary()
+    }
+
+    private fun refreshFloatingDraftSummary() {
+        val stored = SettingsStore.load(this)
+        val width = floatingWidthInput.text.toString().toIntOrNull()?.coerceIn(240, 420) ?: stored.floatingWidthDp
+        val height = floatingHeightInput.text.toString().toIntOrNull()?.coerceIn(100, 240) ?: stored.floatingHeightDp
+        val showSeconds = floatingShowSecondsInput.text.toString().toIntOrNull()?.coerceIn(5, 60) ?: stored.floatingShowSeconds
+        val snoozeMinutes = floatingSnoozeMinutesInput.text.toString().toIntOrNull()?.coerceIn(1, 180) ?: stored.floatingSnoozeMinutes
+        val compactLabel = getString(
+            if (floatingCompactSwitch.isChecked) R.string.floating_layout_compact_on else R.string.floating_layout_compact_off,
+        )
+        floatingLayoutSummaryText.text = getString(
+            R.string.floating_layout_summary_format,
+            stored.floatingPosX,
+            stored.floatingPosY,
+            width,
+            height,
+            showSeconds,
+            snoozeMinutes,
+        ) + "\n" + compactLabel
+    }
+
+    private fun syncReceiveSectionToggles() {
+        receiveFloatingSettingsGroup.visibility = if (receiveFloatingSettingsExpanded) View.VISIBLE else View.GONE
+        receiveCacheSettingsGroup.visibility = if (receiveCacheSettingsExpanded) View.VISIBLE else View.GONE
+        receiveFloatingSettingsToggleButton.text = getString(
+            if (receiveFloatingSettingsExpanded) {
+                R.string.receive_section_collapse_floating
+            } else {
+                R.string.receive_section_expand_floating
+            },
+        )
+        receiveCacheSettingsToggleButton.text = getString(
+            if (receiveCacheSettingsExpanded) {
+                R.string.receive_section_collapse_cache
+            } else {
+                R.string.receive_section_expand_cache
+            },
+        )
+    }
+
+    private fun updateHomeHeaderSummary() {
+        val config = SettingsStore.load(this)
+        val compactStatus = statusText.text?.toString()?.trim().orEmpty().ifBlank { getString(R.string.status_idle) }
+        val roomLabel = config.room.ifBlank { getString(R.string.default_room_label) }
+        val receiveMode = if (config.floatingEnabled) {
+            getString(R.string.home_receive_mode_floating)
+        } else {
+            getString(R.string.home_receive_mode_notification)
+        }
+        homeCollapsedSummaryText.text = getString(R.string.home_collapsed_summary_format, compactStatus, roomLabel, receiveMode)
+        homeCollapsedSummaryText.visibility = if (homeHeaderExpanded) View.GONE else View.VISIBLE
+        homeHeaderDetailGroup.visibility = if (homeHeaderExpanded) View.VISIBLE else View.GONE
+        homeHeaderToggleButton.text = getString(
+            if (homeHeaderExpanded) R.string.home_collapse_button else R.string.home_expand_button,
+        )
+    }
+
+    private fun openReceivedActivity(intent: Intent) {
+        runCatching {
+            startActivity(intent)
+        }.onFailure { error ->
+            lastSyncText.text = error.message ?: getString(R.string.received_page_open_failed)
+            Toast.makeText(this, R.string.received_page_open_failed, Toast.LENGTH_LONG).show()
+        }
     }
 
     private fun handleRuntimeModeQuickAction() {

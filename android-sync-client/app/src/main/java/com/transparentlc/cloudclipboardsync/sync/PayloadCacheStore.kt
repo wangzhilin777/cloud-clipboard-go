@@ -207,14 +207,20 @@ object PayloadCacheStore {
     }
 
     private fun loadEntries(context: Context): List<PayloadEntry> {
-        val raw = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            .getString(KEY_PAYLOADS, "[]")
-            ?: "[]"
-        val array = JSONArray(raw)
-        return buildList(array.length()) {
-            for (index in 0 until array.length()) {
-                add(PayloadEntry.fromJson(array.getJSONObject(index)))
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val raw = prefs.getString(KEY_PAYLOADS, "[]") ?: "[]"
+        return runCatching {
+            val array = JSONArray(raw)
+            buildList(array.length()) {
+                for (index in 0 until array.length()) {
+                    runCatching {
+                        PayloadEntry.fromJson(array.getJSONObject(index))
+                    }.getOrNull()?.let(::add)
+                }
             }
+        }.getOrElse {
+            prefs.edit().remove(KEY_PAYLOADS).apply()
+            emptyList()
         }
     }
 

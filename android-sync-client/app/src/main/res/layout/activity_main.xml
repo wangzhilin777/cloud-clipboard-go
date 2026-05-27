@@ -7,6 +7,7 @@
     android:orientation="vertical">
 
     <LinearLayout
+        android:id="@+id/homeHeaderCard"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginStart="16dp"
@@ -16,17 +17,36 @@
         android:orientation="vertical"
         android:padding="22dp">
 
-        <TextView
-            android:layout_width="wrap_content"
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:background="@drawable/status_badge_background"
-            android:paddingStart="10dp"
-            android:paddingTop="5dp"
-            android:paddingEnd="10dp"
-            android:paddingBottom="5dp"
-            android:text="@string/home_badge"
-            android:textAppearance="@style/TextAppearance.MaterialComponents.Caption"
-            android:textColor="@android:color/white" />
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="@drawable/status_badge_background"
+                android:paddingStart="10dp"
+                android:paddingTop="5dp"
+                android:paddingEnd="10dp"
+                android:paddingBottom="5dp"
+                android:text="@string/home_badge"
+                android:textAppearance="@style/TextAppearance.MaterialComponents.Caption"
+                android:textColor="@android:color/white" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/homeHeaderToggleButton"
+                style="@style/Widget.MaterialComponents.Button.TextButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:insetTop="0dp"
+                android:insetBottom="0dp"
+                android:minWidth="0dp"
+                android:text="@string/home_expand_button"
+                android:textColor="@android:color/white" />
+        </LinearLayout>
 
         <TextView
             android:layout_width="match_parent"
@@ -38,77 +58,93 @@
             android:textStyle="bold" />
 
         <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:text="@string/home_subtitle"
-            android:textAppearance="@style/TextAppearance.MaterialComponents.Body2"
-            android:textColor="#E8F1FF" />
-
-        <TextView
+            android:id="@+id/homeCollapsedSummaryText"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="10dp"
-            android:text="@string/home_quick_tip"
-            android:textAppearance="@style/TextAppearance.MaterialComponents.Caption"
-            android:textColor="#D4E5FF" />
+            android:textAppearance="@style/TextAppearance.MaterialComponents.Body2"
+            android:textColor="#E8F1FF" />
 
         <LinearLayout
+            android:id="@+id/homeHeaderDetailGroup"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="18dp"
-            android:orientation="horizontal">
+            android:layout_marginTop="8dp"
+            android:orientation="vertical"
+            android:visibility="gone">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/home_subtitle"
+                android:textAppearance="@style/TextAppearance.MaterialComponents.Body2"
+                android:textColor="#E8F1FF" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:text="@string/home_quick_tip"
+                android:textAppearance="@style/TextAppearance.MaterialComponents.Caption"
+                android:textColor="#D4E5FF" />
 
             <LinearLayout
-                android:layout_width="0dp"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:background="@drawable/status_metric_background"
-                android:orientation="vertical"
-                android:padding="14dp">
+                android:layout_marginTop="18dp"
+                android:orientation="horizontal">
 
-                <TextView
-                    android:layout_width="wrap_content"
+                <LinearLayout
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:text="@string/status_label"
-                    android:textAppearance="@style/TextAppearance.MaterialComponents.Caption"
-                    android:textColor="#CDE0FF" />
+                    android:layout_weight="1"
+                    android:background="@drawable/status_metric_background"
+                    android:orientation="vertical"
+                    android:padding="14dp">
 
-                <TextView
-                    android:id="@+id/statusText"
-                    android:layout_width="wrap_content"
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/status_label"
+                        android:textAppearance="@style/TextAppearance.MaterialComponents.Caption"
+                        android:textColor="#CDE0FF" />
+
+                    <TextView
+                        android:id="@+id/statusText"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="6dp"
+                        android:text="@string/status_idle"
+                        android:textAppearance="@style/TextAppearance.MaterialComponents.Subtitle1"
+                        android:textColor="@android:color/white"
+                        android:textStyle="bold" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="6dp"
-                    android:text="@string/status_idle"
-                    android:textAppearance="@style/TextAppearance.MaterialComponents.Subtitle1"
-                    android:textColor="@android:color/white"
-                    android:textStyle="bold" />
-            </LinearLayout>
+                    android:layout_marginStart="12dp"
+                    android:layout_weight="1.35"
+                    android:background="@drawable/status_metric_background"
+                    android:orientation="vertical"
+                    android:padding="14dp">
 
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="12dp"
-                android:layout_weight="1.35"
-                android:background="@drawable/status_metric_background"
-                android:orientation="vertical"
-                android:padding="14dp">
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/last_result_label"
+                        android:textAppearance="@style/TextAppearance.MaterialComponents.Caption"
+                        android:textColor="#CDE0FF" />
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/last_result_label"
-                    android:textAppearance="@style/TextAppearance.MaterialComponents.Caption"
-                    android:textColor="#CDE0FF" />
-
-                <TextView
-                    android:id="@+id/lastSyncText"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="6dp"
-                    android:text="@string/last_result_idle"
-                    android:textAppearance="@style/TextAppearance.MaterialComponents.Body2"
-                    android:textColor="@android:color/white" />
+                    <TextView
+                        android:id="@+id/lastSyncText"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="6dp"
+                        android:text="@string/last_result_idle"
+                        android:textAppearance="@style/TextAppearance.MaterialComponents.Body2"
+                        android:textColor="@android:color/white" />
+                </LinearLayout>
             </LinearLayout>
         </LinearLayout>
     </LinearLayout>
@@ -370,7 +406,7 @@
                         android:textColor="@color/cc_primary"
                         app:strokeColor="@color/cc_primary_soft" />
 
-                    <com.google.android.material.materialswitch.MaterialSwitch
+                    <com.google.android.material.checkbox.MaterialCheckBox
                         android:id="@+id/autoConnectSwitch"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
@@ -378,7 +414,7 @@
                         android:text="@string/auto_connect_switch"
                         android:textColor="@color/cc_text" />
 
-                    <com.google.android.material.materialswitch.MaterialSwitch
+                    <com.google.android.material.checkbox.MaterialCheckBox
                         android:id="@+id/startOnBootSwitch"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
@@ -386,7 +422,7 @@
                         android:text="@string/start_on_boot_switch"
                         android:textColor="@color/cc_text" />
 
-                    <com.google.android.material.materialswitch.MaterialSwitch
+                    <com.google.android.material.checkbox.MaterialCheckBox
                         android:id="@+id/closeAfterStartSwitch"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
@@ -394,7 +430,7 @@
                         android:text="@string/close_after_start_switch"
                         android:textColor="@color/cc_text" />
 
-                    <com.google.android.material.materialswitch.MaterialSwitch
+                    <com.google.android.material.checkbox.MaterialCheckBox
                         android:id="@+id/removeTaskSwitch"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
@@ -591,12 +627,20 @@
                         android:textAppearance="@style/TextAppearance.MaterialComponents.Body2"
                         android:textColor="@color/cc_text_muted" />
 
-                    <com.google.android.material.materialswitch.MaterialSwitch
+                    <com.google.android.material.checkbox.MaterialCheckBox
                         android:id="@+id/floatingConfirmSwitch"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="16dp"
                         android:text="@string/floating_confirm_switch"
+                        android:textColor="@color/cc_text" />
+
+                    <com.google.android.material.checkbox.MaterialCheckBox
+                        android:id="@+id/floatingCompactSwitch"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:text="@string/floating_compact_switch"
                         android:textColor="@color/cc_text" />
 
                     <com.google.android.material.button.MaterialButton
@@ -609,225 +653,268 @@
                         android:textColor="@color/cc_primary"
                         app:strokeColor="@color/cc_primary_soft" />
 
-                    <TextView
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="16dp"
-                        android:text="@string/floating_size_title"
-                        android:textAppearance="@style/TextAppearance.MaterialComponents.Subtitle2"
-                        android:textColor="@color/cc_text"
-                        android:textStyle="bold" />
-
-                    <TextView
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="6dp"
-                        android:text="@string/floating_size_desc"
-                        android:textAppearance="@style/TextAppearance.MaterialComponents.Body2"
-                        android:textColor="@color/cc_text_muted" />
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="14dp"
-                        android:orientation="horizontal">
-
-                        <com.google.android.material.textfield.TextInputLayout
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:hint="@string/floating_width_hint">
-
-                            <com.google.android.material.textfield.TextInputEditText
-                                android:id="@+id/floatingWidthInput"
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:inputType="number" />
-                        </com.google.android.material.textfield.TextInputLayout>
-
-                        <com.google.android.material.textfield.TextInputLayout
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:hint="@string/floating_height_hint">
-
-                            <com.google.android.material.textfield.TextInputEditText
-                                android:id="@+id/floatingHeightInput"
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:inputType="number" />
-                        </com.google.android.material.textfield.TextInputLayout>
-
-                        <com.google.android.material.textfield.TextInputLayout
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_marginStart="12dp"
-                            android:layout_weight="1"
-                            android:hint="@string/floating_seconds_hint">
-
-                            <com.google.android.material.textfield.TextInputEditText
-                                android:id="@+id/floatingShowSecondsInput"
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:inputType="number" />
-                        </com.google.android.material.textfield.TextInputLayout>
-
-                        <com.google.android.material.textfield.TextInputLayout
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_marginStart="12dp"
-                            android:layout_weight="1"
-                            android:hint="@string/floating_snooze_hint">
-
-                            <com.google.android.material.textfield.TextInputEditText
-                                android:id="@+id/floatingSnoozeMinutesInput"
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:inputType="number" />
-                        </com.google.android.material.textfield.TextInputLayout>
-                    </LinearLayout>
-
-                    <TextView
-                        android:id="@+id/floatingLayoutSummaryText"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="12dp"
-                        android:background="@drawable/content_panel_background"
-                        android:padding="14dp"
-                        android:textAppearance="@style/TextAppearance.MaterialComponents.Body2"
-                        android:textColor="@color/cc_text_muted" />
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="12dp"
-                        android:orientation="horizontal">
-
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/previewFloatingConfirmButton"
-                            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:text="@string/preview_floating_confirm_button"
-                            android:textColor="@color/cc_primary"
-                            app:strokeColor="@color/cc_primary_soft" />
-
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/resetFloatingPositionButton"
-                            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_marginStart="12dp"
-                            android:layout_weight="1"
-                            android:text="@string/reset_floating_position_button"
-                            android:textColor="@color/cc_primary"
-                            app:strokeColor="@color/cc_primary_soft" />
-                    </LinearLayout>
-
-                    <com.google.android.material.textfield.TextInputLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="14dp"
-                        android:hint="@string/cache_retention_hint">
-
-                        <com.google.android.material.textfield.TextInputEditText
-                            android:id="@+id/cacheRetentionInput"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:inputType="number" />
-                    </com.google.android.material.textfield.TextInputLayout>
-
-                    <TextView
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/receiveFloatingSettingsToggleButton"
+                        style="@style/Widget.MaterialComponents.Button.TextButton"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="8dp"
-                        android:text="@string/cache_retention_tip"
-                        android:textAppearance="@style/TextAppearance.MaterialComponents.Caption"
-                        android:textColor="@color/cc_text_muted" />
-
-                    <TextView
-                        android:id="@+id/receiveCacheSummaryText"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="12dp"
-                        android:background="@drawable/content_panel_background"
-                        android:padding="14dp"
-                        android:text="@string/receive_cache_summary_placeholder"
-                        android:textAppearance="@style/TextAppearance.MaterialComponents.Body2"
-                        android:textColor="@color/cc_text_muted" />
-
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/openReceivedButton"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="16dp"
-                        android:backgroundTint="@color/cc_secondary"
-                        android:text="@string/open_received_button" />
+                        android:gravity="start|center_vertical"
+                        android:text="@string/receive_section_expand_floating"
+                        android:textColor="@color/cc_primary" />
 
                     <LinearLayout
+                        android:id="@+id/receiveFloatingSettingsGroup"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="12dp"
-                        android:orientation="horizontal">
+                        android:orientation="vertical"
+                        android:visibility="gone">
 
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/openPendingReceivedButton"
-                            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-                            android:layout_width="0dp"
+                        <TextView
+                            android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:text="@string/open_pending_received_button"
-                            android:textColor="@color/cc_primary"
-                            app:strokeColor="@color/cc_primary_soft" />
+                            android:layout_marginTop="12dp"
+                            android:text="@string/floating_size_title"
+                            android:textAppearance="@style/TextAppearance.MaterialComponents.Subtitle2"
+                            android:textColor="@color/cc_text"
+                            android:textStyle="bold" />
 
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/openProcessedReceivedButton"
-                            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-                            android:layout_width="0dp"
+                        <TextView
+                            android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:layout_marginStart="12dp"
-                            android:layout_weight="1"
-                            android:text="@string/open_processed_received_button"
-                            android:textColor="@color/cc_primary"
-                            app:strokeColor="@color/cc_primary_soft" />
+                            android:layout_marginTop="6dp"
+                            android:text="@string/floating_size_desc"
+                            android:textAppearance="@style/TextAppearance.MaterialComponents.Body2"
+                            android:textColor="@color/cc_text_muted" />
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="14dp"
+                            android:orientation="horizontal">
+
+                            <com.google.android.material.textfield.TextInputLayout
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:hint="@string/floating_width_hint">
+
+                                <com.google.android.material.textfield.TextInputEditText
+                                    android:id="@+id/floatingWidthInput"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:inputType="number" />
+                            </com.google.android.material.textfield.TextInputLayout>
+
+                            <com.google.android.material.textfield.TextInputLayout
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="12dp"
+                                android:layout_weight="1"
+                                android:hint="@string/floating_height_hint">
+
+                                <com.google.android.material.textfield.TextInputEditText
+                                    android:id="@+id/floatingHeightInput"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:inputType="number" />
+                            </com.google.android.material.textfield.TextInputLayout>
+                        </LinearLayout>
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="12dp"
+                            android:orientation="horizontal">
+
+                            <com.google.android.material.textfield.TextInputLayout
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:hint="@string/floating_seconds_hint">
+
+                                <com.google.android.material.textfield.TextInputEditText
+                                    android:id="@+id/floatingShowSecondsInput"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:inputType="number" />
+                            </com.google.android.material.textfield.TextInputLayout>
+
+                            <com.google.android.material.textfield.TextInputLayout
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="12dp"
+                                android:layout_weight="1"
+                                android:hint="@string/floating_snooze_hint">
+
+                                <com.google.android.material.textfield.TextInputEditText
+                                    android:id="@+id/floatingSnoozeMinutesInput"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:inputType="number" />
+                            </com.google.android.material.textfield.TextInputLayout>
+                        </LinearLayout>
+
+                        <TextView
+                            android:id="@+id/floatingLayoutSummaryText"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="12dp"
+                            android:background="@drawable/content_panel_background"
+                            android:padding="14dp"
+                            android:textAppearance="@style/TextAppearance.MaterialComponents.Body2"
+                            android:textColor="@color/cc_text_muted" />
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="12dp"
+                            android:orientation="horizontal">
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/previewFloatingConfirmButton"
+                                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:text="@string/preview_floating_confirm_button"
+                                android:textColor="@color/cc_primary"
+                                app:strokeColor="@color/cc_primary_soft" />
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/resetFloatingPositionButton"
+                                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="12dp"
+                                android:layout_weight="1"
+                                android:text="@string/reset_floating_position_button"
+                                android:textColor="@color/cc_primary"
+                                app:strokeColor="@color/cc_primary_soft" />
+                        </LinearLayout>
                     </LinearLayout>
 
                     <com.google.android.material.button.MaterialButton
-                        android:id="@+id/openSnoozedReceivedButton"
-                        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="12dp"
-                        android:text="@string/open_snoozed_received_button"
-                        android:textColor="@color/cc_primary"
-                        app:strokeColor="@color/cc_primary_soft" />
-
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/clearCacheButton"
-                        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="12dp"
-                        android:text="@string/clear_cache_button"
-                        android:textColor="@color/cc_primary"
-                        app:strokeColor="@color/cc_primary_soft" />
-
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/clearProcessedCacheButton"
+                        android:id="@+id/receiveCacheSettingsToggleButton"
                         style="@style/Widget.MaterialComponents.Button.TextButton"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="@string/clear_processed_cache_button"
-                        android:textColor="@color/cc_text_muted" />
+                        android:layout_marginTop="8dp"
+                        android:gravity="start|center_vertical"
+                        android:text="@string/receive_section_expand_cache"
+                        android:textColor="@color/cc_primary" />
 
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/restoreSnoozedButton"
-                        style="@style/Widget.MaterialComponents.Button.TextButton"
+                    <LinearLayout
+                        android:id="@+id/receiveCacheSettingsGroup"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="@string/restore_snoozed_button"
-                        android:textColor="@color/cc_text_muted" />
+                        android:orientation="vertical"
+                        android:visibility="gone">
+
+                        <com.google.android.material.textfield.TextInputLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="12dp"
+                            android:hint="@string/cache_retention_hint">
+
+                            <com.google.android.material.textfield.TextInputEditText
+                                android:id="@+id/cacheRetentionInput"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:inputType="number" />
+                        </com.google.android.material.textfield.TextInputLayout>
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:text="@string/cache_retention_tip"
+                            android:textAppearance="@style/TextAppearance.MaterialComponents.Caption"
+                            android:textColor="@color/cc_text_muted" />
+
+                        <TextView
+                            android:id="@+id/receiveCacheSummaryText"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="12dp"
+                            android:background="@drawable/content_panel_background"
+                            android:padding="14dp"
+                            android:text="@string/receive_cache_summary_placeholder"
+                            android:textAppearance="@style/TextAppearance.MaterialComponents.Body2"
+                            android:textColor="@color/cc_text_muted" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/openReceivedButton"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="16dp"
+                            android:backgroundTint="@color/cc_secondary"
+                            android:text="@string/open_received_button" />
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="12dp"
+                            android:orientation="horizontal">
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/openPendingReceivedButton"
+                                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:text="@string/open_pending_received_button"
+                                android:textColor="@color/cc_primary"
+                                app:strokeColor="@color/cc_primary_soft" />
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/openProcessedReceivedButton"
+                                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="12dp"
+                                android:layout_weight="1"
+                                android:text="@string/open_processed_received_button"
+                                android:textColor="@color/cc_primary"
+                                app:strokeColor="@color/cc_primary_soft" />
+                        </LinearLayout>
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/openSnoozedReceivedButton"
+                            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="12dp"
+                            android:text="@string/open_snoozed_received_button"
+                            android:textColor="@color/cc_primary"
+                            app:strokeColor="@color/cc_primary_soft" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/clearCacheButton"
+                            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="12dp"
+                            android:text="@string/clear_cache_button"
+                            android:textColor="@color/cc_primary"
+                            app:strokeColor="@color/cc_primary_soft" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/clearProcessedCacheButton"
+                            style="@style/Widget.MaterialComponents.Button.TextButton"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="@string/clear_processed_cache_button"
+                            android:textColor="@color/cc_text_muted" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/restoreSnoozedButton"
+                            style="@style/Widget.MaterialComponents.Button.TextButton"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="@string/restore_snoozed_button"
+                            android:textColor="@color/cc_text_muted" />
+                    </LinearLayout>
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
         </LinearLayout>

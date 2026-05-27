@@ -84,7 +84,7 @@ class SyncService : Service() {
         }
         when (intent?.action) {
             ACTION_CONFIRM_PAYLOAD -> intent.getStringExtra(EXTRA_PAYLOAD_ID)?.let(::confirmPayloadDownload)
-            ACTION_ACCESSIBILITY_PULSE -> publishLocalClipboardIfNeeded("accessibility")
+            ACTION_ACCESSIBILITY_PULSE -> handleAccessibilityPulse(intent)
         }
         if (!serviceStarted) {
             startForeground(NOTIFICATION_ID, buildNotification(getString(R.string.status_connecting)))
@@ -221,21 +221,47 @@ class SyncService : Service() {
         handler.postDelayed({ applyingRemoteText = false }, 1500)
     }
 
-    private fun publishLocalClipboardIfNeeded(source: String) {
-        if (applyingRemoteText || !trusted) return
-        val clip = clipboardManager.primaryClip ?: return
-        if (clip.itemCount <= 0) return
+    private fun publishLocalClipboardIfNeeded(source: String): Boolean {
+        if (applyingRemoteText || !trusted) return false
+        val clip = clipboardManager.primaryClip ?: return false
+        if (clip.itemCount <= 0) return false
         val text = clip.getItemAt(0).coerceToText(this)?.toString().orEmpty().trim()
-        if (text.isBlank()) return
-        if (text == lastObservedLocalText && source == "poll") return
+        if (text.isBlank()) return false
+        if (text == lastObservedLocalText && source == "poll") return false
         lastObservedLocalText = text
         val now = System.currentTimeMillis()
-        if (text == lastRemoteText && now - lastRemoteAt < 5_000) return
-        if (text == lastPublishedText && now - lastPublishedAt < 2_000) return
+        if (text == lastRemoteText && now - lastRemoteAt < 5_000) return false
+        if (text == lastPublishedText && now - lastPublishedAt < 2_000) return false
         lastPublishedText = text
         lastPublishedAt = now
         client?.publishText(text)
         broadcastStatus(getString(R.string.status_trusted), "已推送本地文本到服务端")
+        return true
+    }
+
+    private fun handleAccessibilityPulse(intent: Intent) {
+        val sourcePackage = intent.getStringExtra(EXTRA_ACCESSIBILITY_PACKAGE).orEmpty()
+        val reason = intent.getStringExtra(EXTRA_ACCESSIBILITY_REASON).orEmpty()
+        if (!trusted) {
+            broadcastStatus(currentStatus(), "无障碍补检查已触发，但设备还未获批准")
+            return
+        }
+        val published = publishLocalClipboardIfNeeded("accessibility")
+        if (published) {
+            return
+        }
+        val detail = buildString {
+            append("无障碍补检查已触发，但没有读取到新的剪贴板")
+            if (sourcePackage.isNotBlank()) {
+                append(" · 来源 ")
+                append(sourcePackage)
+            }
+            if (reason.isNotBlank()) {
+                append(" · ")
+                append(reason.take(60))
+            }
+        }
+        broadcastStatus(currentStatus(), detail)
     }
 
     private fun currentStatus(): String = when {
@@ -427,6 +453,8 @@ class SyncService : Service() {
         const val EXTRA_STATUS = "extra_status"
         const val EXTRA_LAST_RESULT = "extra_last_result"
         const val EXTRA_PAYLOAD_ID = "extra_payload_id"
+        private const val EXTRA_ACCESSIBILITY_PACKAGE = "extra_accessibility_package"
+        private const val EXTRA_ACCESSIBILITY_REASON = "extra_accessibility_reason"
 
         private const val ACTION_CONFIRM_PAYLOAD = "com.transparentlc.cloudclipboardsync.action.CONFIRM_PAYLOAD"
         private const val ACTION_ACCESSIBILITY_PULSE = "com.transparentlc.cloudclipboardsync.action.ACCESSIBILITY_PULSE"
@@ -454,10 +482,13 @@ class SyncService : Service() {
             )
         }
 
-        fun requestAccessibilityPulse(context: Context) {
+        fun requestAccessibilityPulse(context: Context, sourcePackage: String, reason: String) {
             ContextCompat.startForegroundService(
                 context,
-                Intent(context, SyncService::class.java).setAction(ACTION_ACCESSIBILITY_PULSE),
+                Intent(context, SyncService::class.java)
+                    .setAction(ACTION_ACCESSIBILITY_PULSE)
+                    .putExtra(EXTRA_ACCESSIBILITY_PACKAGE, sourcePackage)
+                    .putExtra(EXTRA_ACCESSIBILITY_REASON, reason),
             )
         }
 

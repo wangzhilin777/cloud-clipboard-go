@@ -34,11 +34,11 @@ func main() {
 		notifier := app.BuildNotifier(cfg, logger, *configPath)
 		message, err := runShellAction(logger, cfg, *shellSend, *shellDownloadDir, *shellFetchLatestFile)
 		if err != nil {
-			notifier.Notify("Cloud Clipboard", "右键动作失败："+err.Error())
+			notifier.Notify("云剪同步", "右键动作失败："+err.Error())
 			logger.Fatalf("执行右键动作失败: %v", err)
 		}
 		if cfg.SuccessNoticeEnabled && message != "" {
-			notifier.Notify("Cloud Clipboard", message)
+			notifier.Notify("云剪同步", message)
 		}
 		return
 	}

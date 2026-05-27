@@ -107,21 +107,36 @@ class FloatingConfirmService : Service() {
         val snoozeMinutes = config.floatingSnoozeMinutes.coerceAtLeast(1)
         val snoozeDurationMs = snoozeMinutes * 60_000L
         val root = LayoutInflater.from(this).inflate(R.layout.view_floating_confirm, null)
-        root.findViewById<TextView>(R.id.floatingBadgeText).text = pendingBadgeText()
-        root.findViewById<TextView>(R.id.floatingTitleText).text = entry.title
-        root.findViewById<TextView>(R.id.floatingMetaText).text = getString(
+        val badgeText = root.findViewById<TextView>(R.id.floatingBadgeText)
+        val titleText = root.findViewById<TextView>(R.id.floatingTitleText)
+        val metaText = root.findViewById<TextView>(R.id.floatingMetaText)
+        val sourceText = root.findViewById<TextView>(R.id.floatingSourceText)
+        val hintText = root.findViewById<TextView>(R.id.floatingActionHintText)
+        val closeButton = root.findViewById<TextView>(R.id.floatingCloseButton)
+        val confirmButton = root.findViewById<Button>(R.id.floatingConfirmButton)
+        val openButton = root.findViewById<Button>(R.id.floatingOpenButton)
+        val ignoreButton = root.findViewById<Button>(R.id.floatingIgnoreButton)
+        val ignoreAllButton = root.findViewById<Button>(R.id.floatingIgnoreAllButton)
+
+        badgeText.text = pendingBadgeText()
+        titleText.text = entry.title
+        metaText.text = getString(
             R.string.floating_meta_format,
             describeKind(entry.kind),
             entry.size.sizeLabel(),
         )
-        root.findViewById<TextView>(R.id.floatingSourceText).text = getString(
+        sourceText.text = getString(
             R.string.floating_source_format,
             entry.sourceDeviceId.ifBlank { getString(R.string.floating_source_unknown_device) },
             entry.room.ifBlank { getString(R.string.floating_source_default_room) },
         )
-        root.findViewById<TextView>(R.id.floatingActionHintText).text = buildActionHint()
-        root.findViewById<Button>(R.id.floatingConfirmButton).apply {
-            text = getString(R.string.floating_confirm_button)
+        hintText.text = buildActionHint()
+        closeButton.setOnClickListener { dismissCurrent(showNext = true) }
+        applyCompactMode(config, metaText, sourceText, hintText)
+        confirmButton.apply {
+            text = getString(
+                if (config.floatingCompactEnabled) R.string.floating_compact_confirm_button else R.string.floating_confirm_button,
+            )
             setOnClickListener {
                 PayloadCacheStore.clearSnooze(this@FloatingConfirmService, entry.payloadId)
                 SyncService.confirmPayload(this@FloatingConfirmService, entry.payloadId)
@@ -129,16 +144,22 @@ class FloatingConfirmService : Service() {
                 dismissCurrent(showNext = true)
             }
         }
-        root.findViewById<Button>(R.id.floatingOpenButton).apply {
-            text = getString(R.string.floating_open_button)
+        openButton.apply {
+            text = getString(
+                if (config.floatingCompactEnabled) R.string.floating_compact_open_button else R.string.floating_open_button,
+            )
             setOnClickListener {
                 PayloadCacheStore.clearSnooze(this@FloatingConfirmService, entry.payloadId)
                 openReceivedPage(entry.payloadId)
                 dismissCurrent(showNext = true)
             }
         }
-        root.findViewById<Button>(R.id.floatingIgnoreButton).apply {
-            text = getString(R.string.floating_ignore_button_minutes, snoozeMinutes)
+        ignoreButton.apply {
+            text = if (config.floatingCompactEnabled) {
+                getString(R.string.floating_compact_ignore_button)
+            } else {
+                getString(R.string.floating_ignore_button_minutes, snoozeMinutes)
+            }
             setOnClickListener {
                 PayloadCacheStore.markSnoozed(
                     this@FloatingConfirmService,
@@ -148,8 +169,12 @@ class FloatingConfirmService : Service() {
                 dismissCurrent(showNext = true)
             }
         }
-        root.findViewById<Button>(R.id.floatingIgnoreAllButton).apply {
-            text = getString(R.string.floating_ignore_all_button_minutes, snoozeMinutes)
+        ignoreAllButton.apply {
+            text = if (config.floatingCompactEnabled) {
+                getString(R.string.floating_compact_ignore_all_button)
+            } else {
+                getString(R.string.floating_ignore_all_button_minutes, snoozeMinutes)
+            }
             setOnClickListener {
                 val snoozedUntil = System.currentTimeMillis() + snoozeDurationMs
                 pendingPayloadIds.forEach { payloadId ->
@@ -163,7 +188,7 @@ class FloatingConfirmService : Service() {
 
         val params = WindowManager.LayoutParams(
             dp(config.floatingWidthDp),
-            dp(config.floatingHeightDp).coerceAtLeast(WindowManager.LayoutParams.WRAP_CONTENT),
+            WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
                 WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
@@ -173,6 +198,7 @@ class FloatingConfirmService : Service() {
             x = config.floatingPosX
             y = config.floatingPosY
         }
+        root.minimumHeight = dp(config.floatingHeightDp)
 
         attachDragSupport(root, params)
         layoutParams = params
@@ -201,6 +227,7 @@ class FloatingConfirmService : Service() {
         root.findViewById<TextView>(R.id.floatingMetaText).text = message
         root.findViewById<TextView>(R.id.floatingSourceText).visibility = View.GONE
         root.findViewById<TextView>(R.id.floatingActionHintText).text = getString(R.string.floating_action_hint_alert)
+        root.findViewById<TextView>(R.id.floatingCloseButton).setOnClickListener { dismissCurrent(showNext = false) }
         root.findViewById<Button>(R.id.floatingConfirmButton).apply {
             text = getString(R.string.reconnect_failure_alert_button)
             setOnClickListener { dismissCurrent(showNext = false) }
@@ -246,33 +273,64 @@ class FloatingConfirmService : Service() {
         val root = LayoutInflater.from(this).inflate(R.layout.view_floating_confirm, null)
         root.findViewById<TextView>(R.id.floatingBadgeText).text = getString(R.string.floating_preview_badge)
         root.findViewById<TextView>(R.id.floatingTitleText).text = getString(R.string.floating_preview_title)
-        root.findViewById<TextView>(R.id.floatingMetaText).text = getString(
+        val metaText = root.findViewById<TextView>(R.id.floatingMetaText)
+        val sourceText = root.findViewById<TextView>(R.id.floatingSourceText)
+        val hintText = root.findViewById<TextView>(R.id.floatingActionHintText)
+        metaText.text = getString(
             R.string.floating_meta_format,
             getString(R.string.payload_kind_image),
             "2.4 MB",
         )
-        root.findViewById<TextView>(R.id.floatingSourceText).text = getString(
+        sourceText.text = getString(
             R.string.floating_source_format,
             getString(R.string.floating_preview_source_device),
             getString(R.string.floating_preview_source_room),
         )
-        root.findViewById<TextView>(R.id.floatingActionHintText).text = getString(R.string.floating_action_hint_preview)
-        root.findViewById<Button>(R.id.floatingConfirmButton).setOnClickListener {
+        hintText.text = getString(R.string.floating_action_hint_preview)
+        root.findViewById<TextView>(R.id.floatingCloseButton).setOnClickListener {
             dismissCurrent(showNext = false)
         }
-        root.findViewById<Button>(R.id.floatingOpenButton).setOnClickListener {
-            dismissCurrent(showNext = false)
+        applyCompactMode(config, metaText, sourceText, hintText)
+        root.findViewById<Button>(R.id.floatingConfirmButton).apply {
+            text = getString(
+                if (config.floatingCompactEnabled) R.string.floating_compact_confirm_button else R.string.floating_confirm_button,
+            )
+            setOnClickListener {
+                dismissCurrent(showNext = false)
+            }
         }
-        root.findViewById<Button>(R.id.floatingIgnoreButton).setOnClickListener {
-            dismissCurrent(showNext = false)
+        root.findViewById<Button>(R.id.floatingOpenButton).apply {
+            text = getString(
+                if (config.floatingCompactEnabled) R.string.floating_compact_open_button else R.string.floating_open_button,
+            )
+            setOnClickListener {
+                dismissCurrent(showNext = false)
+            }
         }
-        root.findViewById<Button>(R.id.floatingIgnoreAllButton).setOnClickListener {
-            dismissCurrent(showNext = false)
+        root.findViewById<Button>(R.id.floatingIgnoreButton).apply {
+            text = if (config.floatingCompactEnabled) {
+                getString(R.string.floating_compact_ignore_button)
+            } else {
+                getString(R.string.floating_ignore_button)
+            }
+            setOnClickListener {
+                dismissCurrent(showNext = false)
+            }
+        }
+        root.findViewById<Button>(R.id.floatingIgnoreAllButton).apply {
+            text = if (config.floatingCompactEnabled) {
+                getString(R.string.floating_compact_ignore_all_button)
+            } else {
+                getString(R.string.floating_ignore_all_button)
+            }
+            setOnClickListener {
+                dismissCurrent(showNext = false)
+            }
         }
 
         val params = WindowManager.LayoutParams(
             dp(config.floatingWidthDp),
-            dp(config.floatingHeightDp).coerceAtLeast(WindowManager.LayoutParams.WRAP_CONTENT),
+            WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
                 WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
@@ -282,6 +340,7 @@ class FloatingConfirmService : Service() {
             x = config.floatingPosX
             y = config.floatingPosY
         }
+        root.minimumHeight = dp(config.floatingHeightDp)
 
         attachDragSupport(root, params)
         layoutParams = params
@@ -333,14 +392,30 @@ class FloatingConfirmService : Service() {
 
     private fun applyClampedPosition(view: View, params: WindowManager.LayoutParams, save: Boolean) {
         val metrics = resources.displayMetrics
-        val maxX = (metrics.widthPixels - dp(160)).coerceAtLeast(0)
-        val maxY = (metrics.heightPixels - dp(96)).coerceAtLeast(0)
+        val viewWidth = view.width.takeIf { it > 0 } ?: params.width.takeIf { it > 0 } ?: dp(220)
+        val measuredHeight = view.height.takeIf { it > 0 } ?: view.measuredHeight.takeIf { it > 0 }
+        val fallbackHeight = layoutParams?.height?.takeIf { it > 0 } ?: dp(120)
+        val viewHeight = measuredHeight ?: fallbackHeight
+        val maxX = (metrics.widthPixels - viewWidth).coerceAtLeast(0)
+        val maxY = (metrics.heightPixels - viewHeight).coerceAtLeast(0)
         params.x = params.x.coerceIn(0, maxX)
         params.y = params.y.coerceIn(0, maxY)
         windowManager?.updateViewLayout(view, params)
         if (save) {
             SettingsStore.updateFloatingPosition(this, params.x, params.y)
         }
+    }
+
+    private fun applyCompactMode(
+        config: SettingsStore.Config,
+        metaText: TextView,
+        sourceText: TextView,
+        hintText: TextView,
+    ) {
+        val compact = config.floatingCompactEnabled
+        metaText.visibility = if (compact) View.GONE else View.VISIBLE
+        sourceText.visibility = if (compact) View.GONE else View.VISIBLE
+        hintText.visibility = if (compact) View.GONE else View.VISIBLE
     }
 
     private fun bindCountdown(countdownView: TextView, seconds: Int) {

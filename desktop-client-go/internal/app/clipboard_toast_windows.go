@@ -28,7 +28,7 @@ func (a *App) showClipboardFilesToast(paths []string, windowSeconds int) bool {
 		return false
 	}
 	notification := toast.Notification{
-		AppID:               "Cloud Clipboard Desktop",
+		AppID:               "云剪同步",
 		Title:               "检测到新的剪贴板文件",
 		Body:                body,
 		ActivationType:      toast.Protocol,

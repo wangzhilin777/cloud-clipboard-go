@@ -172,9 +172,9 @@ func (a *App) OnTrustedChanged(trusted bool) {
 	status := "pending"
 	if trusted {
 		status = "trusted"
-		a.notifier.Notify("Cloud Clipboard", "桌面端已获批准，可以开始同步文本。")
+		a.notifier.Notify("云剪同步", "桌面端已获批准，可以开始同步文本。")
 	} else {
-		a.notifier.Notify("Cloud Clipboard", "设备已连接，等待网页端批准。")
+		a.notifier.Notify("云剪同步", "设备已连接，等待网页端批准。")
 	}
 	_ = a.state.Update(func(snapshot *StateSnapshot) {
 		snapshot.Connected = true
@@ -200,7 +200,7 @@ func (a *App) OnPayloadNotice(kind string, title string) {
 	if strings.EqualFold(kind, "image") {
 		displayKind = "图片"
 	}
-	a.notifier.Notify("Cloud Clipboard", "收到远端"+displayKind+"："+title)
+	a.notifier.Notify("云剪同步", "收到远端"+displayKind+"："+title)
 	_ = a.state.Update(func(snapshot *StateSnapshot) {
 		snapshot.Connected = true
 		snapshot.Trusted = true
@@ -244,7 +244,7 @@ func (a *App) OnClipboardFiles(paths []string) {
 	if a.showClipboardFilesToast(paths, int(cfg.ClipboardFileConfirmWindow/time.Second)) {
 		return
 	}
-	a.notifier.Notify("Cloud Clipboard", fmt.Sprintf("检测到 %d 个剪贴板文件，可在 %d 秒内确认发送。", len(paths), int(cfg.ClipboardFileConfirmWindow/time.Second)))
+	a.notifier.Notify("云剪同步", fmt.Sprintf("检测到 %d 个剪贴板文件，可在 %d 秒内确认发送。", len(paths), int(cfg.ClipboardFileConfirmWindow/time.Second)))
 }
 
 func (a *App) OnError(err error) {
@@ -274,7 +274,7 @@ func (a *App) OnReconnectStopped(lastErr error) {
 	if lastErr != nil && strings.TrimSpace(lastErr.Error()) != "" {
 		message = message + " 最近错误：" + lastErr.Error()
 	}
-	a.notifier.Notify("Cloud Clipboard", "自动重连已暂停，请打开面板检查后手动重连。")
+	a.notifier.Notify("云剪同步", "自动重连已暂停，请打开面板检查后手动重连。")
 	_ = a.state.Update(func(snapshot *StateSnapshot) {
 		snapshot.Status = "stopped"
 		snapshot.LastError = message
@@ -531,7 +531,7 @@ func (a *App) notifyActionSuccess(message string) {
 	if !cfg.SuccessNoticeEnabled {
 		return
 	}
-	a.notifier.Notify("Cloud Clipboard", message)
+	a.notifier.Notify("云剪同步", message)
 }
 
 func (a *App) saveLastAction(actionType string, detail string) {

@@ -20,3 +20,8 @@ clipboard-monitor/src-tauri/target/
 /windows-client/config.ini
 /windows-client/commands.log
 /windows-client/events.log
+/cloud-clip/*.log
+/desktop-client-go/state.json
+/desktop-client-go/*.exe~
+/tmp-*.png
+/tmp-*.ico

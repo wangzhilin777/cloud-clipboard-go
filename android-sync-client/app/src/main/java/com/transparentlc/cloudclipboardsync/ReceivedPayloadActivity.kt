@@ -31,6 +31,9 @@ class ReceivedPayloadActivity : AppCompatActivity() {
     }
 
     private lateinit var titleText: TextView
+    private lateinit var collapsedSummaryText: TextView
+    private lateinit var headerDetailGroup: View
+    private lateinit var headerToggleButton: Button
     private lateinit var metaText: TextView
     private lateinit var originText: TextView
     private lateinit var expiryText: TextView
@@ -55,6 +58,7 @@ class ReceivedPayloadActivity : AppCompatActivity() {
     private var pendingSaveEntry: PayloadEntry? = null
     private var entries: List<PayloadEntry> = emptyList()
     private var filterMode = FilterMode.ALL
+    private var headerExpanded = false
 
     private val payloadUpdateReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -86,6 +90,9 @@ class ReceivedPayloadActivity : AppCompatActivity() {
         setContentView(R.layout.activity_received_payload)
 
         titleText = findViewById(R.id.payloadTitleText)
+        collapsedSummaryText = findViewById(R.id.payloadCollapsedSummaryText)
+        headerDetailGroup = findViewById(R.id.payloadHeaderDetailGroup)
+        headerToggleButton = findViewById(R.id.payloadHeaderToggleButton)
         metaText = findViewById(R.id.payloadMetaText)
         originText = findViewById(R.id.payloadOriginText)
         expiryText = findViewById(R.id.payloadExpiryText)
@@ -105,6 +112,10 @@ class ReceivedPayloadActivity : AppCompatActivity() {
         filterPendingButton = findViewById(R.id.filterPendingButton)
         filterProcessedButton = findViewById(R.id.filterProcessedButton)
         filterSnoozedButton = findViewById(R.id.filterSnoozedButton)
+        headerToggleButton.setOnClickListener {
+            headerExpanded = !headerExpanded
+            syncHeaderExpansion()
+        }
 
         entries = PayloadCacheStore.list(this)
         currentPayloadId = intent.getStringExtra(SyncService.EXTRA_PAYLOAD_ID)
@@ -218,12 +229,19 @@ class ReceivedPayloadActivity : AppCompatActivity() {
         entries = PayloadCacheStore.list(this)
         val filtered = filteredEntries()
         syncFilterButtons()
+        syncHeaderExpansion()
         clearProcessedButton.isEnabled = entries.any { it.processedAt != null }
         findViewById<Button>(R.id.restoreSnoozedButton).isEnabled = entries.any { PayloadCacheStore.isSnoozed(it) }
         val targetEntry = entry?.takeIf { filtered.any { item -> item.payloadId == it.payloadId } } ?: filtered.firstOrNull()
         if (targetEntry == null) {
             currentPayloadId = null
             titleText.text = getString(R.string.payload_empty_title)
+            collapsedSummaryText.text = getString(
+                R.string.payload_collapsed_summary_format,
+                getString(R.string.payload_kind_unknown),
+                getString(R.string.payload_status_pending),
+                getString(R.string.payload_empty_text),
+            )
             metaText.text = getString(R.string.payload_empty_text)
             originText.text = ""
             expiryText.text = getString(R.string.payload_cache_empty_hint)
@@ -243,6 +261,12 @@ class ReceivedPayloadActivity : AppCompatActivity() {
         currentPayloadId = targetEntry.payloadId
         titleText.text = targetEntry.title
         metaText.text = buildMeta(targetEntry)
+        collapsedSummaryText.text = getString(
+            R.string.payload_collapsed_summary_format,
+            describeKind(targetEntry.kind),
+            buildStatus(targetEntry),
+            if (targetEntry.isDownloaded) getString(R.string.payload_status_cached) else getString(R.string.payload_status_not_downloaded),
+        )
         originText.text = getString(
             R.string.payload_origin_format,
             targetEntry.sourceDeviceId.ifBlank { "-" },
@@ -273,12 +297,26 @@ class ReceivedPayloadActivity : AppCompatActivity() {
 
         val file = targetEntry.localPath?.let(::File)
         if (targetEntry.isImage && file?.exists() == true) {
-            imagePreview.visibility = View.VISIBLE
-            imagePreview.setImageBitmap(BitmapFactory.decodeFile(file.absolutePath))
+            val bitmap = runCatching { BitmapFactory.decodeFile(file.absolutePath) }.getOrNull()
+            if (bitmap != null) {
+                imagePreview.visibility = View.VISIBLE
+                imagePreview.setImageBitmap(bitmap)
+            } else {
+                imagePreview.visibility = View.GONE
+                imagePreview.setImageDrawable(null)
+            }
         } else {
             imagePreview.visibility = View.GONE
             imagePreview.setImageDrawable(null)
         }
+    }
+
+    private fun syncHeaderExpansion() {
+        headerDetailGroup.visibility = if (headerExpanded) View.VISIBLE else View.GONE
+        collapsedSummaryText.visibility = if (headerExpanded) View.GONE else View.VISIBLE
+        headerToggleButton.text = getString(
+            if (headerExpanded) R.string.home_collapse_button else R.string.home_expand_button,
+        )
     }
 
     private fun buildMeta(entry: PayloadEntry): String {

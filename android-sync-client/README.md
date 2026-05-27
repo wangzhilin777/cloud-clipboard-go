@@ -21,6 +21,22 @@
 app/build/outputs/apk/debug/app-debug.apk
 ```
 
+## 图标资源
+
+安卓启动图标当前采用自适应图标：
+
+* 前景输出：`app/src/main/res/drawable-nodpi/ic_launcher_foreground_image.png`
+* 原始源图：`app/src/main/res/drawable-nodpi/icon-sources/launcher-source.png`
+* 当前安全区缩放比例固定为 `0.68`
+
+如果后面要换图标，不要直接手改输出图，按下面方式重新生成：
+
+```bash
+python scripts/generate_launcher_icon.py
+```
+
+生成后再重新构建 APK。
+
 ## 配置
 
 首次打开 App 后填写：

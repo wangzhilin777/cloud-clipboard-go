@@ -18,7 +18,7 @@ func showWindowsTip(title string, body string, primaryLabel string, primaryURL s
 	title = strings.TrimSpace(title)
 	body = strings.TrimSpace(body)
 	if title == "" {
-		title = "Cloud Clipboard"
+		title = "云剪同步"
 	}
 	if seconds <= 0 {
 		seconds = 5
@@ -170,7 +170,7 @@ if ($theme -eq 'light') {
 }
 
 $form = New-Object System.Windows.Forms.Form
-$form.Text = 'Cloud Clipboard Tip'
+$form.Text = '云剪同步提示'
 $form.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::None
 $form.StartPosition = [System.Windows.Forms.FormStartPosition]::Manual
 $form.ShowInTaskbar = $false
@@ -215,7 +215,7 @@ $accent.Size = New-Object System.Drawing.Size(($tipWidth - 2), 4)
 $accent.BackColor = [System.Drawing.ColorTranslator]::FromHtml($accentBg)
 
 $meta = New-Object System.Windows.Forms.Label
-$meta.Text = 'Cloud Clipboard'
+$meta.Text = '云剪同步'
 $meta.Location = New-Object System.Drawing.Point(16, 12)
 $meta.Size = New-Object System.Drawing.Size(140, 18)
 $meta.UseCompatibleTextRendering = $false
