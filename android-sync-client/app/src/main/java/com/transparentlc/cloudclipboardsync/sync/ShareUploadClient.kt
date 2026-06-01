@@ -15,8 +15,6 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
 import java.io.File
 import java.io.IOException
-import java.net.URLEncoder
-import java.nio.charset.StandardCharsets
 import java.util.UUID
 
 object ShareUploadClient {
@@ -245,27 +243,11 @@ object ShareUploadClient {
         paths.map { endpointUrl(baseUrl, it, room) }.distinct()
 
     private fun endpointUrl(baseUrl: String, path: String, room: String): String {
-        val normalizedBase = baseUrl.trimEnd('/')
-        val normalizedPath = normalizeEndpointPath(normalizedBase, path)
-        return "$normalizedBase/$normalizedPath${roomQuery(room)}"
-    }
-
-    private fun normalizeEndpointPath(baseUrl: String, path: String): String {
-        val normalizedPath = path.trim().trimStart('/')
-        return if (baseUrl.substringAfterLast('/').equals("api", ignoreCase = true) && normalizedPath.startsWith("api/")) {
-            normalizedPath.removePrefix("api/")
-        } else {
-            normalizedPath
-        }
-    }
-
-    private fun roomQuery(room: String): String {
-        val normalized = room.trim()
-        return if (normalized.isBlank()) {
-            ""
-        } else {
-            "?room=" + URLEncoder.encode(normalized, StandardCharsets.UTF_8.toString())
-        }
+        return SyncEndpointUrls.httpUrl(
+            serverBase = baseUrl,
+            path = path,
+            query = mapOf("room" to room),
+        )
     }
 
     private fun Request.Builder.applyAuth(config: SettingsStore.Config): Request.Builder = apply {
