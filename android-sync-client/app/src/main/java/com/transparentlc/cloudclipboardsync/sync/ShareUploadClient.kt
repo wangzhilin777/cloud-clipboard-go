@@ -70,7 +70,7 @@ object ShareUploadClient {
         val baseUrl = config.serverBase.trimEnd('/')
         items.forEach { item ->
             val uploadResponse = uploadSingleFile(context, baseUrl, config, resolver, item)
-            publishPayloadNotice(baseUrl, config, item, uploadResponse.contentUrl)
+            publishPayloadNotice(baseUrl, config, item, uploadResponse)
         }
         val allImages = items.all { it.kind == "image" }
         return SharedResult(
@@ -102,7 +102,8 @@ object ShareUploadClient {
     }
 
     private data class UploadResponse(
-        val contentUrl: String,
+        val actionUrl: String,
+        val downloadUrl: String,
     )
 
     private fun uploadSingleFile(
@@ -139,18 +140,26 @@ object ShareUploadClient {
             }
             val body = JSONObject(responseBody)
             val result = body.optJSONObject("result")
-            val contentUrl = listOf(
+            val actionUrl = firstNonBlank(
                 body.optString("url"),
                 body.optString("actionUrl"),
-                body.optString("downloadUrl"),
                 result?.optString("url").orEmpty(),
                 result?.optString("actionUrl").orEmpty(),
+                body.optString("downloadUrl"),
                 result?.optString("downloadUrl").orEmpty(),
-            ).firstOrNull { it.trim().isNotBlank() }?.trim().orEmpty()
-            if (contentUrl.isBlank()) {
+            )
+            val downloadUrl = firstNonBlank(
+                body.optString("downloadUrl"),
+                result?.optString("downloadUrl").orEmpty(),
+                body.optString("actionUrl"),
+                result?.optString("actionUrl").orEmpty(),
+                body.optString("url"),
+                result?.optString("url").orEmpty(),
+            )
+            if (actionUrl.isBlank() || downloadUrl.isBlank()) {
                 error("上传成功但没有返回内容地址")
             }
-            return UploadResponse(contentUrl = contentUrl)
+            return UploadResponse(actionUrl = actionUrl, downloadUrl = downloadUrl)
         } finally {
             tempFile.delete()
         }
@@ -160,7 +169,7 @@ object ShareUploadClient {
         baseUrl: String,
         config: SettingsStore.Config,
         item: SharedItem,
-        contentUrl: String,
+        uploadResponse: UploadResponse,
     ) {
         val payload = JSONObject()
             .put("payloadId", UUID.randomUUID().toString())
@@ -170,8 +179,8 @@ object ShareUploadClient {
             .put("title", item.name)
             .put("mime", item.mime)
             .put("size", item.size.coerceAtLeast(0L))
-            .put("actionUrl", contentUrl)
-            .put("downloadUrl", contentUrl)
+            .put("actionUrl", uploadResponse.actionUrl)
+            .put("downloadUrl", uploadResponse.downloadUrl)
             .put("createdAt", System.currentTimeMillis())
 
         val body = payload.toString().toRequestBody("application/json; charset=utf-8".toMediaTypeOrNull())
@@ -228,6 +237,9 @@ object ShareUploadClient {
             .ifBlank { UUID.randomUUID().toString() }
         return sanitized.takeLast(120)
     }
+
+    private fun firstNonBlank(vararg values: String): String =
+        values.firstOrNull { it.trim().isNotBlank() }?.trim().orEmpty()
 
     private fun endpointCandidates(baseUrl: String, room: String, vararg paths: String): List<String> =
         paths.map { endpointUrl(baseUrl, it, room) }.distinct()
