@@ -1,27 +1,28 @@
 import { corsHeaders } from '../cors';
 import { buildSenderDevice, saveToD1, broadcastMessage } from '../utils';
 import { ensureRoomAccess, normalizeRoomName } from '../auth';
+import { debugLog } from '../logger';
 
 export class TextHandler {
   static async create(request, env) {
     try {
-      console.log('处理文本创建请求');
+      debugLog(env, '处理文本创建请求');
 
       const url = new URL(request.url);
       const room = normalizeRoomName(url.searchParams.get('room'));
       const targetMessageId = url.searchParams.get('id');
       const authResult = ensureRoomAccess(request, env, room);
       if (!authResult.ok) {
-        console.log('文本创建请求认证失败');
+        debugLog(env, '文本创建请求认证失败');
         return authResult.response;
       }
       
-      console.log(`文本消息房间: ${room}`);
+      debugLog(env, `文本消息房间: ${room}`);
       
       const content = await request.text();
       
       if (!content || content.trim() === '') {
-        console.log('文本内容为空');
+        debugLog(env, '文本内容为空');
         return new Response(JSON.stringify({
           error: 'Empty content',
           message: '内容不能为空'
@@ -31,12 +32,12 @@ export class TextHandler {
         });
       }
 
-      console.log(`接收到文本内容: ${content.substring(0, 100)}...`);
+      debugLog(env, `接收到文本内容: ${content.substring(0, 100)}...`);
 
       // 检查文本长度限制
       const textLimit = env.TEXT_LIMIT ? parseInt(env.TEXT_LIMIT) : 4096;
       if (content.length > textLimit) {
-        console.log(`文本长度超限: ${content.length} > ${textLimit}`);
+        debugLog(env, `文本长度超限: ${content.length} > ${textLimit}`);
         return new Response(JSON.stringify({
           error: 'Text too long',
           message: `文本长度超出限制 (最大 ${textLimit} 字符)`
@@ -68,7 +69,7 @@ export class TextHandler {
       };
       const senderDevice = buildSenderDevice(messageData.userAgent);
 
-      console.log('准备保存文本消息:', messageData);
+      debugLog(env, '准备保存文本消息:', messageData);
 
       // 检查 DB binding
       if (!env.DB) {
@@ -89,11 +90,11 @@ export class TextHandler {
 
       // 清理被删除的旧文件
       if (filesToCleanup.length > 0 && env.R2_BUCKET) {
-        console.log(`清理 ${filesToCleanup.length} 个旧文件`);
+        debugLog(env, `清理 ${filesToCleanup.length} 个旧文件`);
         for (const fileUuid of filesToCleanup) {
           try {
             await env.R2_BUCKET.delete(`files/${fileUuid}`);
-            console.log(`已删除旧文件: ${fileUuid}`);
+            debugLog(env, `已删除旧文件: ${fileUuid}`);
           } catch (deleteError) {
             console.error(`删除文件失败: ${fileUuid}`, deleteError);
           }
@@ -112,7 +113,7 @@ export class TextHandler {
 
       const contentURL = `${url.origin}/api/content/${messageId}${room !== 'default' ? `?room=${room}` : ''}`;
 
-      console.log(`文本消息处理完成, ID: ${messageId}, URL: ${contentURL}`);
+      debugLog(env, `文本消息处理完成, ID: ${messageId}, URL: ${contentURL}`);
 
       return new Response(JSON.stringify({
         id: messageId.toString(),

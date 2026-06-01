@@ -1,6 +1,7 @@
 import { corsHeaders } from '../cors';
 import { broadcastMessage, buildSenderDevice } from '../utils';
 import { ensureRoomAccess, normalizeRoomName } from '../auth';
+import { debugLog } from '../logger';
 
 function normalizeExpire(expireTime) {
   const numericExpire = Number(expireTime || 0);
@@ -122,7 +123,7 @@ export class ContentHandler {
         return authResult.response;
       }
 
-      console.log(`获取最新内容: room=${room}, isJSON=${isJSON}, forceDownload=${forceDownload}`);
+      debugLog(env, `获取最新内容: room=${room}, isJSON=${isJSON}, forceDownload=${forceDownload}`);
 
       if (!env.DB) {
         const response = isJSON 
@@ -142,11 +143,11 @@ export class ContentHandler {
       const params = [room];
       query += ' ORDER BY timestamp DESC LIMIT 1';
 
-      console.log(`最新内容查询: ${query}, 参数:`, params);
+      debugLog(env, `最新内容查询: ${query}, 参数:`, params);
 
       const result = await env.DB.prepare(query).bind(...params).first();
       
-      console.log(`最新内容查询结果:`, result);
+      debugLog(env, `最新内容查询结果:`, result);
       
       if (!result) {
         const response = isJSON 
@@ -196,8 +197,7 @@ export class ContentHandler {
       console.error('Error stack:', error.stack);
       return new Response(JSON.stringify({
         error: 'Internal Server Error',
-        message: '获取最新内容时发生错误',
-        details: error.message
+        message: '获取最新内容时发生错误'
       }), { 
         status: 500,
         headers: { 'Content-Type': 'application/json', ...corsHeaders }
@@ -217,7 +217,7 @@ export class ContentHandler {
         return authResult.response;
       }
 
-      console.log(`获取内容: ID ${id}, room: ${room}, isJSON: ${isJSON}`);
+      debugLog(env, `获取内容: ID ${id}, room: ${room}, isJSON: ${isJSON}`);
 
       if (!env.DB) {
         const response = isJSON 
@@ -236,11 +236,11 @@ export class ContentHandler {
       const query = 'SELECT * FROM messages WHERE id = ? AND room = ?';
       const params = [parseInt(id), room];
 
-      console.log(`查询 SQL: ${query}, 参数:`, params);
+      debugLog(env, `查询 SQL: ${query}, 参数:`, params);
 
       const result = await env.DB.prepare(query).bind(...params).first();
       
-      console.log(`查询结果:`, result);
+      debugLog(env, `查询结果:`, result);
       
       if (!result) {
         const response = isJSON 
@@ -281,8 +281,7 @@ export class ContentHandler {
       console.error('Error stack:', error.stack);
       return new Response(JSON.stringify({
         error: 'Internal Server Error',
-        message: '获取内容时发生错误',
-        details: error.message
+        message: '获取内容时发生错误'
       }), { 
         status: 500,
         headers: { 'Content-Type': 'application/json', ...corsHeaders }
@@ -300,7 +299,7 @@ export class ContentHandler {
         return authResult.response;
       }
 
-      console.log(`删除消息请求: ID ${id}, room: ${room}`);
+      debugLog(env, `删除消息请求: ID ${id}, room: ${room}`);
 
       if (!env.DB) {
         return new Response(JSON.stringify({
@@ -332,7 +331,7 @@ export class ContentHandler {
       if (message.type === 'file' && message.uuid && env.R2_BUCKET) {
         try {
           await env.R2_BUCKET.delete(`files/${message.uuid}`);
-          console.log(`已删除文件: ${message.uuid}`);
+          debugLog(env, `已删除文件: ${message.uuid}`);
         } catch (error) {
           console.error(`删除文件失败: ${message.uuid}`, error);
         }
@@ -375,7 +374,7 @@ export class ContentHandler {
         return authResult.response;
       }
 
-      console.log(`清空所有消息请求: room: ${room}`);
+      debugLog(env, `清空所有消息请求: room: ${room}`);
 
       if (!env.DB) {
         return new Response(JSON.stringify({
@@ -399,7 +398,7 @@ export class ContentHandler {
           if (fileRecord.uuid) {
             try {
               await env.R2_BUCKET.delete(`files/${fileRecord.uuid}`);
-              console.log(`已删除文件: ${fileRecord.uuid}`);
+              debugLog(env, `已删除文件: ${fileRecord.uuid}`);
             } catch (error) {
               console.error(`删除文件失败: ${fileRecord.uuid}`, error);
             }

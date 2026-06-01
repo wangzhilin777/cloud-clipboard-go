@@ -1,5 +1,6 @@
 import { hasRoomAuthEntry, normalizeRoomName, resolveRoomAuth } from '../auth';
 import { buildSenderDevice, parseUserAgent } from '../utils';
+import { debugLog } from '../logger';
 
 function isRoomListEnabled(env) {
   return ['1', 'true', 'yes', 'on'].includes(String(env.ROOM_LIST || '').toLowerCase());
@@ -86,13 +87,13 @@ export class WebSocketRoom {
     this.env = env;
     this.sessions = new Map();
     this.syncSessions = new Map();
-    console.log('WebSocketRoom 实例创建');
+    debugLog(this.env, 'WebSocketRoom 实例创建');
   }
 
   async fetch(request) {
     const url = new URL(request.url);
     
-    console.log(`WebSocketRoom fetch: ${url.pathname}`);
+    debugLog(this.env, `WebSocketRoom fetch: ${url.pathname}`);
     
     // 处理广播消息的内部请求
     if (url.pathname === '/broadcast') {
@@ -125,7 +126,7 @@ export class WebSocketRoom {
 
   async handleWebSocket(request) {
     try {
-      console.log('开始处理 WebSocket 升级');
+      debugLog(this.env, '开始处理 WebSocket 升级');
       
       // 创建 WebSocket 对
       const webSocketPair = new WebSocketPair();
@@ -137,7 +138,7 @@ export class WebSocketRoom {
       const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
       const room = normalizeRoomName(url.searchParams.get('room'));
       
-      console.log(`创建 WebSocket 会话: ${sessionId}, room: ${room}, ip: ${ip}`);
+      debugLog(this.env, `创建 WebSocket 会话: ${sessionId}, room: ${room}, ip: ${ip}`);
       
       const session = {
         webSocket: server,
@@ -154,7 +155,7 @@ export class WebSocketRoom {
       // 接受 WebSocket 连接
       server.accept();
       
-      console.log(`WebSocket 连接已建立: ${sessionId}`);
+      debugLog(this.env, `WebSocket 连接已建立: ${sessionId}`);
       
       // 设置事件监听器
       server.addEventListener('message', (event) => {
@@ -177,7 +178,7 @@ export class WebSocketRoom {
       // 广播新设备连接
       this.broadcastDeviceConnect(sessionId, userAgent, room);
 
-      console.log(`WebSocket 会话 ${sessionId} 初始化完成`);
+      debugLog(this.env, `WebSocket 会话 ${sessionId} 初始化完成`);
 
       // 返回 WebSocket 响应
       return new Response(null, {
@@ -222,7 +223,7 @@ export class WebSocketRoom {
       
       if (webSocket.readyState === WebSocket.OPEN) {
         webSocket.send(JSON.stringify(configMessage));
-        console.log(`配置消息已发送`);
+        debugLog(this.env, `配置消息已发送`);
       }
       
     } catch (error) {
@@ -232,21 +233,21 @@ export class WebSocketRoom {
 
   async sendHistoryMessages(webSocket, room) {
     try {
-      console.log(`获取房间 ${room} 的历史消息`);
+      debugLog(this.env, `获取房间 ${room} 的历史消息`);
       
       if (!this.env.DB) {
-        console.log('DB binding 不可用，跳过历史消息');
+        debugLog(this.env, 'DB binding 不可用，跳过历史消息');
         return;
       }
 
       if (webSocket.readyState !== WebSocket.OPEN) {
-        console.log('WebSocket 未就绪，跳过历史消息');
+        debugLog(this.env, 'WebSocket 未就绪，跳过历史消息');
         return;
       }
 
       // 获取历史消息限制，默认为 10
       const historyLimit = parseInt(this.env.HISTORY_LIMIT || '10');
-      console.log(`历史消息限制: ${historyLimit}`);
+      debugLog(this.env, `历史消息限制: ${historyLimit}`);
 
       const query = `
         SELECT * FROM (
@@ -259,21 +260,21 @@ export class WebSocketRoom {
       `;
       const params = [normalizeRoomName(room), historyLimit];
       
-      console.log(`历史消息查询: ${query}, 参数:`, params, `限制: ${historyLimit}`);
+      debugLog(this.env, `历史消息查询: ${query}, 参数:`, params, `限制: ${historyLimit}`);
       
       const results = await this.env.DB.prepare(query).bind(...params).all();
       
       if (!results.results || results.results.length === 0) {
-        console.log(`房间 ${room} 没有历史消息`);
+        debugLog(this.env, `房间 ${room} 没有历史消息`);
         return;
       }
 
-      console.log(`找到 ${results.results.length} 条历史消息 (限制: ${historyLimit})`);
+      debugLog(this.env, `找到 ${results.results.length} 条历史消息 (限制: ${historyLimit})`);
 
       // 发送历史消息
       for (const row of results.results) {
         if (webSocket.readyState !== WebSocket.OPEN) {
-          console.log('WebSocket 已关闭，停止发送历史消息');
+          debugLog(this.env, 'WebSocket 已关闭，停止发送历史消息');
           break;
         }
 
@@ -312,13 +313,13 @@ export class WebSocketRoom {
           historyMessage.data.cache = row.uuid;
         }
         
-        console.log(`发送历史消息: ID ${row.id}, 类型 ${row.type}`);
+        debugLog(this.env, `发送历史消息: ID ${row.id}, 类型 ${row.type}`);
         
         webSocket.send(JSON.stringify(historyMessage));
         
       }
       
-      console.log(`历史消息发送完成，共发送 ${results.results.length} 条 (限制: ${historyLimit})`);
+      debugLog(this.env, `历史消息发送完成，共发送 ${results.results.length} 条 (限制: ${historyLimit})`);
       
     } catch (error) {
       console.error('发送历史消息失败:', error);
@@ -352,7 +353,7 @@ export class WebSocketRoom {
         }
       }
 
-      console.log(`发送了 ${existingDevices.length} 个现有设备信息`);
+      debugLog(this.env, `发送了 ${existingDevices.length} 个现有设备信息`);
 
     } catch (error) {
       console.error('发送现有设备信息失败:', error);
@@ -362,7 +363,7 @@ export class WebSocketRoom {
   handleMessage(sessionId, event) {
     try {
       if (event.data && event.data.trim()) {
-        console.log(`WebSocket 消息 from ${sessionId}:`, event.data);
+        debugLog(this.env, `WebSocket 消息 from ${sessionId}:`, event.data);
       }
     } catch (error) {
       console.error(`处理消息错误 (${sessionId}):`, error);
@@ -370,7 +371,7 @@ export class WebSocketRoom {
   }
 
   handleClose(sessionId, event) {
-    console.log(`WebSocket 会话关闭: ${sessionId}`);
+    debugLog(this.env, `WebSocket 会话关闭: ${sessionId}`);
     
     const session = this.sessions.get(sessionId);
     if (session) {
@@ -407,7 +408,7 @@ export class WebSocketRoom {
       };
       
       this.broadcast(connectMessage, room, sessionId);
-      console.log(`设备连接广播: ${sessionId}`);
+      debugLog(this.env, `设备连接广播: ${sessionId}`);
       
     } catch (error) {
       console.error('广播设备连接失败:', error);
@@ -424,7 +425,7 @@ export class WebSocketRoom {
     const disconnectedSessions = [];
     const targetRoom = room ? normalizeRoomName(room) : null;
     
-    console.log(`广播消息给 ${this.sessions.size} 个会话: ${message.event}`);
+    debugLog(this.env, `广播消息给 ${this.sessions.size} 个会话: ${message.event}`);
     
     for (const [sessionId, session] of this.sessions) {
       try {
@@ -437,7 +438,7 @@ export class WebSocketRoom {
         if (session.webSocket.readyState === WebSocket.OPEN) {
           session.webSocket.send(messageString);
         } else {
-          console.log(`会话 ${sessionId} 已断开，标记清理`);
+          debugLog(this.env, `会话 ${sessionId} 已断开，标记清理`);
           disconnectedSessions.push(sessionId);
         }
       } catch (error) {
@@ -452,7 +453,7 @@ export class WebSocketRoom {
       void this.removeSessionPresence(sessionId);
     }
     
-    console.log(`广播完成，清理了 ${disconnectedSessions.length} 个断开的会话`);
+    debugLog(this.env, `广播完成，清理了 ${disconnectedSessions.length} 个断开的会话`);
   }
 
   generateSessionId() {

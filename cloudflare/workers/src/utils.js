@@ -1,3 +1,5 @@
+import { debugLog } from './logger';
+
 export function generateUUID() {
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
     const r = Math.random() * 16 | 0;
@@ -69,7 +71,7 @@ function normalizeRoomName(room = '') {
 export async function saveToD1(db, messageData, env) { // 修复：添加 env 参数
   try {
     if (!db) {
-      console.log('D1 database not available, skipping save');
+      debugLog(env, 'D1 database not available, skipping save');
       return { messageId: Math.floor(Math.random() * 1000000), filesToCleanup: [] };
     }
 
@@ -127,12 +129,12 @@ async function cleanupOldMessagesBeforeSave(db, room = 'default', env) { // 修�
     const countResult = await db.prepare(countQuery).bind(...countParams).first();
     const messageCount = countResult.count;
 
-    console.log(`房间 ${normalizedRoom} 当前消息数量: ${messageCount}, 限制: ${historyLimit}`);
+    debugLog(env, `房间 ${normalizedRoom} 当前消息数量: ${messageCount}, 限制: ${historyLimit}`);
 
     // 如果加上新消息会超过限制，需要删除旧消息
     if (messageCount >= historyLimit) {
       const excessCount = messageCount - historyLimit + 1; // +1 因为要保存新消息
-      console.log(`需要删除 ${excessCount} 条旧消息为新消息腾出空间`);
+      debugLog(env, `需要删除 ${excessCount} 条旧消息为新消息腾出空间`);
 
       // 获取要删除的最旧消息（按时间戳排序，不是按ID）
       let selectQuery = 'SELECT id, type, uuid, timestamp FROM messages WHERE room = ?';
@@ -144,7 +146,7 @@ async function cleanupOldMessagesBeforeSave(db, room = 'default', env) { // 修�
       const oldMessages = await db.prepare(selectQuery).bind(...selectParams).all();
       
       if (oldMessages.results && oldMessages.results.length > 0) {
-        console.log(`找到 ${oldMessages.results.length} 条旧消息需要删除`);
+        debugLog(env, `找到 ${oldMessages.results.length} 条旧消息需要删除`);
 
         // 收集要删除的文件 UUID 和消息 ID
         const fileUuidsToDelete = [];
@@ -155,7 +157,7 @@ async function cleanupOldMessagesBeforeSave(db, room = 'default', env) { // 修�
           if (msg.type === 'file' && msg.uuid) {
             fileUuidsToDelete.push(msg.uuid);
           }
-          console.log(`将删除消息: ID=${msg.id}, 类型=${msg.type}, 时间戳=${msg.timestamp}`);
+          debugLog(env, `将删除消息: ID=${msg.id}, 类型=${msg.type}, 时间戳=${msg.timestamp}`);
         }
 
         // 删除数据库记录
@@ -163,7 +165,7 @@ async function cleanupOldMessagesBeforeSave(db, room = 'default', env) { // 修�
           const placeholders = messageIdsToDelete.map(() => '?').join(',');
           await db.prepare(`DELETE FROM messages WHERE id IN (${placeholders})`)
             .bind(...messageIdsToDelete).run();
-          console.log(`从数据库删除了 ${messageIdsToDelete.length} 条消息记录`);
+          debugLog(env, `从数据库删除了 ${messageIdsToDelete.length} 条消息记录`);
         }
 
         // 返回需要删除的文件 UUID 列表
@@ -186,7 +188,7 @@ export async function cleanupOldMessages(db, room = 'default', env) { // 修复�
 export async function broadcastMessage(env, room, message) {
   try {
     if (!env.WEBSOCKET_ROOM) {
-      console.log('WEBSOCKET_ROOM binding not available, skipping broadcast');
+      debugLog(env, 'WEBSOCKET_ROOM binding not available, skipping broadcast');
       return;
     }
 
@@ -200,7 +202,7 @@ export async function broadcastMessage(env, room, message) {
     });
 
     await durableObject.fetch(broadcastRequest);
-    console.log(`Broadcast message to room: ${normalizeRoomName(room)}`);
+    debugLog(env, `Broadcast message to room: ${normalizeRoomName(room)}`);
   } catch (error) {
     console.error('Broadcast error:', error);
   }

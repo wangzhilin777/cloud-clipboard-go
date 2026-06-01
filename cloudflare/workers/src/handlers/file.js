@@ -1,6 +1,7 @@
 import { corsHeaders } from '../cors';
 import { buildSenderDevice, saveToD1, broadcastMessage, generateUUID } from '../utils';
 import { ensureRoomAccess, normalizeRoomName } from '../auth';
+import { debugLog } from '../logger';
 
 function decodeUploadFilename(value = '') {
   try {
@@ -83,7 +84,7 @@ async function finalizeUploadedFile({ request, env, url, room, uuid, fileName, f
   const messageId = saveResult.messageId;
   const filesToCleanup = saveResult.filesToCleanup;
 
-  console.log('[upload] saved message', {
+  debugLog(env, '[upload] saved message', {
     room,
     uuid,
     messageId,
@@ -91,11 +92,11 @@ async function finalizeUploadedFile({ request, env, url, room, uuid, fileName, f
   });
 
   if (filesToCleanup.length > 0 && env.R2_BUCKET) {
-    console.log(`清理 ${filesToCleanup.length} 个旧文件`);
+    debugLog(env, `清理 ${filesToCleanup.length} 个旧文件`);
     for (const fileUuid of filesToCleanup) {
       try {
         await env.R2_BUCKET.delete(createFileKey(fileUuid));
-        console.log(`已删除旧文件: ${fileUuid}`);
+        debugLog(env, `已删除旧文件: ${fileUuid}`);
       } catch (deleteError) {
         console.error(`删除文件失败: ${fileUuid}`, deleteError);
       }
@@ -115,7 +116,7 @@ async function finalizeUploadedFile({ request, env, url, room, uuid, fileName, f
 
   const contentURL = `${url.origin}/api/content/${messageId}${room !== 'default' ? `?room=${room}` : ''}`;
 
-  console.log('[upload] success', {
+  debugLog(env, '[upload] success', {
     room,
     uuid,
     messageId,
@@ -172,7 +173,7 @@ export class FileHandler {
       let fileType = request.headers.get('Content-Type') || 'application/octet-stream';
       let fileBody = null;
 
-      console.log('[upload] start', {
+      debugLog(env, '[upload] start', {
         room,
         hasAuthHeader: Boolean(request.headers.get('Authorization')),
         contentType: fileType,
@@ -194,7 +195,7 @@ export class FileHandler {
         }
       }
 
-      console.log('[upload] parsed', {
+      debugLog(env, '[upload] parsed', {
         room,
         isStreamUpload,
         fileName,
@@ -233,7 +234,7 @@ export class FileHandler {
       // 上传文件到 R2
       await env.R2_BUCKET.put(createFileKey(uuid), fileBody, buildMultipartOptions({ room, fileName, fileType, expireTime }));
 
-      console.log('[upload] stored in r2', {
+      debugLog(env, '[upload] stored in r2', {
         room,
         uuid,
         fileName,
@@ -316,7 +317,7 @@ export class FileHandler {
       const upload = await env.R2_BUCKET.createMultipartUpload(key, buildMultipartOptions({ room, fileName, fileType, expireTime }));
       const partSize = getMultipartPartSize(env);
 
-      console.log('[multipart] created', {
+      debugLog(env, '[multipart] created', {
         room,
         uuid,
         key,
@@ -376,7 +377,7 @@ export class FileHandler {
       const upload = env.R2_BUCKET.resumeMultipartUpload(key, uploadId);
       const part = await upload.uploadPart(partNumber, request.body);
 
-      console.log('[multipart] uploaded part', {
+      debugLog(env, '[multipart] uploaded part', {
         room,
         key,
         uploadId,
@@ -430,7 +431,7 @@ export class FileHandler {
       const expireTime = Number(completedObject.customMetadata?.expireTime || 0);
       const fileSize = Number(completedObject.size || body?.size || 0);
 
-      console.log('[multipart] completed', {
+      debugLog(env, '[multipart] completed', {
         room,
         uuid,
         key,
@@ -486,7 +487,7 @@ export class FileHandler {
       const upload = env.R2_BUCKET.resumeMultipartUpload(key, uploadId);
       await upload.abort();
 
-      console.log('[multipart] aborted', {
+      debugLog(env, '[multipart] aborted', {
         room,
         key,
         uploadId,
@@ -513,7 +514,7 @@ export class FileHandler {
   static async download(request, env) {
     try {
       const { uuid, filename } = request.params;
-      console.log(`文件下载请求: UUID ${uuid}, filename: ${filename}`);
+      debugLog(env, `文件下载请求: UUID ${uuid}, filename: ${filename}`);
 
       const object = env.R2_BUCKET ? await env.R2_BUCKET.get(`files/${uuid}`) : null;
       const room = normalizeRoomName(object?.customMetadata?.room || 'default');
@@ -530,7 +531,7 @@ export class FileHandler {
       }
       
       if (!object) {
-        console.log(`文件未找到: ${uuid}`);
+        debugLog(env, `文件未找到: ${uuid}`);
         return new Response('File not found', { 
           status: 404,
           headers: corsHeaders 
@@ -541,7 +542,7 @@ export class FileHandler {
       const expireTime = parseInt(object.customMetadata?.expireTime || '0');
       const currentTime = Math.floor(Date.now() / 1000);
       if (expireTime > 0 && currentTime > expireTime) {
-        console.log(`文件已过期: ${uuid}, expireTime: ${expireTime}, currentTime: ${currentTime}`);
+        debugLog(env, `文件已过期: ${uuid}, expireTime: ${expireTime}, currentTime: ${currentTime}`);
         // 删除过期文件
         await env.R2_BUCKET.delete(`files/${uuid}`);
         return new Response('File expired', { 
@@ -550,7 +551,7 @@ export class FileHandler {
         });
       }
 
-      console.log(`文件下载成功: ${uuid}, size: ${object.size}, type: ${object.httpMetadata?.contentType}`);
+      debugLog(env, `文件下载成功: ${uuid}, size: ${object.size}, type: ${object.httpMetadata?.contentType}`);
 
       const headers = {
         'Content-Type': object.httpMetadata?.contentType || 'application/octet-stream',
@@ -607,18 +608,18 @@ export class FileHandler {
       }
 
       const { uuid } = request.params;
-      console.log(`删除文件请求: UUID ${uuid}`);
+      debugLog(env, `删除文件请求: UUID ${uuid}`);
       
       if (env.R2_BUCKET) {
         // 从 R2 删除文件
         await env.R2_BUCKET.delete(`files/${uuid}`);
-        console.log(`文件已从 R2 删除: ${uuid}`);
+        debugLog(env, `文件已从 R2 删除: ${uuid}`);
       }
       
       if (env.DB) {
         // 从 D1 删除相关记录
         await env.DB.prepare('DELETE FROM messages WHERE uuid = ?').bind(uuid).run();
-        console.log(`文件记录已从 D1 删除: ${uuid}`);
+        debugLog(env, `文件记录已从 D1 删除: ${uuid}`);
       }
 
       return new Response(JSON.stringify({
