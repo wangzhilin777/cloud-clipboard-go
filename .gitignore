@@ -25,3 +25,4 @@ clipboard-monitor/src-tauri/target/
 /desktop-client-go/*.exe~
 /tmp-*.png
 /tmp-*.ico
+/cloud_clipboard_sync.xml

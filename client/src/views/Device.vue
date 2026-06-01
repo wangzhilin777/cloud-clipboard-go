@@ -93,7 +93,7 @@
                     <v-list-item-content>
                         <v-list-item-title>{{ item.name }}</v-list-item-title>
                         <v-list-item-subtitle>
-                            {{ platformLabel(item) }} / {{ item.clientType }} / {{ item.online ? '在线' : '离线' }} / {{ item.trusted ? '已信任' : '待批准' }}
+                            {{ platformLabel(item) }} / {{ item.clientType }} / {{ item.online ? '在线' : '离线' }} / {{ item.trusted ? '已连接' : '待批准' }}
                         </v-list-item-subtitle>
                     </v-list-item-content>
                     <v-list-item-action>
@@ -163,7 +163,7 @@ export default {
         statusText() {
             switch (this.$root.sync.status) {
                 case 'trusted':
-                    return '已信任';
+                    return '已连接';
                 case 'pending':
                     return '等待批准';
                 case 'connecting':
@@ -190,12 +190,12 @@ export default {
         currentDeviceText() {
             const device = this.$root.sync.statusInfo?.currentDevice;
             if (!device) return '当前网页设备尚未在服务端登记';
-            return `${device.name} / ${device.online ? '在线' : '离线'} / ${device.trusted ? '已信任' : '待批准'}`;
+            return `${device.name} / ${device.online ? '在线' : '离线'} / ${device.trusted ? '已连接' : '待批准'}`;
         },
         cleanupText() {
             const cleanup = this.$root.sync.statusInfo?.cleanup;
             if (!cleanup) return '未知';
-            return `间隔 ${cleanup.stateCleanup || 0}s，文本 ${cleanup.messageExpire || 0}s，通知 ${cleanup.payloadExpire || 0}s，待批准设备 ${cleanup.pendingDeviceExpire || 0}s，已信任设备 ${cleanup.trustedDeviceExpire || 0}s`;
+            return `间隔 ${cleanup.stateCleanup || 0}s，文本 ${cleanup.messageExpire || 0}s，通知 ${cleanup.payloadExpire || 0}s，待批准设备 ${cleanup.pendingDeviceExpire || 0}s，已连接设备 ${cleanup.trustedDeviceExpire || 0}s`;
         },
     },
     methods: {

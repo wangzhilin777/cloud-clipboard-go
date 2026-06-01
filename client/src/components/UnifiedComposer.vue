@@ -50,7 +50,7 @@
                     dense
                     hide-details
                     :disabled="!canNotifyAndroid || progress"
-                    label="上传后通知已信任安卓端确认接收"
+                    label="上传后通知已连接安卓端确认接收"
                 ></v-checkbox>
                 <div v-if="notifyHint" class="caption text--secondary mt-1 unified-composer__notify-hint">
                     {{ notifyHint }}
@@ -134,12 +134,12 @@ export default {
                 return '';
             }
             if (this.canNotifyAndroid) {
-                return '仅向同房间、已信任且不是当前网页本机的同步客户端广播通知。';
+                return '仅向同房间、已连接且不是当前网页本机的同步客户端广播通知。';
             }
             if (this.$root.sync?.status === 'pending') {
                 return '当前网页同步设备尚未获批，暂时不能发送接收通知。';
             }
-            return '需要先连上同步协议并让当前网页设备处于已信任状态。';
+            return '需要先连上同步协议并让当前网页设备处于已连接状态。';
         },
         footerHint() {
             if (this.$root.send.files.length) {

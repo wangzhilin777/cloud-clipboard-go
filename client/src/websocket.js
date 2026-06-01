@@ -20,6 +20,7 @@ export default {
         return {
             websocket: null,
             websocketConnecting: false,
+            websocketHeartbeatTimer: null,
             authCode: '',
             authCodeDialog: false,
             authPendingRoom: '',
@@ -270,6 +271,7 @@ export default {
                 return;
             }
 
+            this.stopWebsocketHeartbeat();
             this.websocketConnecting = true;
             this.$toast(this.$t('connectingServer'));
 
@@ -302,11 +304,18 @@ export default {
                 this.websocket = ws;
                 this.websocketConnecting = false;
                 this.retry = 0;
-                this.received = [];
+                this.$root.received = [];
                 this.authCode = this.getAuthTokenForRoom(currentRoom);
                 this.$toast(this.$t('connectionSuccess'));
-                setInterval(() => {ws.send('')}, 30000);
+                if (typeof this.syncRefreshBootstrap === 'function') {
+                    await this.syncRefreshBootstrap();
+                }
+                this.websocketHeartbeatTimer = setInterval(() => {
+                    if (this.websocket !== ws || ws.readyState !== WebSocket.OPEN) return;
+                    ws.send('');
+                }, 30000);
                 ws.onclose = () => {
+                    this.stopWebsocketHeartbeat();
                     this.websocket = null;
                     this.websocketConnecting = false;
                     this.device.splice(0);
@@ -330,6 +339,7 @@ export default {
             }
         },
         disconnect() {
+            this.stopWebsocketHeartbeat();
             this.websocketConnecting = false;
             if (this.websocket) {
                 this.websocket.onclose = () => {};
@@ -338,7 +348,14 @@ export default {
             }
             this.$root.device = [];
         },
+        stopWebsocketHeartbeat() {
+            if (this.websocketHeartbeatTimer) {
+                clearInterval(this.websocketHeartbeatTimer);
+                this.websocketHeartbeatTimer = null;
+            }
+        },
         failure() {
+            this.stopWebsocketHeartbeat();
             this.websocket = null;
             this.$root.device = [];
             if (this.retry++ < 3) {

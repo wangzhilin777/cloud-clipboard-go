@@ -134,7 +134,7 @@
     <string name="status_connecting">连接中</string>
     <string name="status_connected">已连接</string>
     <string name="status_pending">等待批准</string>
-    <string name="status_trusted">已信任</string>
+    <string name="status_trusted">已连接</string>
     <string name="status_forbidden">房间认证失败</string>
     <string name="status_disconnected">已断开</string>
     <string name="last_result_idle">暂无</string>

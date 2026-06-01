@@ -35,6 +35,7 @@ export default {
                 lastAppliedAt: 0,
                 lastClipboardReadDeniedAt: 0,
                 poller: null,
+                refreshTimer: null,
                 enableReceive: localStorage.getItem(SYNC_ENABLE_RECEIVE_KEY) !== 'false',
                 enableSend: localStorage.getItem(SYNC_ENABLE_SEND_KEY) !== 'false',
                 pendingRemoteText: '',
@@ -50,6 +51,45 @@ export default {
                 at: new Date().toLocaleTimeString(),
             });
             this.sync.logs = this.sync.logs.slice(0, 20);
+        },
+        syncMessageToTimelineItem(message) {
+            const text = `${message?.text || ''}`.trim();
+            if (!text) return null;
+
+            const createdAt = Number(message?.createdAt || Date.now());
+            const messageId = message?.messageId || `${message?.sourceDeviceId || 'unknown'}-${createdAt}`;
+            return {
+                id: `sync-${messageId}`,
+                type: 'text',
+                content: text,
+                timestamp: Math.floor(createdAt / 1000),
+                syncOnly: true,
+                syncMessageId: messageId,
+                syncSourceDeviceId: message?.sourceDeviceId || '',
+            };
+        },
+        syncMergeRecentMessages(messages = []) {
+            if (!Array.isArray(this.$root.received)) return;
+
+            const syncItems = messages
+                .map(message => this.syncMessageToTimelineItem(message))
+                .filter(Boolean);
+
+            const dedupedSyncItems = [];
+            const seenIds = new Set();
+            syncItems.forEach(item => {
+                if (seenIds.has(item.id)) return;
+                seenIds.add(item.id);
+                dedupedSyncItems.push(item);
+            });
+
+            const keepExisting = this.$root.received.filter(item => !item.syncOnly);
+            const merged = [...dedupedSyncItems, ...keepExisting].sort((a, b) => {
+                const left = Number(b?.timestamp || 0);
+                const right = Number(a?.timestamp || 0);
+                return left - right;
+            });
+            this.$root.received.splice(0, this.$root.received.length, ...merged);
         },
         async syncLoadDevices() {
             try {
@@ -80,6 +120,7 @@ export default {
                     this.sync.status = response.data.device.trusted ? 'trusted' : 'pending';
                 }
                 this.sync.summary = response.data.summary || this.sync.summary;
+                this.syncMergeRecentMessages(response.data.recentMessages || []);
             } catch (error) {
                 this.syncLog(`刷新同步状态失败：${error.response?.data?.message || error.message}`);
             }
@@ -94,6 +135,7 @@ export default {
                 });
                 this.sync.statusInfo = response.data || null;
                 this.sync.summary = response.data?.summary || this.sync.summary;
+                this.syncMergeRecentMessages(response.data?.recentMessages || []);
                 if (response.data?.currentDevice) {
                     this.sync.device = response.data.currentDevice;
                     this.sync.status = response.data.currentDevice.trusted ? 'trusted' : 'pending';
@@ -157,6 +199,12 @@ export default {
                                 break;
                             case 'clipboardSync':
                                 if (!this.sync.enableReceive) return;
+                                this.syncMergeRecentMessages([{
+                                    messageId: payload.data?.messageId,
+                                    sourceDeviceId: payload.data?.sourceDeviceId,
+                                    text: payload.data?.text || '',
+                                    createdAt: payload.data?.createdAt || Date.now(),
+                                }]);
                                 await this.syncApplyRemoteClipboard(payload.data.text || '');
                                 break;
                             case 'clipboardAck':
@@ -199,6 +247,7 @@ export default {
         },
         syncDisconnect() {
             this.syncStopClipboardPolling();
+            this.syncMergeRecentMessages([]);
             if (this.sync.websocket) {
                 this.sync.websocket.close();
                 this.sync.websocket = null;
@@ -234,10 +283,23 @@ export default {
                 }
             }, 1500);
         },
+        syncStartRefreshTimer() {
+            if (this.sync.refreshTimer) return;
+            this.sync.refreshTimer = setInterval(async () => {
+                if (!this.sync.deviceId) return;
+                await this.syncRefreshBootstrap();
+            }, 4000);
+        },
         syncStopClipboardPolling() {
             if (this.sync.poller) {
                 clearInterval(this.sync.poller);
                 this.sync.poller = null;
+            }
+        },
+        syncStopRefreshTimer() {
+            if (this.sync.refreshTimer) {
+                clearInterval(this.sync.refreshTimer);
+                this.sync.refreshTimer = null;
             }
         },
         async syncApplyRemoteClipboard(text) {
@@ -300,9 +362,11 @@ export default {
     },
     mounted() {
         localStorage.setItem(SYNC_DEVICE_ID_KEY, this.sync.deviceId);
+        this.syncStartRefreshTimer();
         this.syncConnect();
     },
     beforeDestroy() {
+        this.syncStopRefreshTimer();
         this.syncDisconnect();
     },
 };

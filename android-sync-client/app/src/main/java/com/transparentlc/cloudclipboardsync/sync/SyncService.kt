@@ -13,8 +13,10 @@ import android.os.Build
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
+import com.transparentlc.cloudclipboardsync.ClipboardAccessAccessibilityService
 import com.transparentlc.cloudclipboardsync.FloatingConfirmService
 import com.transparentlc.cloudclipboardsync.ReceivedPayloadActivity
 import com.transparentlc.cloudclipboardsync.MainActivity
@@ -66,6 +68,7 @@ class SyncService : Service() {
     override fun onCreate() {
         super.onCreate()
         isRunning = true
+        Log.d(TAG, "service onCreate")
         clipboardManager = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
         clipboardManager.addPrimaryClipChangedListener(clipboardListener)
         PayloadCacheStore.pruneExpired(this)
@@ -74,6 +77,7 @@ class SyncService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         config = SettingsStore.load(this)
+        Log.d(TAG, "onStartCommand action=${intent?.action} running=$serviceStarted")
         PayloadCacheStore.pruneExpired(this)
         val runtimeValidation = RuntimeModeValidator.validate(this, config)
         if (!runtimeValidation.ready) {
@@ -118,7 +122,7 @@ class SyncService : Service() {
             override fun onTrustedChanged(trusted: Boolean) {
                 this@SyncService.trusted = trusted
                 val status = if (trusted) getString(R.string.status_trusted) else getString(R.string.status_pending)
-                broadcastStatus(status, if (trusted) "设备已获批准" else "设备等待网页批准")
+                broadcastStatus(status, if (trusted) "设备已连接" else "设备等待网页批准")
                 updateNotification(status)
             }
 
@@ -223,31 +227,53 @@ class SyncService : Service() {
 
     private fun publishLocalClipboardIfNeeded(source: String): Boolean {
         if (applyingRemoteText || !trusted) return false
-        val clip = clipboardManager.primaryClip ?: return false
+        Log.d(TAG, "publishLocalClipboardIfNeeded source=$source trusted=$trusted applyingRemote=$applyingRemoteText")
+        val clip = runCatching { clipboardManager.primaryClip }.getOrNull()
+        if (clip == null) {
+            if (source == "accessibility") {
+                return publishAccessibilitySnapshotFallback(source, "clipboard-null")
+            }
+            return false
+        }
         if (clip.itemCount <= 0) return false
         val text = clip.getItemAt(0).coerceToText(this)?.toString().orEmpty().trim()
-        if (text.isBlank()) return false
+        if (text.isBlank()) {
+            if (source == "accessibility") {
+                return publishAccessibilitySnapshotFallback(source, "clipboard-blank")
+            }
+            return false
+        }
         if (text == lastObservedLocalText && source == "poll") return false
         lastObservedLocalText = text
         val now = System.currentTimeMillis()
         if (text == lastRemoteText && now - lastRemoteAt < 5_000) return false
         if (text == lastPublishedText && now - lastPublishedAt < 2_000) return false
-        lastPublishedText = text
-        lastPublishedAt = now
-        client?.publishText(text)
-        broadcastStatus(getString(R.string.status_trusted), "已推送本地文本到服务端")
-        return true
+        return publishTextToServer(text, now, "已推送本地文本到服务端")
     }
 
     private fun handleAccessibilityPulse(intent: Intent) {
         val sourcePackage = intent.getStringExtra(EXTRA_ACCESSIBILITY_PACKAGE).orEmpty()
         val reason = intent.getStringExtra(EXTRA_ACCESSIBILITY_REASON).orEmpty()
+        Log.d(TAG, "handleAccessibilityPulse package=$sourcePackage reason=$reason trusted=$trusted")
         if (!trusted) {
             broadcastStatus(currentStatus(), "无障碍补检查已触发，但设备还未获批准")
             return
         }
-        val published = publishLocalClipboardIfNeeded("accessibility")
-        if (published) {
+        if (publishLocalClipboardIfNeeded("accessibility")) {
+            return
+        }
+        val snapshot = ClipboardAccessAccessibilityService.consumeRecentSnapshot(sourcePackage)
+        if (snapshot != null && publishTextToServer(snapshot.text.trim(), System.currentTimeMillis(), buildString {
+                append("已通过无障碍快照补传文本")
+                if (snapshot.packageName.isNotBlank()) {
+                    append(" · 来源 ")
+                    append(snapshot.packageName)
+                }
+                if (reason.isNotBlank()) {
+                    append(" · ")
+                    append(reason.take(60))
+                }
+            })) {
             return
         }
         val detail = buildString {
@@ -262,6 +288,37 @@ class SyncService : Service() {
             }
         }
         broadcastStatus(currentStatus(), detail)
+    }
+
+    private fun publishAccessibilitySnapshotFallback(source: String, fallbackReason: String): Boolean {
+        val snapshot = ClipboardAccessAccessibilityService.consumeRecentSnapshot(sourcePackage = "") ?: return false
+        val text = snapshot.text.trim()
+        Log.d(TAG, "publishAccessibilitySnapshotFallback package=${snapshot.packageName} source=$source reason=$fallbackReason size=${text.length}")
+        if (text.isBlank()) return false
+        if (text == lastObservedLocalText && source == "poll") return false
+        lastObservedLocalText = text
+        val now = System.currentTimeMillis()
+        if (text == lastRemoteText && now - lastRemoteAt < 5_000) return false
+        if (text == lastPublishedText && now - lastPublishedAt < 2_000) return false
+        val result = buildString {
+            append("已通过无障碍快照补传文本")
+            if (snapshot.packageName.isNotBlank()) {
+                append(" · 来源 ")
+                append(snapshot.packageName)
+            }
+            append(" · ")
+            append(fallbackReason)
+        }
+        return publishTextToServer(text, now, result)
+    }
+
+    private fun publishTextToServer(text: String, publishedAt: Long, resultText: String): Boolean {
+        lastPublishedText = text
+        lastPublishedAt = publishedAt
+        Log.d(TAG, "publishTextToServer size=${text.length} result=$resultText")
+        client?.publishText(text)
+        broadcastStatus(getString(R.string.status_trusted), resultText)
+        return true
     }
 
     private fun currentStatus(): String = when {
@@ -463,6 +520,7 @@ class SyncService : Service() {
         private const val RECEIVE_CHANNEL_ID = "cloud_clipboard_receive"
         private const val NOTIFICATION_ID = 1001
         private const val RECONNECT_ALERT_NOTIFICATION_ID = 1002
+        private const val TAG = "CloudClipSyncService"
         @Volatile
         private var isRunning = false
 
