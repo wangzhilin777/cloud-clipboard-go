@@ -112,6 +112,6 @@ go run ./cmd/cloud-clipboard-desktop -headless
 ## 说明
 
 - 当前桌面端主收口平台是 Windows
-- Linux / macOS 仍以基础兼容为主，完整桌面体验后续再补
+- Linux / macOS 已支持基础文件选择、文件上传和下载后写入文件剪贴板；Linux 桌面环境需要可用的 `zenity`、`kdialog` 或 `yad`，文件剪贴板需要 `wl-copy` 或 `xclip`
 - Android 同步客户端在仓库独立目录 `android-sync-client/`
 - Windows 打包图标统一使用 `desktop-client-go/internal/tray/assets/cloud-clipboard-desktop.ico`，当前已切换为 `ahk-legacy` 分支沿用的 `cloud-clipboard-sync.ico`；如果后续重新打包，请先保留并继续使用这份资源再生成 `rsrc_windows_amd64.syso`
