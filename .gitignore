@@ -11,6 +11,7 @@
 .vscode/
 cloudflare/workers/.wrangler
 cloudflare/workers/node_modules
+cloudflare/pages/client/.env.production
 cloudflare/pages/server*
 cloudflare/node_modules
 .kotlin/

@@ -146,14 +146,14 @@ ROOM_AUTH = "{\"private\":\"\",\"finance\":\"finance-pass\",\"ops\":\"ops-pass\"
 
 ## 前端配置来源
 
-Pages 前端运行时会使用临时生成的 `config.js`，其模板来自 [cloudflare/pages/client/src/config.js.template](cloudflare/pages/client/src/config.js.template)。
+Pages 前端源码内置了默认配置文件 [cloudflare/pages/client/src/config.js](cloudflare/pages/client/src/config.js)，默认使用同源 API，便于本地构建和预览。
 
-部署脚本会自动把 Worker 地址写入：
+部署脚本会在构建前临时生成 `cloudflare/pages/client/.env.production`，把 Worker 地址注入为：
 
-- `apiBaseURL`
-- `wsBaseURL`
+- `VUE_APP_API_BASE_URL`
+- `VUE_APP_WS_BASE_URL`
 
-因此正常情况下不需要手动修改前端配置。
+构建完成后该临时环境文件会自动清理；正常情况下不需要手动修改前端配置文件。
 
 ## 数据库迁移
 
@@ -217,21 +217,22 @@ wrangler login
 SKIP_LOCAL_D1=1 bash deploy.sh
 ```
 
-### 3. 修改了 `wrangler.toml` 或 `config.js`，但文件又消失了
+### 3. 修改了 `wrangler.toml` 或 `.env.production`，但文件又消失了
 
 这是正常行为。
 
 部署脚本会在运行时临时生成：
 
 - `cloudflare/workers/wrangler.toml`
-- `cloudflare/pages/client/src/config.js`
+- `cloudflare/pages/client/.env.production`
 
 部署结束后会自动清理。
 
-如果你要改默认值，请修改模板文件，而不是改临时生成文件：
+如果你要改默认值，请修改模板文件或源码默认配置，而不是改临时生成文件：
 
 - [cloudflare/workers/wrangler.toml.template](cloudflare/workers/wrangler.toml.template)
 - [cloudflare/pages/client/src/config.js.template](cloudflare/pages/client/src/config.js.template)
+- [cloudflare/pages/client/src/config.js](cloudflare/pages/client/src/config.js)
 
 ### 4. 修改了密码或 `ROOM_AUTH` 后未生效
 

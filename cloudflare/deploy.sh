@@ -179,26 +179,20 @@ deploy_worker() {
     echo "$WORKER_URL" > .worker_url
 }
 
-# 步骤 4: 更新前端配置
+# 步骤 4: 注入前端构建配置
 update_frontend_config() {
-    info "=== 步骤 4: 更新前端配置 ==="
+    info "=== 步骤 4: 注入前端构建配置 ==="
     
     # 读取 Worker URL
     WORKER_URL=$(cat .worker_url)
     
-    # 更新前端配置文件
-    info "更新前端配置文件..."
-    cd pages/client/src || exit 1
-    
-    # 创建配置文件
-    cp config.js.template config.js
-    
-    # 更新配置文件中的 Worker URL
-    sed "${SED_INPLACE[@]}" "s|https://your-worker.your-subdomain.workers.dev|$WORKER_URL|g" config.js
-    
-    info "前端配置已更新，Worker URL: $WORKER_URL"
-    
-    cd ../../..
+    info "写入前端构建环境变量..."
+    cat > pages/client/.env.production <<EOF
+VUE_APP_API_BASE_URL=$WORKER_URL/api
+VUE_APP_WS_BASE_URL=$WORKER_URL/api
+EOF
+
+    info "前端构建环境变量已写入，Worker URL: $WORKER_URL"
 }
 
 # 步骤 5: 构建并部署前端
@@ -242,7 +236,7 @@ deploy_frontend() {
 cleanup() {
     info "清理临时文件..."
     rm -f .d1_database_id .worker_url .pages_url
-    rm -f pages/client/src/config.js workers/wrangler.toml
+    rm -f pages/client/.env.production workers/wrangler.toml
 }
 
 # 显示部署结果
