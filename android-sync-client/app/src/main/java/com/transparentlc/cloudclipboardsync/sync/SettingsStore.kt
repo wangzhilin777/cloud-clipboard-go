@@ -72,7 +72,7 @@ object SettingsStore {
         }
         val resolvedDeviceName = resolveStoredDeviceName(context, prefs)
         return Config(
-            serverBase = prefs.getString(KEY_SERVER_BASE, "http://127.0.0.1:9501") ?: "http://127.0.0.1:9501",
+            serverBase = prefs.getString(KEY_SERVER_BASE, "") ?: "",
             room = prefs.getString(KEY_ROOM, "") ?: "",
             roomPassword = prefs.getString(KEY_ROOM_PASSWORD, prefs.getString(KEY_AUTH_CODE_LEGACY, "")) ?: "",
             deviceName = resolvedDeviceName,

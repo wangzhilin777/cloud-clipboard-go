@@ -11,6 +11,7 @@
     <string name="default_room_label">默认房间</string>
     <string name="server_base_hint">服务端地址，例如 http://192.168.1.10:9501</string>
     <string name="server_base_tip">如果 Go 服务跑在 Windows 上，这里要填 Windows 的局域网 IP，不要填 127.0.0.1。</string>
+    <string name="server_base_missing_hint">请先填写服务端地址，例如 http://Windows局域网IP:9501</string>
     <string name="server_base_loopback_hint">当前地址指向安卓设备自己；如果服务端在 Windows，请改成 http://Windows局域网IP:9501</string>
     <string name="tab_connection">连接</string>
     <string name="tab_runtime">运行</string>
@@ -139,6 +140,7 @@
     <string name="status_disconnected">已断开</string>
     <string name="last_result_idle">暂无</string>
     <string name="auto_resume_restored">已按上次运行状态自动恢复同步</string>
+    <string name="auto_resume_missing_server_hint">已跳过自动续连：还没有填写服务端地址</string>
     <string name="auto_resume_loopback_hint">已跳过自动续连：当前服务地址仍是 127.0.0.1/localhost，请改成 Windows 局域网 IP</string>
     <string name="reconnect_retry_message">同步连接失败，正在进行第 %1$d/%2$d 次重试</string>
     <string name="reconnect_failure_limit_message">连续 3 次重连失败，已停止自动重试，请检查服务端后手动重新启动同步。</string>

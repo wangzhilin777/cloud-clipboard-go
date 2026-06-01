@@ -165,7 +165,9 @@ class MainActivity : AppCompatActivity() {
         maybeResumeSyncOnLaunch()
         findViewById<Button>(R.id.saveButton).setOnClickListener {
             val config = saveConfig()
-            if (isLoopbackServerBase(config.serverBase)) {
+            if (config.serverBase.isBlank()) {
+                showMissingServerBaseHint()
+            } else if (isLoopbackServerBase(config.serverBase)) {
                 showLoopbackHint()
             } else {
                 Toast.makeText(this, R.string.config_saved_toast, Toast.LENGTH_SHORT).show()
@@ -173,6 +175,10 @@ class MainActivity : AppCompatActivity() {
         }
         findViewById<Button>(R.id.startButton).setOnClickListener {
             val config = saveConfig()
+            if (config.serverBase.isBlank()) {
+                showMissingServerBaseHint()
+                return@setOnClickListener
+            }
             if (isLoopbackServerBase(config.serverBase)) {
                 showLoopbackHint()
                 return@setOnClickListener
@@ -403,6 +409,12 @@ class MainActivity : AppCompatActivity() {
         if (!SettingsStore.shouldResumeSync(this)) {
             return
         }
+        if (config.serverBase.isBlank()) {
+            statusText.text = getString(R.string.status_idle)
+            lastSyncText.text = getString(R.string.auto_resume_missing_server_hint)
+            autoResumeAttempted = true
+            return
+        }
         if (isLoopbackServerBase(config.serverBase)) {
             statusText.text = getString(R.string.status_idle)
             lastSyncText.text = getString(R.string.auto_resume_loopback_hint)
@@ -508,6 +520,12 @@ class MainActivity : AppCompatActivity() {
 
     private fun showLoopbackHint() {
         val message = getString(R.string.server_base_loopback_hint)
+        lastSyncText.text = message
+        Toast.makeText(this, message, Toast.LENGTH_LONG).show()
+    }
+
+    private fun showMissingServerBaseHint() {
+        val message = getString(R.string.server_base_missing_hint)
         lastSyncText.text = message
         Toast.makeText(this, message, Toast.LENGTH_LONG).show()
     }
@@ -800,6 +818,9 @@ class MainActivity : AppCompatActivity() {
     ): String {
         if (!config.autoConnectEnabled) {
             return "自动续连：已关闭\n结果：每次都需要你手动点启动同步。"
+        }
+        if (config.serverBase.isBlank()) {
+            return "自动续连：等待配置\n原因：还没有填写服务端地址，请先填 Windows 或服务器的局域网地址。"
         }
         if (isLoopbackServerBase(config.serverBase)) {
             return "自动续连：暂不可用\n原因：当前服务地址还是 127.0.0.1/localhost，请改成 Windows 局域网 IP。"
