@@ -31,7 +31,7 @@ var (
 	}
 )
 
-var server_version = "go verion by Jonnyan404"
+var server_version = "go version by Jonnyan404"
 var build_git_hash = show_bin_info()
 
 // NewClipboardServer 构造函数
