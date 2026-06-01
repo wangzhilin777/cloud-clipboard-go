@@ -42,6 +42,21 @@
                 <v-progress-linear :value="uploadProgress * 100"></v-progress-linear>
             </div>
 
+            <div v-if="$root.send.files.length" class="px-1 pb-2">
+                <v-checkbox
+                    v-model="notifyAndroid"
+                    class="ma-0"
+                    color="primary"
+                    dense
+                    hide-details
+                    :disabled="!canNotifyAndroid || progress"
+                    label="上传后通知已连接安卓端确认接收"
+                ></v-checkbox>
+                <div v-if="notifyHint" class="caption text--secondary mt-1 unified-composer__notify-hint">
+                    {{ notifyHint }}
+                </div>
+            </div>
+
             <div class="unified-composer__footer pt-1">
                 <div class="unified-composer__footer-main d-flex align-center flex-wrap">
                     <v-btn icon small color="grey darken-1" @click="openFilePicker">
@@ -92,6 +107,7 @@ export default {
         return {
             progress: false,
             uploadedSizes: [],
+            notifyAndroid: true,
             mdiPaperclip,
             mdiQrcode,
             mdiSend,
@@ -109,6 +125,15 @@ export default {
         },
         sendDisabled() {
             return !this.$root.websocket || this.progress || (!this.$root.send.text && !this.$root.send.files.length) || this.$root.send.text.length > this.$root.config.text.limit;
+        },
+        canNotifyAndroid() {
+            return !!(this.$root.sync?.device?.trusted && this.$root.sync?.deviceId);
+        },
+        notifyHint() {
+            if (!this.$root.send.files.length) return '';
+            if (this.canNotifyAndroid) return '仅向同房间、已连接且不是当前网页本机的同步客户端广播通知。';
+            if (this.$root.sync?.status === 'pending') return '当前网页同步设备尚未获批，暂时不能发送接收通知。';
+            return '需要先连上同步协议并让当前网页设备处于已连接状态。';
         },
         footerHint() {
             if (this.$root.send.files.length) {
@@ -182,61 +207,144 @@ export default {
             this.$root.send.text = '';
         },
         async sendFiles() {
-            if (!this.$root.send.files.length) {
-                return;
-            }
+            if (!this.$root.send.files.length) return null;
             const chunkSize = this.$root.config.file.chunk;
             this.uploadedSizes.splice(0);
             this.uploadedSizes.push(...Array(this.$root.send.files.length).fill(0));
             this.progress = true;
 
-            await Promise.all(this.$root.send.files.map(async (file, index) => {
+            const uploadResults = await Promise.all(this.$root.send.files.map(async (file, index) => {
                 if (file.size < chunkSize) {
-                    const formData = new FormData;
-                    formData.set('file', file);
-                    await this.$http.postForm('upload', formData, {
+                    const response = await this.$http.post('upload', file, {
+                        headers: {
+                            'Content-Type': file.type || 'application/octet-stream',
+                            'X-File-Name': encodeURIComponent(file.name),
+                            'X-File-Size': String(file.size),
+                        },
                         params: new URLSearchParams([['room', this.$root.room]]),
                         onUploadProgress: event => this.$set(this.uploadedSizes, index, event.loaded),
                     });
-                    return;
+                    const result = response.data.result || response.data;
+                    return { file, result, notice: this.buildPayloadNotice(file, result) };
                 }
 
-                const response = await this.$http.post('upload/chunk', file.name, {
-                    headers: { 'Content-Type': 'text/plain' },
+                const result = await this.uploadMultipartFile(file, index, chunkSize);
+                return { file, result, notice: this.buildPayloadNotice(file, result) };
+            }));
+
+            let noticeSent = false;
+            let noticeError = null;
+            try {
+                noticeSent = await this.broadcastPayloadNotice(uploadResults);
+            } catch (error) {
+                noticeError = error;
+            }
+            this.$root.send.files.splice(0);
+            return { noticeSent, noticeError };
+        },
+        async uploadMultipartFile(file, index, chunkSize) {
+            let session = null;
+            try {
+                const initResponse = await this.$http.post('upload/multipart/create', {
+                    name: file.name,
+                    size: file.size,
+                    type: file.type || 'application/octet-stream',
+                }, {
+                    headers: { 'Content-Type': 'application/json' },
                     params: new URLSearchParams([['room', this.$root.room]]),
                 });
-                const uuid = response.data.result.uuid;
+                session = initResponse.data.result;
 
+                const parts = [];
                 let uploadedSize = 0;
                 while (uploadedSize < file.size) {
                     const chunk = file.slice(uploadedSize, uploadedSize + chunkSize);
-                    await this.$http.post(`upload/chunk/${uuid}`, chunk, {
+                    const partNumber = parts.length + 1;
+                    const partResponse = await this.$http.put(`upload/multipart/${partNumber}`, chunk, {
                         headers: { 'Content-Type': 'application/octet-stream' },
+                        params: new URLSearchParams([
+                            ['room', this.$root.room],
+                            ['uploadId', session.uploadId],
+                            ['key', session.key],
+                        ]),
                         onUploadProgress: event => this.$set(this.uploadedSizes, index, uploadedSize + event.loaded),
                     });
-                    uploadedSize += chunkSize;
+                    parts.push(partResponse.data.result || partResponse.data);
+                    uploadedSize += chunk.size;
+                    this.$set(this.uploadedSizes, index, uploadedSize);
                 }
 
-                await this.$http.post(`upload/finish/${uuid}`, null, {
+                const finishResponse = await this.$http.post('upload/multipart/complete', {
+                    uploadId: session.uploadId,
+                    key: session.key,
+                    name: file.name,
+                    size: file.size,
+                    parts,
+                }, {
+                    headers: { 'Content-Type': 'application/json' },
                     params: new URLSearchParams([['room', this.$root.room]]),
                 });
-            }));
-
-            this.$root.send.files.splice(0);
+                return finishResponse.data.result || finishResponse.data;
+            } catch (error) {
+                if (session?.uploadId && session?.key) {
+                    try {
+                        await this.$http.delete('upload/multipart', {
+                            params: new URLSearchParams([
+                                ['room', this.$root.room],
+                                ['uploadId', session.uploadId],
+                                ['key', session.key],
+                            ]),
+                        });
+                    } catch (abortError) {
+                        console.error('取消分片上传失败:', abortError);
+                    }
+                }
+                throw error;
+            }
+        },
+        buildPayloadNotice(file, uploadResult) {
+            const result = uploadResult || {};
+            return {
+                sourceDeviceId: this.$root.sync.deviceId,
+                room: this.$root.room || '',
+                kind: result.kind || (file.type.startsWith('image/') ? 'image' : 'file'),
+                title: result.name || file.name,
+                mime: file.type || 'application/octet-stream',
+                size: result.size || file.size,
+                actionUrl: result.actionUrl || result.url || null,
+                downloadUrl: result.downloadUrl || result.actionUrl || result.url || null,
+                createdAt: Date.now(),
+            };
+        },
+        async broadcastPayloadNotice(uploadResults) {
+            if (!(this.notifyAndroid && this.canNotifyAndroid)) return false;
+            const path = typeof this.$root.syncBuildApiPath === 'function'
+                ? this.$root.syncBuildApiPath('payload-notice')
+                : 'api/sync/payload-notice';
+            await Promise.all(uploadResults.map(result => this.$http.post(path, result.notice)));
+            return true;
         },
         async sendAll() {
             try {
+                let fileSendResult = null;
                 if (this.$root.send.text) {
                     await this.sendText();
                 }
                 if (this.$root.send.files.length) {
-                    await this.sendFiles();
+                    fileSendResult = await this.sendFiles();
                 }
-                this.$toast(this.$t('sendSuccess'));
+                if (fileSendResult?.noticeSent) {
+                    this.$toast('发送成功，已通知安卓端确认接收');
+                } else if (fileSendResult?.noticeError) {
+                    this.$toast(`发送成功，但通知安卓端失败：${fileSendResult.noticeError.response?.data?.message || fileSendResult.noticeError.message}`);
+                } else {
+                    this.$toast(this.$t('sendSuccess'));
+                }
                 this.focus();
             } catch (error) {
-                if (error.response && error.response.data.msg) {
-                    this.$toast(this.$t('sendFailedMsg', { msg: error.response.data.msg }));
+                const backendMessage = error.response?.data?.msg || error.response?.data?.message;
+                if (backendMessage) {
+                    this.$toast(this.$t('sendFailedMsg', { msg: backendMessage }));
                 } else {
                     this.$toast(this.$t('sendFailed'));
                 }
@@ -335,6 +443,11 @@ export default {
 .unified-composer__hint {
     line-height: 1.4;
     min-width: 0;
+    word-break: break-word;
+}
+
+.unified-composer__notify-hint {
+    line-height: 1.4;
     word-break: break-word;
 }
 

@@ -1,3 +1,5 @@
+import { config } from './config';
+
 const SYNC_DEVICE_ID_KEY = 'sync.deviceId';
 const SYNC_DEVICE_NAME_KEY = 'sync.deviceName';
 const SYNC_ENABLE_RECEIVE_KEY = 'sync.enableReceive';
@@ -15,6 +17,34 @@ const getDefaultDeviceName = () => {
     if (ua.includes('Mac')) return '网页端（macOS）';
     return '网页端';
 };
+
+function buildSyncServerPath() {
+    return config.wsBaseURL ? 'sync/server' : 'sync/server';
+}
+
+function buildSyncApiPath(path) {
+    const normalized = String(path || '').replace(/^\/+/, '');
+    return config.apiBaseURL ? `sync/${normalized}` : `api/sync/${normalized}`;
+}
+
+function buildSyncWebSocketURL(serverURL, room, roomToken) {
+    let wsUrl;
+    if (config.wsBaseURL) {
+        const base = config.wsBaseURL.replace(/\/+$/, '');
+        wsUrl = new URL(`${base}/sync/ws`);
+    } else {
+        wsUrl = new URL(serverURL);
+        wsUrl.protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+        wsUrl.port = location.port;
+    }
+
+    wsUrl.protocol = wsUrl.protocol === 'https:' ? 'wss:' : 'ws:';
+    wsUrl.searchParams.set('room', room);
+    if (roomToken) {
+        wsUrl.searchParams.set('auth', roomToken);
+    }
+    return wsUrl;
+}
 
 export default {
     data() {
@@ -44,6 +74,9 @@ export default {
         };
     },
     methods: {
+        syncBuildApiPath(path) {
+            return buildSyncApiPath(path);
+        },
         syncLog(message) {
             this.sync.logs.unshift({
                 id: `${Date.now()}-${Math.random()}`,
@@ -74,7 +107,6 @@ export default {
             const syncItems = messages
                 .map(message => this.syncMessageToTimelineItem(message))
                 .filter(Boolean);
-
             const dedupedSyncItems = [];
             const seenIds = new Set();
             syncItems.forEach(item => {
@@ -84,16 +116,12 @@ export default {
             });
 
             const keepExisting = this.$root.received.filter(item => !item.syncOnly);
-            const merged = [...dedupedSyncItems, ...keepExisting].sort((a, b) => {
-                const left = Number(b?.timestamp || 0);
-                const right = Number(a?.timestamp || 0);
-                return left - right;
-            });
+            const merged = [...dedupedSyncItems, ...keepExisting].sort((a, b) => Number(b?.timestamp || 0) - Number(a?.timestamp || 0));
             this.$root.received.splice(0, this.$root.received.length, ...merged);
         },
         async syncLoadDevices() {
             try {
-                const response = await this.$http.get('api/sync/devices', {
+                const response = await this.$http.get(buildSyncApiPath('devices'), {
                     params: { room: this.room || '' },
                 });
                 this.sync.devices = response.data.devices || [];
@@ -109,7 +137,7 @@ export default {
         },
         async syncRefreshBootstrap() {
             try {
-                const response = await this.$http.get('api/sync/bootstrap', {
+                const response = await this.$http.get(buildSyncApiPath('bootstrap'), {
                     params: {
                         room: this.room || '',
                         deviceId: this.sync.deviceId,
@@ -127,7 +155,7 @@ export default {
         },
         async syncLoadStatus() {
             try {
-                const response = await this.$http.get('api/sync/status', {
+                const response = await this.$http.get(buildSyncApiPath('status'), {
                     params: {
                         room: this.room || '',
                         deviceId: this.sync.deviceId,
@@ -151,7 +179,7 @@ export default {
             this.sync.status = 'connecting';
             try {
                 const room = this.room || '';
-                const response = await this.$http.get('sync/server', {
+                const response = await this.$http.get(buildSyncServerPath(), {
                     params: { room },
                 });
                 if (response.data.auth && response.data.authorized === false) {
@@ -165,15 +193,8 @@ export default {
                     }
                 }
 
-                const wsUrl = new URL(response.data.server);
-                wsUrl.protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-                wsUrl.port = location.port;
-                wsUrl.searchParams.set('room', room);
                 const roomToken = this.getAuthTokenForRoom ? this.getAuthTokenForRoom(room) : '';
-                if (roomToken) {
-                    wsUrl.searchParams.set('auth', roomToken);
-                }
-
+                const wsUrl = buildSyncWebSocketURL(response.data.server, room, roomToken);
                 const ws = new WebSocket(wsUrl);
                 ws.onopen = () => {
                     ws.send(JSON.stringify({
@@ -184,9 +205,7 @@ export default {
                             room,
                             platform: 'web',
                             clientType: 'browser',
-                            meta: {
-                                userAgent: navigator.userAgent,
-                            },
+                            meta: { userAgent: navigator.userAgent },
                         },
                     }));
                 };
@@ -213,13 +232,9 @@ export default {
                                 await this.syncApplyRemoteClipboard(payload.data.text || '');
                                 break;
                             case 'clipboardAck':
-                                if (payload.data.status === 'ok') {
-                                    this.syncLog('文本同步成功');
-                                } else if (payload.data.status === 'duplicate') {
-                                    this.syncLog('检测到重复文本，已忽略');
-                                } else {
-                                    this.syncLog(`文本同步被拒绝：${payload.data.reason || payload.data.status}`);
-                                }
+                                if (payload.data.status === 'ok') this.syncLog('文本同步成功');
+                                else if (payload.data.status === 'duplicate') this.syncLog('检测到重复文本，已忽略');
+                                else this.syncLog(`文本同步被拒绝：${payload.data.reason || payload.data.status}`);
                                 break;
                             case 'deviceState':
                                 await this.syncLoadDevices();
@@ -260,9 +275,7 @@ export default {
         },
         syncStartClipboardPolling() {
             if (this.sync.poller || !navigator.clipboard?.readText) {
-                if (!navigator.clipboard?.readText) {
-                    this.syncLog('当前浏览器不支持自动读取本地剪贴板');
-                }
+                if (!navigator.clipboard?.readText) this.syncLog('当前浏览器不支持自动读取本地剪贴板');
                 return;
             }
             this.sync.poller = setInterval(async () => {
@@ -330,7 +343,7 @@ export default {
             this.syncLog('已手动复制最近一次远端文本');
         },
         async syncApproveDevice(deviceId, name) {
-            await this.$http.post('api/sync/pair/approve', {
+            await this.$http.post(buildSyncApiPath('pair/approve'), {
                 deviceId,
                 room: this.room || '',
                 name,
@@ -340,7 +353,7 @@ export default {
             await this.syncLoadStatus();
         },
         async syncToggleTrust(device) {
-            await this.$http.post(`api/sync/device/${device.deviceId}/trust`, {
+            await this.$http.post(buildSyncApiPath(`device/${device.deviceId}/trust`), {
                 room: this.room || '',
                 trusted: !device.trusted,
                 name: device.name,

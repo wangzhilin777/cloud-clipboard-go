@@ -42,16 +42,17 @@ object ShareUploadClient {
         val normalized = text.trim()
         require(normalized.isNotBlank()) { "没有可发送的文本内容" }
         val baseUrl = config.serverBase.trimEnd('/')
-        val request = Request.Builder()
-            .url("$baseUrl/text${roomQuery(config.room)}")
-            .header("Content-Type", "text/plain; charset=utf-8")
-            .applyAuth(config)
-            .post(normalized.toRequestBody("text/plain; charset=utf-8".toMediaTypeOrNull()))
-            .build()
-        client.newCall(request).execute().use { response ->
-            if (!response.isSuccessful) {
-                error("文本发送失败：HTTP ${response.code}")
-            }
+        val body = normalized.toRequestBody("text/plain; charset=utf-8".toMediaTypeOrNull())
+        executeFirstSuccessful(
+            urls = endpointCandidates(baseUrl, config.room, "text", "api/text"),
+            actionName = "文本发送",
+        ) { url ->
+            Request.Builder()
+                .url(url)
+                .header("Content-Type", "text/plain; charset=utf-8")
+                .applyAuth(config)
+                .post(body)
+                .build()
         }
         return SharedResult(
             sharedCount = 1,
@@ -126,23 +127,30 @@ object ShareUploadClient {
                 )
                 .build()
 
-            val request = Request.Builder()
-                .url("$baseUrl/upload${roomQuery(config.room)}")
-                .applyAuth(config)
-                .post(requestBody)
-                .build()
-
-            client.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) {
-                    error("上传失败：HTTP ${response.code}")
-                }
-                val body = JSONObject(response.body?.string().orEmpty())
-                val contentUrl = body.optString("url").trim()
-                if (contentUrl.isBlank()) {
-                    error("上传成功但没有返回内容地址")
-                }
-                return UploadResponse(contentUrl = contentUrl)
+            val responseBody = executeFirstSuccessful(
+                urls = endpointCandidates(baseUrl, config.room, "upload", "api/upload"),
+                actionName = "上传",
+            ) { url ->
+                Request.Builder()
+                    .url(url)
+                    .applyAuth(config)
+                    .post(requestBody)
+                    .build()
             }
+            val body = JSONObject(responseBody)
+            val result = body.optJSONObject("result")
+            val contentUrl = listOf(
+                body.optString("url"),
+                body.optString("actionUrl"),
+                body.optString("downloadUrl"),
+                result?.optString("url").orEmpty(),
+                result?.optString("actionUrl").orEmpty(),
+                result?.optString("downloadUrl").orEmpty(),
+            ).firstOrNull { it.trim().isNotBlank() }?.trim().orEmpty()
+            if (contentUrl.isBlank()) {
+                error("上传成功但没有返回内容地址")
+            }
+            return UploadResponse(contentUrl = contentUrl)
         } finally {
             tempFile.delete()
         }
@@ -166,17 +174,63 @@ object ShareUploadClient {
             .put("downloadUrl", contentUrl)
             .put("createdAt", System.currentTimeMillis())
 
-        val request = Request.Builder()
-            .url("$baseUrl/api/sync/payload/notice")
-            .header("Content-Type", "application/json")
-            .applyAuth(config)
-            .post(payload.toString().toRequestBody("application/json; charset=utf-8".toMediaTypeOrNull()))
-            .build()
+        val body = payload.toString().toRequestBody("application/json; charset=utf-8".toMediaTypeOrNull())
+        executeFirstSuccessful(
+            urls = endpointCandidates(
+                baseUrl,
+                config.room,
+                "api/sync/payload-notice",
+                "api/sync/payload/notice",
+            ),
+            actionName = "发送接收通知",
+        ) { url ->
+            Request.Builder()
+                .url(url)
+                .header("Content-Type", "application/json")
+                .applyAuth(config)
+                .post(body)
+                .build()
+        }
+    }
 
-        client.newCall(request).execute().use { response ->
-            if (!response.isSuccessful) {
-                error("发送接收通知失败：HTTP ${response.code}")
+    private fun executeFirstSuccessful(
+        urls: List<String>,
+        actionName: String,
+        requestFactory: (String) -> Request,
+    ): String {
+        var lastFailure = "${actionName}失败：没有可用的服务地址"
+        urls.forEachIndexed { index, url ->
+            client.newCall(requestFactory(url)).execute().use { response ->
+                val responseBody = response.body?.string().orEmpty()
+                if (response.isSuccessful) {
+                    return responseBody
+                }
+                val detail = responseBody.trim().takeIf { it.isNotBlank() }?.let { " $it" }.orEmpty()
+                lastFailure = "${actionName}失败：HTTP ${response.code}$detail"
+                val canTryNext = response.code == 404 || response.code == 405
+                if (!canTryNext || index == urls.lastIndex) {
+                    error(lastFailure)
+                }
             }
+        }
+        error(lastFailure)
+    }
+
+    private fun endpointCandidates(baseUrl: String, room: String, vararg paths: String): List<String> =
+        paths.map { endpointUrl(baseUrl, it, room) }.distinct()
+
+    private fun endpointUrl(baseUrl: String, path: String, room: String): String {
+        val normalizedBase = baseUrl.trimEnd('/')
+        val normalizedPath = normalizeEndpointPath(normalizedBase, path)
+        return "$normalizedBase/$normalizedPath${roomQuery(room)}"
+    }
+
+    private fun normalizeEndpointPath(baseUrl: String, path: String): String {
+        val normalizedPath = path.trim().trimStart('/')
+        return if (baseUrl.substringAfterLast('/').equals("api", ignoreCase = true) && normalizedPath.startsWith("api/")) {
+            normalizedPath.removePrefix("api/")
+        } else {
+            normalizedPath
         }
     }
 

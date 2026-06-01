@@ -122,10 +122,23 @@ async function finalizeUploadedFile({ request, env, url, room, uuid, fileName, f
     contentURL,
   });
 
-  return new Response(JSON.stringify({
+  const kind = FileHandler.determineFileType(fileName) === 'image' ? 'image' : 'file';
+  const downloadURL = `${url.origin}/api/file/${uuid}/${encodeURIComponent(fileName)}`;
+  const result = {
     id: messageId.toString(),
     type: FileHandler.determineFileType(fileName),
-    url: contentURL
+    kind,
+    name: fileName,
+    size: fileSize,
+    uuid,
+    url: contentURL,
+    actionUrl: contentURL,
+    downloadUrl: downloadURL,
+  };
+
+  return new Response(JSON.stringify({
+    ...result,
+    result,
   }), {
     headers: { 'Content-Type': 'application/json', ...corsHeaders }
   });
