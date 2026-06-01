@@ -155,6 +155,10 @@ class ShareReceiveActivity : AppCompatActivity() {
             Toast.makeText(this, R.string.share_receive_missing_config, Toast.LENGTH_LONG).show()
             return
         }
+        if (SettingsStore.isLoopbackServerBase(config.serverBase)) {
+            Toast.makeText(this, R.string.server_base_loopback_hint, Toast.LENGTH_LONG).show()
+            return
+        }
         sending = true
         updateSendingState()
         Thread {

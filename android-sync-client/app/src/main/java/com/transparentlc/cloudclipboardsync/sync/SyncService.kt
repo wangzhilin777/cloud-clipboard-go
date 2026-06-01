@@ -76,6 +76,17 @@ class SyncService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         config = SettingsStore.load(this)
         PayloadCacheStore.pruneExpired(this)
+        val serverBaseMessage = when {
+            config.serverBase.isBlank() -> getString(R.string.server_base_missing_hint)
+            SettingsStore.isLoopbackServerBase(config.serverBase) -> getString(R.string.server_base_loopback_hint)
+            else -> null
+        }
+        if (serverBaseMessage != null) {
+            broadcastStatus(getString(R.string.status_idle), serverBaseMessage)
+            showReconnectFailureAlert(serverBaseMessage)
+            stopSelf()
+            return START_NOT_STICKY
+        }
         val runtimeValidation = RuntimeModeValidator.validate(this, config)
         if (!runtimeValidation.ready) {
             broadcastStatus(getString(R.string.status_idle), runtimeValidation.message)
