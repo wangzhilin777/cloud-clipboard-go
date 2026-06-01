@@ -45,6 +45,11 @@ function createFileKey(uuid) {
   return `files/${uuid}`;
 }
 
+function buildContentURL(origin, messageId, room) {
+  const roomQuery = room !== 'default' ? `?room=${encodeURIComponent(room)}` : '';
+  return `${origin}/api/content/${messageId}${roomQuery}`;
+}
+
 function extractUuidFromKey(key = '') {
   return String(key || '').startsWith('files/') ? String(key).slice('files/'.length) : String(key || '');
 }
@@ -114,7 +119,7 @@ async function finalizeUploadedFile({ request, env, url, room, uuid, fileName, f
     }
   });
 
-  const contentURL = `${url.origin}/api/content/${messageId}${room !== 'default' ? `?room=${room}` : ''}`;
+  const contentURL = buildContentURL(url.origin, messageId, room);
 
   debugLog(env, '[upload] success', {
     room,

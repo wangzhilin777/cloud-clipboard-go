@@ -56,6 +56,14 @@ func (s *ClipboardServer) handle_server(w http.ResponseWriter, r *http.Request) 
 	}
 }
 
+func (s *ClipboardServer) buildContentURL(r *http.Request, messageID string, room string) string {
+	contentURL := fmt.Sprintf("%s://%s%s/content/%s", getScheme(r), r.Host, s.config.Server.Prefix, messageID)
+	if normalizeRoomName(room) != "default" {
+		contentURL += fmt.Sprintf("?room=%s", url.QueryEscape(room))
+	}
+	return contentURL
+}
+
 func (s *ClipboardServer) handle_push(w http.ResponseWriter, r *http.Request) {
 	ip := get_remote_ip(r)
 	room := normalizeRoomName(r.URL.Query().Get("room"))
@@ -360,12 +368,7 @@ func (s *ClipboardServer) handle_text(w http.ResponseWriter, r *http.Request) {
 		// 查找并更新消息
 		if updated := s.updateTextMessage(id, text, room, r); updated {
 			w.Header().Set("Content-Type", "application/json")
-			// 构建内容 URL
-			scheme := getScheme(r)
-			contentURL := fmt.Sprintf("%s://%s%s/content/%s", scheme, r.Host, s.config.Server.Prefix, idStr)
-			if room != "default" {
-				contentURL += fmt.Sprintf("?room=%s", room)
-			}
+			contentURL := s.buildContentURL(r, idStr, room)
 			json.NewEncoder(w).Encode(map[string]string{
 				"url":  contentURL,
 				"id":   idStr,
@@ -383,11 +386,7 @@ func (s *ClipboardServer) handle_text(w http.ResponseWriter, r *http.Request) {
 	event := s.addMessageToQueueAndBroadcast("text", text, room, r)
 
 	// 响应 (可以效仿 auth.go 中的 enhanceHandleText 返回内容 URL)
-	scheme := getScheme(r)
-	contentURL := fmt.Sprintf("%s://%s%s/content/%d", scheme, r.Host, s.config.Server.Prefix, event.Data.ID())
-	if room != "default" {
-		contentURL += fmt.Sprintf("?room=%s", room)
-	}
+	contentURL := s.buildContentURL(r, strconv.Itoa(event.Data.ID()), room)
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{
@@ -570,11 +569,7 @@ func (s *ClipboardServer) handle_upload(w http.ResponseWriter, r *http.Request) 
 	event := s.addMessageToQueueAndBroadcast("file", fileReceiveData, room, r)
 
 	// 响应
-	scheme := getScheme(r)
-	contentURL := fmt.Sprintf("%s://%s%s/content/%d", scheme, r.Host, s.config.Server.Prefix, event.Data.ID())
-	if room != "default" {
-		contentURL += fmt.Sprintf("?room=%s", room)
-	}
+	contentURL := s.buildContentURL(r, strconv.Itoa(event.Data.ID()), room)
 	responseType := DetermineResponseType(fileInfo.Name)
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(s.buildUploadResponse(event.Data.ID(), responseType, fileInfo, contentURL, r))
@@ -709,11 +704,7 @@ func (s *ClipboardServer) handle_finish(w http.ResponseWriter, r *http.Request) 
 	s.logger.Printf("文件 %s (UUID: %s) 上传完成, 大小: %d, 房间: %s", fileInfo.Name, uuid, fileInfo.Size, room)
 
 	// 构建响应
-	scheme := getScheme(r)
-	contentURL := fmt.Sprintf("%s://%s%s/content/%d", scheme, r.Host, s.config.Server.Prefix, event.Data.ID())
-	if room != "default" {
-		contentURL += fmt.Sprintf("?room=%s", room)
-	}
+	contentURL := s.buildContentURL(r, strconv.Itoa(event.Data.ID()), room)
 	responseType := DetermineResponseType(fileInfo.Name)
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(s.buildUploadResponse(event.Data.ID(), responseType, fileInfo, contentURL, r))

@@ -3,6 +3,11 @@ import { buildSenderDevice, saveToD1, broadcastMessage } from '../utils';
 import { ensureRoomAccess, normalizeRoomName } from '../auth';
 import { debugLog } from '../logger';
 
+function buildContentURL(origin, messageId, room) {
+  const roomQuery = room !== 'default' ? `?room=${encodeURIComponent(room)}` : '';
+  return `${origin}/api/content/${messageId}${roomQuery}`;
+}
+
 export class TextHandler {
   static async create(request, env) {
     try {
@@ -111,7 +116,7 @@ export class TextHandler {
         }
       });
 
-      const contentURL = `${url.origin}/api/content/${messageId}${room !== 'default' ? `?room=${room}` : ''}`;
+      const contentURL = buildContentURL(url.origin, messageId, room);
 
       debugLog(env, `文本消息处理完成, ID: ${messageId}, URL: ${contentURL}`);
 
@@ -171,7 +176,7 @@ export class TextHandler {
       });
     }
 
-    const contentURL = `${url.origin}/api/content/${numericId}${room !== 'default' ? `?room=${room}` : ''}`;
+    const contentURL = buildContentURL(url.origin, numericId, room);
 
     if (existingMessage.content === content) {
       return new Response(JSON.stringify({
