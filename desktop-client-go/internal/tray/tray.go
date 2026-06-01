@@ -214,7 +214,7 @@ func normalizeStatusLine(status panel.StatusView) string {
 func normalizeStatus(status string) string {
 	switch strings.ToLower(strings.TrimSpace(status)) {
 	case "trusted":
-		return "已信任"
+		return "已连接"
 	case "pending":
 		return "待批准"
 	case "connected":

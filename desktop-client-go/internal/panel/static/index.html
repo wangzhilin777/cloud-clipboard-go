@@ -664,13 +664,38 @@
 
     function fillState(state) {
       const status = state.status || 'idle';
-      statusText.textContent = state.connected ? `${status} / 已连接` : status;
+      const statusLabel = normalizeStatusLabel(status);
+      statusText.textContent = state.connected && statusLabel !== '已连接' ? `${statusLabel} / 已连接` : statusLabel;
       statusText.className = `value ${statusClass(status)}`;
       payloadText.textContent = state.lastPayloadTitle ? `${state.lastPayloadKind || 'file'} / ${state.lastPayloadTitle}` : '-';
       errorText.textContent = state.lastError || '-';
       actionText.textContent = state.lastActionDetail ? `${actionLabel(state.lastActionType)} / ${state.lastActionDetail}` : '-';
       pendingClipboardText.textContent = formatPendingClipboard(state);
       cacheCleanupText.textContent = formatCacheCleanup(state);
+    }
+
+    function normalizeStatusLabel(status) {
+      switch (String(status || '').trim().toLowerCase()) {
+        case 'trusted':
+        case 'connected':
+          return '已连接';
+        case 'pending':
+          return '待批准';
+        case 'connecting':
+          return '连接中';
+        case 'retrying':
+          return '重试中';
+        case 'starting':
+          return '启动中';
+        case 'stopped':
+          return '已暂停';
+        case 'error':
+          return '异常';
+        case 'idle':
+          return '空闲';
+        default:
+          return status || '空闲';
+      }
     }
 
     function actionLabel(actionType) {
