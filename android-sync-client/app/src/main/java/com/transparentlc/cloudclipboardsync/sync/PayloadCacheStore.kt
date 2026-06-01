@@ -184,6 +184,7 @@ object PayloadCacheStore {
             .replace(Regex("\\s+"), " ")
             .trim()
             .ifBlank { payloadId }
+            .take(120)
         return File(dir, "${payloadId}_$safeName")
     }
 
