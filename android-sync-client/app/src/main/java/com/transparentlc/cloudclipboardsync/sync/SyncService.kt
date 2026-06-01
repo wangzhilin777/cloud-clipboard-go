@@ -82,17 +82,11 @@ class SyncService : Service() {
             else -> null
         }
         if (serverBaseMessage != null) {
-            broadcastStatus(getString(R.string.status_idle), serverBaseMessage)
-            showReconnectFailureAlert(serverBaseMessage)
-            stopSelf()
-            return START_NOT_STICKY
+            return stopStartupWithMessage(serverBaseMessage)
         }
         val runtimeValidation = RuntimeModeValidator.validate(this, config)
         if (!runtimeValidation.ready) {
-            broadcastStatus(getString(R.string.status_idle), runtimeValidation.message)
-            showReconnectFailureAlert(runtimeValidation.message)
-            stopSelf()
-            return START_NOT_STICKY
+            return stopStartupWithMessage(runtimeValidation.message)
         }
         when (intent?.action) {
             ACTION_CONFIRM_PAYLOAD -> intent.getStringExtra(EXTRA_PAYLOAD_ID)?.let(::confirmPayloadDownload)
@@ -106,6 +100,14 @@ class SyncService : Service() {
             serviceStarted = true
         }
         return START_STICKY
+    }
+
+    private fun stopStartupWithMessage(message: String): Int {
+        startForeground(NOTIFICATION_ID, buildNotification(message))
+        broadcastStatus(getString(R.string.status_idle), message)
+        showReconnectFailureAlert(message)
+        stopSelf()
+        return START_NOT_STICKY
     }
 
     override fun onDestroy() {
