@@ -845,6 +845,10 @@ export class WebSocketRoom {
     if (!actionURL.value && !downloadURL.value) {
       return jsonResponse({ error: 'Bad Request', message: 'actionUrl 与 downloadUrl 至少提供一个' }, 400);
     }
+    const size = Number(body.size ?? 0);
+    if (!Number.isFinite(size) || size < 0) {
+      return jsonResponse({ error: 'Bad Request', message: 'size 必须是非负数字' }, 400);
+    }
 
     const room = normalizeRoomName(body.room);
     const payloads = await this.getSyncPayloads();
@@ -857,7 +861,7 @@ export class WebSocketRoom {
         kind,
         title: trimString(body.title),
         mime: trimString(body.mime),
-        size: Math.max(0, Number(body.size || 0)),
+        size,
         actionUrl: actionURL.value,
         downloadUrl: downloadURL.value,
         createdAt: Number(body.createdAt || nowMillis()),

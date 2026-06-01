@@ -25,6 +25,8 @@ import com.transparentlc.cloudclipboardsync.RuntimeModeValidator
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONObject
+import java.net.URLEncoder
+import java.nio.charset.StandardCharsets
 import kotlin.math.abs
 
 class SyncService : Service() {
@@ -191,8 +193,10 @@ class SyncService : Service() {
     private fun refreshTrustState() {
         try {
             val http = OkHttpClient()
+            val room = encodeQueryValue(config.room)
+            val deviceId = encodeQueryValue(config.deviceId)
             val requestBuilder = Request.Builder()
-                .url("${config.serverBase.trimEnd('/')}/api/sync/bootstrap?room=${config.room}&deviceId=${config.deviceId}")
+                .url("${config.serverBase.trimEnd('/')}/api/sync/bootstrap?room=$room&deviceId=$deviceId")
             if (config.roomPassword.isNotBlank()) {
                 requestBuilder.header("Authorization", "Bearer ${config.roomPassword}")
             }
@@ -208,6 +212,9 @@ class SyncService : Service() {
         } catch (_: Exception) {
         }
     }
+
+    private fun encodeQueryValue(value: String): String =
+        URLEncoder.encode(value, StandardCharsets.UTF_8.toString())
 
     private fun applyLatestRecentMessage(json: JSONObject, resultText: String) {
         val messages = json.optJSONArray("recentMessages") ?: return
