@@ -35,10 +35,10 @@ export default {
             date: new Date(), // 用于文件过期计算
             event: {
                 receive: data => {
-                    this.$root.received.unshift(data);
+                    this.mergeTimelineItems([data]);
                 },
                 receiveMulti: data => {
-                    this.$root.received.unshift(...Array.from(data).reverse());
+                    this.mergeTimelineItems(Array.from(data).reverse());
                 },
                 revoke: data => {
                     let index = this.$root.received.findIndex(e => e.id === data.id);
@@ -47,6 +47,9 @@ export default {
                 },
                 config: data => {
                     this.$root.config = data;
+                    if (typeof this.syncRefreshBootstrap === 'function') {
+                        this.syncRefreshBootstrap();
+                    }
                 },
                 connect: data => {
                     this.$root.device.push(data);
@@ -261,6 +264,37 @@ export default {
             this.clearAuthTokenForRoom(room);
             this.openAuthDialog(room);
         },
+        getTimelineItemKey(item = {}) {
+            if (item.syncOnly) {
+                return `sync:${item.syncMessageId || item.id || item.timestamp || ''}`;
+            }
+            return `push:${item.type || ''}:${item.id || item.cache || item.url || item.timestamp || ''}`;
+        },
+        mergeTimelineItems(items = []) {
+            if (!Array.isArray(this.$root.received)) {
+                this.$root.received = [];
+            }
+            const incoming = items.filter(Boolean);
+            if (!incoming.length) return;
+
+            const merged = [];
+            const seen = new Set();
+            [...incoming, ...this.$root.received].forEach(item => {
+                const key = this.getTimelineItemKey(item);
+                if (!key || seen.has(key)) return;
+                seen.add(key);
+                merged.push(item);
+            });
+            this.$root.received.splice(0, this.$root.received.length, ...merged);
+        },
+        resetTimelineForPushReconnect() {
+            if (!Array.isArray(this.$root.received)) {
+                this.$root.received = [];
+                return;
+            }
+            const syncItems = this.$root.received.filter(item => item.syncOnly);
+            this.$root.received.splice(0, this.$root.received.length, ...syncItems);
+        },
         async connect() {
             if (this.websocketConnecting) {
                 return;
@@ -299,12 +333,9 @@ export default {
                 this.websocket = ws;
                 this.websocketConnecting = false;
                 this.retry = 0;
-                this.$root.received = [];
+                this.resetTimelineForPushReconnect();
                 this.authCode = this.getAuthTokenForRoom(currentRoom);
                 this.$toast(this.$t('connectionSuccess'));
-                if (typeof this.syncRefreshBootstrap === 'function') {
-                    await this.syncRefreshBootstrap();
-                }
                 this.websocketHeartbeatTimer = setInterval(() => {
                     if (this.websocket !== ws || ws.readyState !== WebSocket.OPEN) return;
                     ws.send('');
@@ -328,6 +359,9 @@ export default {
                         (this.event[parsed.event] || (() => {}))(parsed.data);
                     } catch {}
                 };
+                if (typeof this.syncRefreshBootstrap === 'function') {
+                    this.syncRefreshBootstrap();
+                }
             } catch (error) {
                 this.websocketConnecting = false;
                 this.failure();
