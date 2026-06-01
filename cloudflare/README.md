@@ -73,6 +73,10 @@ HISTORY_LIMIT = "50"
 TEXT_LIMIT = "40960"
 FILE_LIMIT = "204857600"
 FILE_EXPIRE = "3600"
+SYNC_MESSAGE_EXPIRE = "86400"
+SYNC_PAYLOAD_EXPIRE = "86400"
+SYNC_PENDING_DEVICE_EXPIRE = "604800"
+SYNC_TRUSTED_DEVICE_EXPIRE = "2592000"
 ```
 
 | 变量 | 默认值 | 类型 | 说明 |
@@ -84,6 +88,30 @@ FILE_EXPIRE = "3600"
 | `TEXT_LIMIT` | `"40960"` | 整数字符串 | 单条文本消息最大长度 |
 | `FILE_LIMIT` | `"204857600"` | 整数字符串 | 单个文件上传大小上限，单位字节 |
 | `FILE_EXPIRE` | `"3600"` | 整数字符串 | 文件过期时间，单位秒 |
+| `SYNC_MESSAGE_EXPIRE` | `"86400"` | 整数字符串 | 同步文本历史保留时间，单位秒 |
+| `SYNC_PAYLOAD_EXPIRE` | `"86400"` | 整数字符串 | 同步文件通知历史保留时间，单位秒 |
+| `SYNC_PENDING_DEVICE_EXPIRE` | `"604800"` | 整数字符串 | 未批准同步设备离线后保留时间，单位秒 |
+| `SYNC_TRUSTED_DEVICE_EXPIRE` | `"2592000"` | 整数字符串 | 已信任同步设备离线后保留时间，单位秒 |
+
+## 多端同步协议
+
+Cloudflare Workers 版提供与 Go 服务端一致的一期同步入口：
+
+- `/sync/server`：返回同步 WebSocket 地址与房间鉴权状态
+- `/sync/ws`：同步 WebSocket 连接，处理 `hello`、`clipboardPublish`、`clipboardSync`、`payloadNotice`
+- `/api/sync/devices`：同步设备列表
+- `/api/sync/status`：同步房间状态
+- `/api/sync/bootstrap`：当前设备、最近文本和最近文件通知
+- `/api/sync/pair/request`：设备配对申请
+- `/api/sync/pair/approve`：批准设备
+- `/api/sync/device/:deviceId/trust`：切换设备信任状态
+- `/api/sync/payload-notice`：发送图片或文件通知
+
+同步协议与旧 `/api/push` 消息广播分离。旧网页文本、文件上传下载、房间列表和 WebSocket 推送继续走原链路；三端剪贴板同步和 Android 文件确认接收走独立同步链路。
+
+同步入口会先复用现有房间访问规则校验房间密码或全局密码，校验通过后再执行同步设备 pending / trusted 校验。未批准设备可以连接并进入 pending 状态，但不能发布剪贴板内容，也不会收到 trusted-only 的同步内容。
+
+Workers 版同步状态存放在 `WEBSOCKET_ROOM` Durable Object storage 中，包括同步设备、最近文本同步记录和最近 payload 通知。该状态不依赖 D1 或 R2；D1/R2 仍由原有历史消息和文件能力使用。
 
 ### roomAuth 说明
 

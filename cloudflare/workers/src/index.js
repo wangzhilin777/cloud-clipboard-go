@@ -5,6 +5,7 @@ import { TextHandler } from './handlers/text';
 import { FileHandler } from './handlers/file';
 import { ContentHandler } from './handlers/content';
 import { RoomsHandler } from './handlers/rooms';
+import { SyncHandler } from './handlers/sync';
 import { WebSocketHandler } from './handlers/websocket';
 
 // 导入 Durable Objects
@@ -34,6 +35,20 @@ router.delete('/api/upload/multipart', FileHandler.abortMultipart);
 router.post('/api/upload', FileHandler.upload);
 router.get('/api/file/:uuid/:filename?', FileHandler.download);
 router.delete('/api/file/:uuid', FileHandler.delete);
+
+// 独立多端同步协议，不改写旧 /api/push 广播链路。
+router.get('/sync/server', SyncHandler.server);
+router.get('/sync/ws', SyncHandler.connect);
+router.get('/api/sync/server', SyncHandler.server);
+router.get('/api/sync/ws', SyncHandler.connect);
+router.get('/api/sync/devices', SyncHandler.devices);
+router.get('/api/sync/status', SyncHandler.status);
+router.get('/api/sync/bootstrap', SyncHandler.bootstrap);
+router.post('/api/sync/pair/request', SyncHandler.pairRequest);
+router.post('/api/sync/pair/approve', SyncHandler.pairApprove);
+router.post('/api/sync/device/:deviceId/trust', SyncHandler.deviceTrust);
+router.post('/api/sync/payload-notice', SyncHandler.payloadNotice);
+router.post('/api/sync/payload/notice', SyncHandler.payloadNotice);
 
 // 添加删除消息路由
 router.delete('/api/revoke/all', ContentHandler.revokeAll);
