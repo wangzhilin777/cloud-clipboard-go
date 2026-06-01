@@ -26,6 +26,25 @@ object SyncEndpointUrls {
         }
     }
 
+    fun resolveUrl(serverBase: String, targetUrl: String): String {
+        val normalizedTarget = targetUrl.trim()
+        if (normalizedTarget.startsWith("http://", ignoreCase = true) ||
+            normalizedTarget.startsWith("https://", ignoreCase = true)
+        ) {
+            return normalizedTarget
+        }
+        if (normalizedTarget.startsWith("/")) {
+            val parsedTarget = Uri.parse(normalizedTarget)
+            return Uri.parse(serverBase.trim()).buildUpon()
+                .encodedPath(parsedTarget.encodedPath)
+                .encodedQuery(parsedTarget.encodedQuery)
+                .encodedFragment(parsedTarget.encodedFragment)
+                .build()
+                .toString()
+        }
+        return httpUrl(serverBase, normalizedTarget)
+    }
+
     private fun normalizeEndpointPath(baseUrl: String, path: String): String {
         val normalizedPath = path.trim().trimStart('/')
         return if (lastUrlSegment(baseUrl).equals("api", ignoreCase = true) && normalizedPath.startsWith("api/")) {

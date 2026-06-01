@@ -5,7 +5,6 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.File
 import java.io.FileOutputStream
-import java.net.URI
 
 object PayloadDownloader {
     private val client = OkHttpClient()
@@ -14,7 +13,7 @@ object PayloadDownloader {
         PayloadCacheStore.pruneExpired(context)
         val targetUrl = entry.downloadUrl ?: entry.actionUrl
             ?: error("缺少可下载地址")
-        val resolvedUrl = resolveUrl(config.serverBase, targetUrl)
+        val resolvedUrl = SyncEndpointUrls.resolveUrl(config.serverBase, targetUrl)
         val cacheFile = PayloadCacheStore.createCacheFile(context, entry.payloadId, entry.title)
         val partialFile = File(cacheFile.parentFile, "${cacheFile.name}.part")
         val requestBuilder = Request.Builder().url(resolvedUrl)
@@ -53,13 +52,5 @@ object PayloadDownloader {
             partialFile.delete()
             throw error
         }
-    }
-
-    private fun resolveUrl(serverBase: String, targetUrl: String): String {
-        if (targetUrl.startsWith("http://") || targetUrl.startsWith("https://")) {
-            return targetUrl
-        }
-        val base = if (serverBase.endsWith("/")) serverBase else "$serverBase/"
-        return URI(base).resolve(targetUrl).toString()
     }
 }
