@@ -3,7 +3,6 @@ package com.transparentlc.cloudclipboardsync
 import android.accessibilityservice.AccessibilityService
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
-import android.util.Log
 import com.transparentlc.cloudclipboardsync.sync.SettingsStore
 import com.transparentlc.cloudclipboardsync.sync.SyncService
 import java.util.Locale
@@ -21,7 +20,6 @@ class ClipboardAccessAccessibilityService : AccessibilityService() {
         if (packageName == this.packageName) return
         val now = System.currentTimeMillis()
         val pulseReason = detectPulseReason(event) ?: return
-        Log.d(TAG, "accessibility pulse package=$packageName reason=$pulseReason")
         cacheVisibleTextSnapshot(packageName, pulseReason, now)
         if (now - lastPulseAt < 450L) return
         lastPulseAt = now
@@ -32,7 +30,7 @@ class ClipboardAccessAccessibilityService : AccessibilityService() {
 
     private fun detectPulseReason(event: AccessibilityEvent): String? {
         val summary = buildString {
-            event.text?.forEach { item ->
+            event.text.forEach { item ->
                 val value = item?.toString()?.trim().orEmpty()
                 if (value.isNotBlank()) {
                     if (isNotEmpty()) append(" | ")
@@ -73,7 +71,6 @@ class ClipboardAccessAccessibilityService : AccessibilityService() {
             .take(4000)
         if (candidate.isBlank()) return
         lastSnapshotAt = now
-        Log.d(TAG, "snapshot cached package=$packageName reason=$pulseReason size=${candidate.length}")
         updateSnapshot(packageName, pulseReason, candidate, now)
     }
 
@@ -94,7 +91,6 @@ class ClipboardAccessAccessibilityService : AccessibilityService() {
     }
 
     companion object {
-        private const val TAG = "ClipboardAccessA11y"
         @Volatile private var lastSnapshotText: String = ""
         @Volatile private var lastSnapshotPackage: String = ""
         @Volatile private var lastSnapshotReason: String = ""

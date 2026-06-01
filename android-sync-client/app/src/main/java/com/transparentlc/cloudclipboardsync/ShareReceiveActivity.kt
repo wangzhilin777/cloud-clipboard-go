@@ -149,7 +149,7 @@ class ShareReceiveActivity : AppCompatActivity() {
             runCatching {
                 when {
                     sharedItems.isNotEmpty() -> ShareUploadClient.shareFiles(this, config, sharedItems)
-                    !sharedText.isNullOrBlank() -> ShareUploadClient.shareText(this, config, sharedText.orEmpty())
+                    !sharedText.isNullOrBlank() -> ShareUploadClient.shareText(config, sharedText.orEmpty())
                     else -> error("没有可发送的内容")
                 }
             }.onSuccess { result ->

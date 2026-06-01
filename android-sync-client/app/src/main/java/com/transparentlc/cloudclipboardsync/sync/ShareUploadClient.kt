@@ -35,7 +35,6 @@ object ShareUploadClient {
     )
 
     fun shareText(
-        context: Context,
         config: SettingsStore.Config,
         text: String,
     ): SharedResult {

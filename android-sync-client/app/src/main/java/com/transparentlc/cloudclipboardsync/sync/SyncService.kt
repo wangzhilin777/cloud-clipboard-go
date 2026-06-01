@@ -13,7 +13,6 @@ import android.os.Build
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
-import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import com.transparentlc.cloudclipboardsync.ClipboardAccessAccessibilityService
@@ -68,7 +67,6 @@ class SyncService : Service() {
     override fun onCreate() {
         super.onCreate()
         isRunning = true
-        Log.d(TAG, "service onCreate")
         clipboardManager = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
         clipboardManager.addPrimaryClipChangedListener(clipboardListener)
         PayloadCacheStore.pruneExpired(this)
@@ -77,7 +75,6 @@ class SyncService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         config = SettingsStore.load(this)
-        Log.d(TAG, "onStartCommand action=${intent?.action} running=$serviceStarted")
         PayloadCacheStore.pruneExpired(this)
         val runtimeValidation = RuntimeModeValidator.validate(this, config)
         if (!runtimeValidation.ready) {
@@ -227,7 +224,6 @@ class SyncService : Service() {
 
     private fun publishLocalClipboardIfNeeded(source: String): Boolean {
         if (applyingRemoteText || !trusted) return false
-        Log.d(TAG, "publishLocalClipboardIfNeeded source=$source trusted=$trusted applyingRemote=$applyingRemoteText")
         val clip = runCatching { clipboardManager.primaryClip }.getOrNull()
         if (clip == null) {
             if (source == "accessibility") {
@@ -254,7 +250,6 @@ class SyncService : Service() {
     private fun handleAccessibilityPulse(intent: Intent) {
         val sourcePackage = intent.getStringExtra(EXTRA_ACCESSIBILITY_PACKAGE).orEmpty()
         val reason = intent.getStringExtra(EXTRA_ACCESSIBILITY_REASON).orEmpty()
-        Log.d(TAG, "handleAccessibilityPulse package=$sourcePackage reason=$reason trusted=$trusted")
         if (!trusted) {
             broadcastStatus(currentStatus(), "无障碍补检查已触发，但设备还未获批准")
             return
@@ -293,7 +288,6 @@ class SyncService : Service() {
     private fun publishAccessibilitySnapshotFallback(source: String, fallbackReason: String): Boolean {
         val snapshot = ClipboardAccessAccessibilityService.consumeRecentSnapshot(sourcePackage = "") ?: return false
         val text = snapshot.text.trim()
-        Log.d(TAG, "publishAccessibilitySnapshotFallback package=${snapshot.packageName} source=$source reason=$fallbackReason size=${text.length}")
         if (text.isBlank()) return false
         if (text == lastObservedLocalText && source == "poll") return false
         lastObservedLocalText = text
@@ -315,7 +309,6 @@ class SyncService : Service() {
     private fun publishTextToServer(text: String, publishedAt: Long, resultText: String): Boolean {
         lastPublishedText = text
         lastPublishedAt = publishedAt
-        Log.d(TAG, "publishTextToServer size=${text.length} result=$resultText")
         client?.publishText(text)
         broadcastStatus(getString(R.string.status_trusted), resultText)
         return true
@@ -520,7 +513,6 @@ class SyncService : Service() {
         private const val RECEIVE_CHANNEL_ID = "cloud_clipboard_receive"
         private const val NOTIFICATION_ID = 1001
         private const val RECONNECT_ALERT_NOTIFICATION_ID = 1002
-        private const val TAG = "CloudClipSyncService"
         @Volatile
         private var isRunning = false
 

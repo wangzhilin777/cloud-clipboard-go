@@ -92,7 +92,6 @@ func random_bytes(n int) []byte {
 
 // ------ gen thumbnail
 func gen_thumbnail(imgPath string) (string, error) {
-	fmt.Println("--gen_thumbnail:", imgPath)
 	imgFile, err := os.Open(imgPath)
 	if err != nil {
 		return "", err
@@ -103,7 +102,6 @@ func gen_thumbnail(imgPath string) (string, error) {
 	// 	img, err = png.Decode(imgFile)
 
 	if err != nil {
-		fmt.Println("-- image.decode fail")
 		return "", err
 	}
 
