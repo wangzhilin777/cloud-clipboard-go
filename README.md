@@ -1,4 +1,4 @@
-<h1 align="center"> Cloud Clipboard Go </h1>
+<h1 align="center">云剪贴板 Cloud Clipboard Go</h1>
 
 <p align="center">
   <a href="README.en.md"><img src="https://img.shields.io/badge/lang-English-blue.svg" alt="English Readme"></a>
@@ -14,7 +14,15 @@
 </p>
 
 <p align="center">
-  <strong>一个跨平台的云剪贴板工具，支持文本、图片、文件实时发送到云端或本地服务器。</strong>
+  <strong>局域网云剪贴板，支持网页、Windows、Android 多端文本同步与文件中转。</strong>
+</p>
+
+<p align="center">
+  自建可控、房间隔离、支持密码访问，适合个人与家庭设备之间快速同步剪贴板内容。
+</p>
+
+<p align="center">
+  当前版本重点提供：网页端、Windows 桌面端、Android 同步客户端三端纯文本同步，以及文件中转与接收确认能力。
 </p>
 
 ---
