@@ -131,6 +131,7 @@ object PayloadCacheStore {
         if (kept.size != entries.size) {
             saveEntries(context, kept)
         }
+        prunePartialFiles(context)
         cacheDir(context).mkdirs()
     }
 
@@ -139,6 +140,7 @@ object PayloadCacheStore {
             entry.localPath?.let(::File)?.takeIf { it.exists() }?.delete()
         }
         cacheDir(context).deleteRecursively()
+        cacheDir(context).mkdirs()
         saveEntries(context, emptyList())
     }
 
@@ -201,6 +203,13 @@ object PayloadCacheStore {
     }
 
     private fun cacheDir(context: Context): File = File(context.cacheDir, CACHE_DIR)
+
+    private fun prunePartialFiles(context: Context) {
+        val dir = cacheDir(context)
+        if (!dir.exists()) return
+        dir.listFiles { file -> file.isFile && file.name.endsWith(".part") }
+            ?.forEach { file -> file.delete() }
+    }
 
     private fun retentionMs(context: Context): Long {
         val hours = SettingsStore.load(context).cacheRetentionHours.coerceAtLeast(1)
