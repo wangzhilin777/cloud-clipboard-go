@@ -745,11 +745,7 @@ func kindFromMime(mimeType string) string {
 }
 
 func (s *Sender) fetchLatestContent(ctx context.Context, action string) (latestContentPayload, error) {
-	endpoints := make([]string, 0, 2)
-	for _, endpoint := range s.endpointCandidates("content/latest", "api/content/latest") {
-		endpoints = append(endpoints, addQueryValues(endpoint, url.Values{"json": []string{"true"}}))
-	}
-	raw, err := s.doFirstSuccessful(ctx, action, endpoints, func(endpoint string) (*http.Request, error) {
+	raw, err := s.doFirstSuccessful(ctx, action, s.latestContentEndpoints(), func(endpoint string) (*http.Request, error) {
 		req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
 		if err != nil {
 			return nil, err
@@ -766,6 +762,19 @@ func (s *Sender) fetchLatestContent(ctx context.Context, action string) (latestC
 		return latestContentPayload{}, err
 	}
 	return payload, nil
+}
+
+func (s *Sender) latestContentEndpoints() []string {
+	query := url.Values{"json": []string{"true"}}
+	if strings.TrimSpace(s.cfg.Room) == "" {
+		query.Set("room", "default")
+	}
+
+	endpoints := make([]string, 0, 2)
+	for _, endpoint := range s.endpointCandidates("content/latest", "api/content/latest") {
+		endpoints = append(endpoints, addQueryValues(endpoint, query))
+	}
+	return endpoints
 }
 
 func resolveLatestFileURL(serverBase string, uuid string, name string, rawURL string) (string, error) {
