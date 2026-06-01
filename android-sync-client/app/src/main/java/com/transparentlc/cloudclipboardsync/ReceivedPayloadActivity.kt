@@ -20,6 +20,7 @@ import com.transparentlc.cloudclipboardsync.sync.SyncService
 import java.io.File
 import java.text.DateFormat
 import android.content.BroadcastReceiver
+import android.content.ActivityNotFoundException
 import android.content.Context
 
 class ReceivedPayloadActivity : AppCompatActivity() {
@@ -77,11 +78,16 @@ class ReceivedPayloadActivity : AppCompatActivity() {
         ActivityResultContracts.CreateDocument("*/*"),
     ) { uri ->
         val entry = pendingSaveEntry ?: return@registerForActivityResult
+        pendingSaveEntry = null
         if (uri != null) {
-            copyToUri(entry, uri)
+            if (!copyToUri(entry, uri)) {
+                Toast.makeText(this, R.string.payload_save_failed_toast, Toast.LENGTH_SHORT).show()
+                return@registerForActivityResult
+            }
             PayloadCacheStore.markProcessed(this, entry.payloadId)
             notifyPayloadCollectionChanged(entry.payloadId)
             moveAfterHandling(entry.payloadId)
+            Toast.makeText(this, R.string.payload_save_success_toast, Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -402,38 +408,63 @@ class ReceivedPayloadActivity : AppCompatActivity() {
     }
 
     private fun openFile(entry: PayloadEntry) {
-        val uri = entry.localPath?.let(::File)?.takeIf { it.exists() }?.let(::buildFileUri) ?: return
+        val uri = entry.localPath?.let(::File)?.takeIf { it.exists() }?.let(::buildFileUri)
+        if (uri == null) {
+            Toast.makeText(this, R.string.payload_local_file_missing_toast, Toast.LENGTH_SHORT).show()
+            return
+        }
+        val intent = Intent(Intent.ACTION_VIEW)
+            .setDataAndType(uri, entry.mime)
+            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        try {
+            startActivity(intent)
+        } catch (_: ActivityNotFoundException) {
+            Toast.makeText(this, R.string.payload_open_no_app_toast, Toast.LENGTH_SHORT).show()
+            return
+        } catch (_: Exception) {
+            Toast.makeText(this, R.string.payload_open_failed_toast, Toast.LENGTH_SHORT).show()
+            return
+        }
         PayloadCacheStore.markProcessed(this, entry.payloadId)
         notifyPayloadCollectionChanged(entry.payloadId)
         moveAfterHandling(entry.payloadId)
-        startActivity(
-            Intent(Intent.ACTION_VIEW)
-                .setDataAndType(uri, entry.mime)
-                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION),
-        )
     }
 
     private fun shareFile(entry: PayloadEntry) {
-        val uri = entry.localPath?.let(::File)?.takeIf { it.exists() }?.let(::buildFileUri) ?: return
+        val uri = entry.localPath?.let(::File)?.takeIf { it.exists() }?.let(::buildFileUri)
+        if (uri == null) {
+            Toast.makeText(this, R.string.payload_local_file_missing_toast, Toast.LENGTH_SHORT).show()
+            return
+        }
+        val intent = Intent.createChooser(
+            Intent(Intent.ACTION_SEND)
+                .setType(entry.mime)
+                .putExtra(Intent.EXTRA_STREAM, uri)
+                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION),
+            getString(R.string.payload_share_button),
+        )
+        try {
+            startActivity(intent)
+        } catch (_: ActivityNotFoundException) {
+            Toast.makeText(this, R.string.payload_share_no_app_toast, Toast.LENGTH_SHORT).show()
+            return
+        } catch (_: Exception) {
+            Toast.makeText(this, R.string.payload_share_failed_toast, Toast.LENGTH_SHORT).show()
+            return
+        }
         PayloadCacheStore.markProcessed(this, entry.payloadId)
         notifyPayloadCollectionChanged(entry.payloadId)
         moveAfterHandling(entry.payloadId)
-        startActivity(
-            Intent.createChooser(
-                Intent(Intent.ACTION_SEND)
-                    .setType(entry.mime)
-                    .putExtra(Intent.EXTRA_STREAM, uri)
-                    .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION),
-                getString(R.string.payload_share_button),
-            ),
-        )
     }
 
-    private fun copyToUri(entry: PayloadEntry, uri: Uri) {
-        val file = entry.localPath?.let(::File)?.takeIf { it.exists() } ?: return
-        contentResolver.openOutputStream(uri)?.use { output ->
-            file.inputStream().use { input -> input.copyTo(output) }
-        }
+    private fun copyToUri(entry: PayloadEntry, uri: Uri): Boolean {
+        val file = entry.localPath?.let(::File)?.takeIf { it.exists() } ?: return false
+        return runCatching {
+            contentResolver.openOutputStream(uri)?.use { output ->
+                file.inputStream().use { input -> input.copyTo(output) }
+            } ?: return false
+            true
+        }.getOrDefault(false)
     }
 
     private fun notifyPayloadCollectionChanged(payloadId: String?) {

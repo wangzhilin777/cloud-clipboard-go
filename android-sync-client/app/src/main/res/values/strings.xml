@@ -212,6 +212,13 @@
     <string name="payload_restore_snoozed_button">恢复稍后提醒</string>
     <string name="payload_restore_snoozed_toast">已恢复 %1$d 条稍后提醒</string>
     <string name="payload_restore_snoozed_empty_toast">当前没有可恢复的稍后提醒</string>
+    <string name="payload_local_file_missing_toast">本地缓存文件不存在，请重新下载后再试</string>
+    <string name="payload_open_no_app_toast">当前没有可打开此文件的应用</string>
+    <string name="payload_open_failed_toast">打开文件失败，请稍后再试</string>
+    <string name="payload_share_no_app_toast">当前没有可分享此文件的应用</string>
+    <string name="payload_share_failed_toast">分享文件失败，请稍后再试</string>
+    <string name="payload_save_success_toast">文件已另存</string>
+    <string name="payload_save_failed_toast">另存失败，请检查目标位置后重试</string>
     <string name="payload_status_processed">已处理</string>
     <string name="payload_status_pending">待处理</string>
     <string name="payload_status_cached">已缓存</string>
