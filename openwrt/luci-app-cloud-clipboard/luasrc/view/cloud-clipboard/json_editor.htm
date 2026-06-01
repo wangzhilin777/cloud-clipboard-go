@@ -68,8 +68,8 @@
           "port": 9501,
           "prefix": "",
           "history": 100,
-          "historyFile": "",
-          "storageDir": "",
+          "historyFile": "/etc/cloud-clipboard/data/history.json",
+          "storageDir": "/etc/cloud-clipboard/data/upload",
           "auth": <%=(luci.model.uci.cursor():get("cloud-clipboard", "main", "auth") or "") ~= "" and "true" or "false"%>,
           "roomAuth": {
             "private": "",
@@ -85,6 +85,13 @@
           "expire": 3600,
           "chunk": 2097152,
           "limit": 268435456
+        },
+        "sync": {
+          "stateCleanup": 600,
+          "messageExpire": 86400,
+          "payloadExpire": 86400,
+          "pendingDeviceExpire": 604800,
+          "trustedDeviceExpire": 0
         }
       }, null, 2);
     }
