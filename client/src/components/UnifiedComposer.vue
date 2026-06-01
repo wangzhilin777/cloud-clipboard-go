@@ -284,7 +284,7 @@ export default {
                 mime: file.type || 'application/octet-stream',
                 size: result.size || file.size,
                 actionUrl: result.actionUrl || result.url || null,
-                downloadUrl: result.downloadUrl || null,
+                downloadUrl: result.downloadUrl || result.actionUrl || result.url || null,
                 createdAt: Date.now(),
             };
         },

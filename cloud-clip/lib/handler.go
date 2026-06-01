@@ -6,6 +6,7 @@ import (
 	"io"
 	"mime"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -576,11 +577,7 @@ func (s *ClipboardServer) handle_upload(w http.ResponseWriter, r *http.Request) 
 	}
 	responseType := DetermineResponseType(fileInfo.Name)
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{
-		"url":  contentURL,
-		"id":   strconv.Itoa(event.Data.ID()),
-		"type": responseType,
-	})
+	json.NewEncoder(w).Encode(s.buildUploadResponse(event.Data.ID(), responseType, fileInfo, contentURL, r))
 }
 
 func (s *ClipboardServer) handle_chunk(w http.ResponseWriter, r *http.Request) {
@@ -719,11 +716,38 @@ func (s *ClipboardServer) handle_finish(w http.ResponseWriter, r *http.Request) 
 	}
 	responseType := DetermineResponseType(fileInfo.Name)
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{
-		"url":  contentURL,
-		"id":   strconv.Itoa(event.Data.ID()),
-		"type": responseType,
-	})
+	json.NewEncoder(w).Encode(s.buildUploadResponse(event.Data.ID(), responseType, fileInfo, contentURL, r))
+}
+
+func (s *ClipboardServer) buildUploadResponse(messageID int, responseType string, fileInfo File, contentURL string, r *http.Request) map[string]interface{} {
+	fileURL := fmt.Sprintf("%s://%s%s/file/%s/%s", getScheme(r), r.Host, s.config.Server.Prefix, fileInfo.UUID, url.PathEscape(fileInfo.Name))
+	kind := "file"
+	if responseType == "image" {
+		kind = "image"
+	}
+	result := map[string]interface{}{
+		"id":          strconv.Itoa(messageID),
+		"type":        responseType,
+		"kind":        kind,
+		"name":        fileInfo.Name,
+		"size":        fileInfo.Size,
+		"uuid":        fileInfo.UUID,
+		"url":         contentURL,
+		"actionUrl":   contentURL,
+		"downloadUrl": fileURL,
+	}
+	return map[string]interface{}{
+		"id":          result["id"],
+		"type":        responseType,
+		"kind":        kind,
+		"name":        fileInfo.Name,
+		"size":        fileInfo.Size,
+		"uuid":        fileInfo.UUID,
+		"url":         contentURL,
+		"actionUrl":   contentURL,
+		"downloadUrl": fileURL,
+		"result":      result,
+	}
 }
 
 func (s *ClipboardServer) handle_revoke(w http.ResponseWriter, r *http.Request) {

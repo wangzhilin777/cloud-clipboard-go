@@ -160,10 +160,11 @@ export default {
             } else if (files.some(e => e.size > this.$root.config.file.limit)) {
                 this.$toast(this.$t('fileSizeExceeded', { limit: prettyFileSize(this.$root.config.file.limit) })); // Translate toast
             } else {
+                URL.revokeObjectURL(this.imagePreview);
+                this.imagePreview = '';
                 this.$root.send.files.splice(0);
                 this.$root.send.files.push(...files);
                 if (this.isUploadingImage) {
-                    URL.revokeObjectURL(this.imagePreview);
                     this.imagePreview = URL.createObjectURL(files[0]);
                 }
             }
@@ -178,7 +179,7 @@ export default {
                 mime: file.type || 'application/octet-stream',
                 size: result.size || file.size,
                 actionUrl: result.actionUrl || result.url || null,
-                downloadUrl: result.downloadUrl || null,
+                downloadUrl: result.downloadUrl || result.actionUrl || result.url || null,
                 createdAt: Date.now(),
             };
         },
@@ -259,16 +260,21 @@ export default {
             } finally {
                 this.progress = false;
             }
-        }
+        },
+        handlePaste(event) {
+            if (!(event && event.clipboardData)) return;
+            const items = Array.from(event.clipboardData.items || []);
+            const files = items.filter(item => item.kind === 'file').map(item => item.getAsFile()).filter(Boolean);
+            if (!files.length) return;
+            this.handleSelectFiles(files);
+        },
     },
     mounted() {
-        document.onpaste = e => {
-            if (!(e && e.clipboardData)) return;
-            console.log(e.clipboardData);
-            const items = Array.from(e.clipboardData.items);
-            if (!(items.length && items.every(e => e.kind === 'file'))) return;
-            this.handleSelectFiles(items.map(e => e.getAsFile()));
-        };
+        document.addEventListener('paste', this.handlePaste);
+    },
+    beforeDestroy() {
+        document.removeEventListener('paste', this.handlePaste);
+        URL.revokeObjectURL(this.imagePreview);
     },
 }
 </script>
