@@ -254,7 +254,7 @@ export class FileHandler {
 
     } catch (error) {
       console.error('File upload error:', error);
-      console.error('File upload stack:', error?.stack || '(no stack)');
+      debugLog(env, 'File upload stack:', error?.stack || '(no stack)');
       return new Response(JSON.stringify({
         error: 'Internal Server Error',
         message: '上传文件时发生错误'
@@ -340,7 +340,7 @@ export class FileHandler {
       });
     } catch (error) {
       console.error('Create multipart upload error:', error);
-      console.error('Create multipart upload stack:', error?.stack || '(no stack)');
+      debugLog(env, 'Create multipart upload stack:', error?.stack || '(no stack)');
       return new Response(JSON.stringify({
         error: 'Internal Server Error',
         message: '初始化分片上传时发生错误'
@@ -389,7 +389,7 @@ export class FileHandler {
       });
     } catch (error) {
       console.error('Multipart upload part error:', error);
-      console.error('Multipart upload part stack:', error?.stack || '(no stack)');
+      debugLog(env, 'Multipart upload part stack:', error?.stack || '(no stack)');
       return new Response(JSON.stringify({
         error: 'Internal Server Error',
         message: '上传文件分片时发生错误'
@@ -452,7 +452,7 @@ export class FileHandler {
       });
     } catch (error) {
       console.error('Complete multipart upload error:', error);
-      console.error('Complete multipart upload stack:', error?.stack || '(no stack)');
+      debugLog(env, 'Complete multipart upload stack:', error?.stack || '(no stack)');
       return new Response(JSON.stringify({
         error: 'Internal Server Error',
         message: '完成分片上传时发生错误'
@@ -500,7 +500,7 @@ export class FileHandler {
       });
     } catch (error) {
       console.error('Abort multipart upload error:', error);
-      console.error('Abort multipart upload stack:', error?.stack || '(no stack)');
+      debugLog(env, 'Abort multipart upload stack:', error?.stack || '(no stack)');
       return new Response(JSON.stringify({
         error: 'Internal Server Error',
         message: '取消分片上传时发生错误'
@@ -575,7 +575,7 @@ export class FileHandler {
 
     } catch (error) {
       console.error('File download error:', error);
-      console.error('Error stack:', error.stack);
+      debugLog(env, 'Error stack:', error.stack);
       return new Response('Internal Server Error', { 
         status: 500,
         headers: corsHeaders
@@ -630,7 +630,7 @@ export class FileHandler {
 
     } catch (error) {
       console.error('File delete error:', error);
-      console.error('Error stack:', error.stack);
+      debugLog(env, 'Error stack:', error.stack);
       return new Response(JSON.stringify({
         error: 'Internal Server Error',
         message: '删除文件时发生错误'

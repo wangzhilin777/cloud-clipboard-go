@@ -323,7 +323,7 @@ export class WebSocketRoom {
       
     } catch (error) {
       console.error('发送历史消息失败:', error);
-      console.error('Error details:', error.stack);
+      debugLog(this.env, 'Error details:', error.stack);
     }
   }
 

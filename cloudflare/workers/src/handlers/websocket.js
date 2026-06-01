@@ -61,7 +61,7 @@ export class WebSocketHandler {
 
     } catch (error) {
       console.error('WebSocket handler error:', error);
-      console.error('Error stack:', error.stack);
+      debugLog(env, 'Error stack:', error.stack);
       
       return new Response(JSON.stringify({
         error: 'Internal Server Error',

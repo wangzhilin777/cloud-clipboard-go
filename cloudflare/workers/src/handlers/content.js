@@ -194,7 +194,7 @@ export class ContentHandler {
 
     } catch (error) {
       console.error('Latest content handler error:', error);
-      console.error('Error stack:', error.stack);
+      debugLog(env, 'Error stack:', error.stack);
       return new Response(JSON.stringify({
         error: 'Internal Server Error',
         message: '获取最新内容时发生错误'
@@ -278,7 +278,7 @@ export class ContentHandler {
 
     } catch (error) {
       console.error('Content handler error:', error);
-      console.error('Error stack:', error.stack);
+      debugLog(env, 'Error stack:', error.stack);
       return new Response(JSON.stringify({
         error: 'Internal Server Error',
         message: '获取内容时发生错误'
