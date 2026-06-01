@@ -116,8 +116,10 @@ func (s *ClipboardServer) handleSyncStatus(w http.ResponseWriter, r *http.Reques
 			"usesGlobalPassword": globalPasswordConfigured,
 			"usesRoomPassword":   roomPasswordConfigured,
 		},
-		"currentDevice": s.syncHub.GetDevice(deviceID, room),
-		"summary":       s.syncHub.GetRoomSummary(room),
+		"currentDevice":  s.syncHub.GetDevice(deviceID, room),
+		"summary":        s.syncHub.GetRoomSummary(room),
+		"recentMessages": s.syncHub.GetRecentMessages(room),
+		"recentPayloads": s.syncHub.GetRecentPayloads(room),
 		"limits": map[string]interface{}{
 			"textLimit":    s.config.Text.Limit,
 			"historyLimit": s.config.Server.History,
