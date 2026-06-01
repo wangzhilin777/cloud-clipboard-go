@@ -29,6 +29,7 @@ type Backend interface {
 	FetchLatestText() (string, error)
 	DownloadLatestFile() (string, error)
 	FetchLatestFileToClipboard() (string, error)
+	SuppressClipboardFiles(paths []string)
 }
 
 type Server struct {
@@ -121,6 +122,7 @@ func New(address string, backend Backend) *Server {
 	mux.HandleFunc("/api/fetch-latest-text", s.handleFetchLatestText)
 	mux.HandleFunc("/api/download-latest-file", s.handleDownloadLatestFile)
 	mux.HandleFunc("/api/fetch-latest-file-to-clipboard", s.handleFetchLatestFileToClipboard)
+	mux.HandleFunc("/api/suppress-clipboard-files", s.handleSuppressClipboardFiles)
 	mux.HandleFunc("/tips/confirm-pending-clipboard-files", s.handleConfirmPendingClipboardFilesTip)
 	mux.Handle("/", http.FileServer(http.FS(staticRoot)))
 	return s
@@ -373,6 +375,22 @@ func (s *Server) handleFetchLatestFileToClipboard(w http.ResponseWriter, r *http
 	writeJSON(w, http.StatusOK, map[string]any{"path": path})
 }
 
+func (s *Server) handleSuppressClipboardFiles(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	defer r.Body.Close()
+	var body struct {
+		Paths []string `json:"paths"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	s.backend.SuppressClipboardFiles(body.Paths)
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+}
 func toConfigView(cfg config.Config) configView {
 	return configView{
 		ServerBase:                    cfg.ServerBase,

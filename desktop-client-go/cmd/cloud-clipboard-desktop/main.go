@@ -1,13 +1,18 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"flag"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"syscall"
+	"time"
 
 	"github.com/jonnyan404/cloud-clipboard-go/desktop-client-go/internal/app"
 	"github.com/jonnyan404/cloud-clipboard-go/desktop-client-go/internal/config"
@@ -98,10 +103,37 @@ func runShellAction(logger *log.Logger, cfg config.Config, shellSend string, she
 		if err != nil {
 			return "", err
 		}
+		notifyPanelSuppressClipboardFiles(logger, cfg.PanelAddress, []string{result.Path})
 		if err := fileclip.SetFileList([]string{result.Path}); err != nil {
 			logger.Printf("文件剪贴板写入返回异常，但下载文件已落地: %v", err)
 		}
 		return "已拉取最新文件到本地剪贴板", nil
 	}
 	return "", nil
+}
+
+func notifyPanelSuppressClipboardFiles(logger *log.Logger, panelAddress string, paths []string) {
+	panelAddress = strings.TrimSpace(panelAddress)
+	if panelAddress == "" || len(paths) == 0 {
+		return
+	}
+	baseURL := panelAddress
+	if !strings.HasPrefix(baseURL, "http://") && !strings.HasPrefix(baseURL, "https://") {
+		baseURL = "http://" + baseURL
+	}
+	body, err := json.Marshal(map[string]any{"paths": paths})
+	if err != nil {
+		logger.Printf("构造剪贴板抑制请求失败: %v", err)
+		return
+	}
+	client := &http.Client{Timeout: 800 * time.Millisecond}
+	resp, err := client.Post(strings.TrimRight(baseURL, "/")+"/api/suppress-clipboard-files", "application/json", bytes.NewReader(body))
+	if err != nil {
+		logger.Printf("通知主进程忽略本次文件剪贴板变化失败: %v", err)
+		return
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 300 {
+		logger.Printf("通知主进程忽略本次文件剪贴板变化返回异常状态: %s", resp.Status)
+	}
 }

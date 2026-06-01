@@ -508,9 +508,7 @@ func (a *App) FetchLatestFileToClipboard() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	a.mu.Lock()
-	a.suppressedClipboardFileSignature = clipboardFilesSignature([]string{result.Path})
-	a.mu.Unlock()
+	a.SuppressClipboardFiles([]string{result.Path})
 	if err := fileclip.SetFileList([]string{result.Path}); err != nil {
 		return "", err
 	}
@@ -519,6 +517,16 @@ func (a *App) FetchLatestFileToClipboard() (string, error) {
 	return result.Path, nil
 }
 
+func (a *App) SuppressClipboardFiles(paths []string) {
+	signature := clipboardFilesSignature(paths)
+	if strings.TrimSpace(signature) == "" {
+		return
+	}
+	a.mu.Lock()
+	a.suppressedClipboardFileSignature = signature
+	a.mu.Unlock()
+	a.clearPendingClipboardIfSignature(signature)
+}
 func (a *App) notifyActionSuccess(message string) {
 	message = strings.TrimSpace(message)
 	if message == "" {
@@ -550,6 +558,16 @@ func (a *App) clearPendingClipboard() {
 	})
 }
 
+func (a *App) clearPendingClipboardIfSignature(signature string) {
+	_ = a.state.Update(func(snapshot *StateSnapshot) {
+		if clipboardFilesSignature(snapshot.PendingClipboardFiles) != signature {
+			return
+		}
+		snapshot.PendingClipboardFiles = nil
+		snapshot.PendingClipboardDetectedAt = 0
+		snapshot.PendingClipboardExpiresAt = 0
+	})
+}
 func (a *App) clearExpiredClipboardPendingLocked() {
 	current := a.state.Current()
 	if current.PendingClipboardExpiresAt == 0 || time.Now().UnixMilli() <= current.PendingClipboardExpiresAt {
