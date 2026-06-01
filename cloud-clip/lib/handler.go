@@ -64,6 +64,14 @@ func (s *ClipboardServer) buildContentURL(r *http.Request, messageID string, roo
 	return contentURL
 }
 
+func (s *ClipboardServer) buildFileURL(r *http.Request, uuid string, filename string) string {
+	fileURL := fmt.Sprintf("%s://%s%s/file/%s", getScheme(r), r.Host, s.config.Server.Prefix, url.PathEscape(uuid))
+	if strings.TrimSpace(filename) != "" {
+		fileURL += "/" + url.PathEscape(filename)
+	}
+	return fileURL
+}
+
 func (s *ClipboardServer) handle_push(w http.ResponseWriter, r *http.Request) {
 	ip := get_remote_ip(r)
 	room := normalizeRoomName(r.URL.Query().Get("room"))
@@ -711,7 +719,7 @@ func (s *ClipboardServer) handle_finish(w http.ResponseWriter, r *http.Request) 
 }
 
 func (s *ClipboardServer) buildUploadResponse(messageID int, responseType string, fileInfo File, contentURL string, r *http.Request) map[string]interface{} {
-	fileURL := fmt.Sprintf("%s://%s%s/file/%s/%s", getScheme(r), r.Host, s.config.Server.Prefix, fileInfo.UUID, url.PathEscape(fileInfo.Name))
+	fileURL := s.buildFileURL(r, fileInfo.UUID, fileInfo.Name)
 	kind := "file"
 	if responseType == "image" {
 		kind = "image"
@@ -1092,7 +1100,7 @@ func (s *ClipboardServer) handleLatestContent(w http.ResponseWriter, r *http.Req
 					"name":      fileReceive.Name,
 					"size":      fileReceive.Size,
 					"uuid":      fileReceive.Cache,
-					"url":       filepath.Join(fileReceive.URL, fileReceive.Name),
+					"url":       s.buildFileURL(r, fileReceive.Cache, fileReceive.Name),
 					"id":        strconv.Itoa(msg.Data.ID()),
 					"timestamp": fileReceive.Timestamp,
 				}
