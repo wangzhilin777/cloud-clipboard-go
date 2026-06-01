@@ -292,7 +292,10 @@ export default {
             if (!(this.notifyAndroid && this.canNotifyAndroid)) {
                 return false;
             }
-            await Promise.all(uploadResults.map(result => this.$http.post('api/sync/payload-notice', result.notice)));
+            const path = typeof this.$root.syncBuildApiPath === 'function'
+                ? this.$root.syncBuildApiPath('payload-notice')
+                : 'api/sync/payload-notice';
+            await Promise.all(uploadResults.map(result => this.$http.post(path, result.notice)));
             return true;
         },
         async sendAll() {

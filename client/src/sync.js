@@ -16,6 +16,11 @@ const getDefaultDeviceName = () => {
     return '网页端';
 };
 
+function buildSyncApiPath(path) {
+    const normalized = String(path || '').replace(/^\/+/, '');
+    return `api/sync/${normalized}`;
+}
+
 export default {
     data() {
         return {
@@ -44,6 +49,9 @@ export default {
         };
     },
     methods: {
+        syncBuildApiPath(path) {
+            return buildSyncApiPath(path);
+        },
         syncLog(message) {
             this.sync.logs.unshift({
                 id: `${Date.now()}-${Math.random()}`,
@@ -93,7 +101,7 @@ export default {
         },
         async syncLoadDevices() {
             try {
-                const response = await this.$http.get('api/sync/devices', {
+                const response = await this.$http.get(buildSyncApiPath('devices'), {
                     params: { room: this.room || '' },
                 });
                 this.sync.devices = response.data.devices || [];
@@ -109,7 +117,7 @@ export default {
         },
         async syncRefreshBootstrap() {
             try {
-                const response = await this.$http.get('api/sync/bootstrap', {
+                const response = await this.$http.get(buildSyncApiPath('bootstrap'), {
                     params: {
                         room: this.room || '',
                         deviceId: this.sync.deviceId,
@@ -127,7 +135,7 @@ export default {
         },
         async syncLoadStatus() {
             try {
-                const response = await this.$http.get('api/sync/status', {
+                const response = await this.$http.get(buildSyncApiPath('status'), {
                     params: {
                         room: this.room || '',
                         deviceId: this.sync.deviceId,
@@ -330,7 +338,7 @@ export default {
             this.syncLog('已手动复制最近一次远端文本');
         },
         async syncApproveDevice(deviceId, name) {
-            await this.$http.post('api/sync/pair/approve', {
+            await this.$http.post(buildSyncApiPath('pair/approve'), {
                 deviceId,
                 room: this.room || '',
                 name,
@@ -340,7 +348,7 @@ export default {
             await this.syncLoadStatus();
         },
         async syncToggleTrust(device) {
-            await this.$http.post(`api/sync/device/${device.deviceId}/trust`, {
+            await this.$http.post(buildSyncApiPath(`device/${device.deviceId}/trust`), {
                 room: this.room || '',
                 trusted: !device.trusted,
                 name: device.name,
