@@ -14,6 +14,7 @@ import okhttp3.RequestBody.Companion.asRequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
 import java.io.File
+import java.io.IOException
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 import java.util.UUID
@@ -111,12 +112,12 @@ object ShareUploadClient {
         resolver: ContentResolver,
         item: SharedItem,
     ): UploadResponse {
-        val tempFile = File.createTempFile("share_", "_" + item.name, context.cacheDir)
-        resolver.openInputStream(item.uri)?.use { input ->
-            tempFile.outputStream().use { output -> input.copyTo(output) }
-        } ?: error("无法读取共享内容：${item.name}")
-
+        val tempFile = File.createTempFile("share_", "_" + safeTempSuffix(item.name), context.cacheDir)
         try {
+            resolver.openInputStream(item.uri)?.use { input ->
+                tempFile.outputStream().use { output -> input.copyTo(output) }
+            } ?: error("无法读取共享内容：${item.name}")
+
             val requestBody = MultipartBody.Builder()
                 .setType(MultipartBody.FORM)
                 .addFormDataPart(
@@ -199,20 +200,33 @@ object ShareUploadClient {
     ): String {
         var lastFailure = "${actionName}失败：没有可用的服务地址"
         urls.forEachIndexed { index, url ->
-            client.newCall(requestFactory(url)).execute().use { response ->
-                val responseBody = response.body?.string().orEmpty()
-                if (response.isSuccessful) {
-                    return responseBody
+            try {
+                client.newCall(requestFactory(url)).execute().use { response ->
+                    val responseBody = response.body?.string().orEmpty()
+                    if (response.isSuccessful) {
+                        return responseBody
+                    }
+                    val detail = responseBody.trim().takeIf { it.isNotBlank() }?.let { " $it" }.orEmpty()
+                    lastFailure = "${actionName}失败：HTTP ${response.code}$detail"
+                    val canTryNext = response.code == 404 || response.code == 405
+                    if (!canTryNext || index == urls.lastIndex) {
+                        error(lastFailure)
+                    }
                 }
-                val detail = responseBody.trim().takeIf { it.isNotBlank() }?.let { " $it" }.orEmpty()
-                lastFailure = "${actionName}失败：HTTP ${response.code}$detail"
-                val canTryNext = response.code == 404 || response.code == 405
-                if (!canTryNext || index == urls.lastIndex) {
-                    error(lastFailure)
-                }
+            } catch (error: IOException) {
+                lastFailure = "${actionName}失败：${error.message ?: "网络不可用"}"
+                if (index == urls.lastIndex) error(lastFailure)
             }
         }
         error(lastFailure)
+    }
+
+    private fun safeTempSuffix(name: String): String {
+        val sanitized = name
+            .replace(Regex("[\\\\/:*?\"<>|\\r\\n]+"), "_")
+            .trim('_')
+            .ifBlank { UUID.randomUUID().toString() }
+        return sanitized.takeLast(120)
     }
 
     private fun endpointCandidates(baseUrl: String, room: String, vararg paths: String): List<String> =

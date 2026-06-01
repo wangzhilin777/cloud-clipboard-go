@@ -2,6 +2,7 @@ package com.transparentlc.cloudclipboardsync
 
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.view.View
 import android.widget.Button
@@ -60,7 +61,7 @@ class ShareReceiveActivity : AppCompatActivity() {
         when (action) {
             Intent.ACTION_SEND -> {
                 val text = intent?.getStringExtra(Intent.EXTRA_TEXT)?.trim().orEmpty()
-                val singleUri = intent?.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)
+                val singleUri = intent?.getStreamUriExtra()
                 if (!singleUri.isNullOrBlank()) {
                     val resolvedUri = requireNotNull(singleUri)
                     grantUriPermission(packageName, resolvedUri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
@@ -70,10 +71,7 @@ class ShareReceiveActivity : AppCompatActivity() {
                 }
             }
             Intent.ACTION_SEND_MULTIPLE -> {
-                val uris: List<Uri> = intent
-                    ?.getParcelableArrayListExtra(Intent.EXTRA_STREAM, Uri::class.java)
-                    ?.mapNotNull { it }
-                    ?: emptyList()
+                val uris: List<Uri> = intent?.getStreamUriListExtra().orEmpty()
                 uris.forEach { uri ->
                     grantUriPermission(packageName, uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 }
@@ -83,6 +81,20 @@ class ShareReceiveActivity : AppCompatActivity() {
     }
 
     private fun Uri?.isNullOrBlank(): Boolean = this == null
+
+    private fun Intent.getStreamUriExtra(): Uri? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)
+    } else {
+        @Suppress("DEPRECATION")
+        getParcelableExtra(Intent.EXTRA_STREAM) as? Uri
+    }
+
+    private fun Intent.getStreamUriListExtra(): List<Uri> = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        getParcelableArrayListExtra(Intent.EXTRA_STREAM, Uri::class.java).orEmpty()
+    } else {
+        @Suppress("DEPRECATION")
+        getParcelableArrayListExtra<Uri>(Intent.EXTRA_STREAM).orEmpty()
+    }
 
     private fun renderDraft() {
         val config = SettingsStore.load(this)
