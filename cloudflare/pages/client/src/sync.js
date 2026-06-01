@@ -66,6 +66,7 @@ export default {
                 lastClipboardReadDeniedAt: 0,
                 poller: null,
                 refreshTimer: null,
+                pushRefreshTimer: null,
                 enableReceive: localStorage.getItem(SYNC_ENABLE_RECEIVE_KEY) !== 'false',
                 enableSend: localStorage.getItem(SYNC_ENABLE_SEND_KEY) !== 'false',
                 pendingRemoteText: '',
@@ -318,6 +319,13 @@ export default {
                 await this.syncRefreshBootstrap();
             }, 4000);
         },
+        syncQueuePushRefresh() {
+            if (!this.sync.deviceId || this.sync.pushRefreshTimer) return;
+            this.sync.pushRefreshTimer = setTimeout(async () => {
+                this.sync.pushRefreshTimer = null;
+                await this.syncRefreshBootstrap();
+            }, 200);
+        },
         syncStopClipboardPolling() {
             if (this.sync.poller) {
                 clearInterval(this.sync.poller);
@@ -328,6 +336,10 @@ export default {
             if (this.sync.refreshTimer) {
                 clearInterval(this.sync.refreshTimer);
                 this.sync.refreshTimer = null;
+            }
+            if (this.sync.pushRefreshTimer) {
+                clearTimeout(this.sync.pushRefreshTimer);
+                this.sync.pushRefreshTimer = null;
             }
         },
         async syncApplyRemoteClipboard(text) {

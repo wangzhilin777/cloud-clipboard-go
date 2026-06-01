@@ -53,6 +53,13 @@ export default {
                         this.syncRefreshBootstrap();
                     }
                 },
+                syncUpdate: () => {
+                    if (typeof this.syncQueuePushRefresh === 'function') {
+                        this.syncQueuePushRefresh();
+                    } else if (typeof this.syncRefreshBootstrap === 'function') {
+                        this.syncRefreshBootstrap();
+                    }
+                },
                 connect: data => {
                     this.$root.device.push(data);
                 },

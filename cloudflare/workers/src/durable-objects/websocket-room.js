@@ -1024,6 +1024,15 @@ export class WebSocketRoom {
     await this.putSyncMessages(messages);
 
     this.broadcastSync({ event: 'clipboardSync', data: record }, session.room, session.deviceId, true);
+    this.broadcast({
+      event: 'syncUpdate',
+      data: {
+        type: 'clipboard',
+        room: record.room,
+        messageId: record.messageId,
+        createdAt: record.createdAt,
+      },
+    }, session.room);
     this.sendSync(session, {
       event: 'clipboardAck',
       data: { messageId: record.messageId, status: 'ok', serverAt: nowMillis() },

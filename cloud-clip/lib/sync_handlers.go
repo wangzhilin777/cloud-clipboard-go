@@ -600,6 +600,15 @@ func (s *ClipboardServer) handleSyncWebSocket(w http.ResponseWriter, r *http.Req
 					Event: "clipboardSync",
 					Data:  record,
 				})
+				s.broadcastWebSocketMessage(WebSocketMessage{
+					Event: "syncUpdate",
+					Data: map[string]interface{}{
+						"type":      "clipboard",
+						"room":      record.Room,
+						"messageId": record.MessageID,
+						"createdAt": record.CreatedAt,
+					},
+				}, session.Room)
 				_ = conn.WriteJSON(syncOutgoingEnvelope{
 					Event: "clipboardAck",
 					Data: map[string]interface{}{
