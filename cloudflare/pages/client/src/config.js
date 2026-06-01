@@ -3,9 +3,6 @@ const isDevelopment = process.env.NODE_ENV === 'development';
 const normalizeBaseURL = value => String(value || '').trim().replace(/\/+$/, '');
 
 export const config = {
-    // 可在 Cloudflare Pages 环境变量中配置，例如：
-    // VUE_APP_API_BASE_URL=https://your-worker.your-subdomain.workers.dev/api
-    // VUE_APP_WS_BASE_URL=https://your-worker.your-subdomain.workers.dev/api
     apiBaseURL: normalizeBaseURL(process.env.VUE_APP_API_BASE_URL),
     wsBaseURL: normalizeBaseURL(process.env.VUE_APP_WS_BASE_URL || process.env.VUE_APP_API_BASE_URL),
     isCloudflarePages: /pages\.dev$/i.test(window.location.hostname),

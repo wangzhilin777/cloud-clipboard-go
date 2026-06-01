@@ -101,7 +101,7 @@ export default {
                 syncSourceDeviceId: message?.sourceDeviceId || '',
             };
         },
-        syncMergeRecentMessages(messages = []) {
+        syncMergeRecentMessages(messages = [], options = {}) {
             if (!Array.isArray(this.$root.received)) return;
 
             const syncItems = messages
@@ -115,8 +115,18 @@ export default {
                 dedupedSyncItems.push(item);
             });
 
+            const existingSyncItems = options.replaceExistingSync
+                ? []
+                : this.$root.received.filter(item => item.syncOnly);
             const keepExisting = this.$root.received.filter(item => !item.syncOnly);
-            const merged = [...dedupedSyncItems, ...keepExisting].sort((a, b) => Number(b?.timestamp || 0) - Number(a?.timestamp || 0));
+            const mergedSyncItems = [];
+            const mergedSyncIds = new Set();
+            [...dedupedSyncItems, ...existingSyncItems].forEach(item => {
+                if (mergedSyncIds.has(item.id)) return;
+                mergedSyncIds.add(item.id);
+                mergedSyncItems.push(item);
+            });
+            const merged = [...mergedSyncItems, ...keepExisting].sort((a, b) => Number(b?.timestamp || 0) - Number(a?.timestamp || 0));
             this.$root.received.splice(0, this.$root.received.length, ...merged);
         },
         async syncLoadDevices() {
@@ -148,7 +158,7 @@ export default {
                     this.sync.status = response.data.device.trusted ? 'trusted' : 'pending';
                 }
                 this.sync.summary = response.data.summary || this.sync.summary;
-                this.syncMergeRecentMessages(response.data.recentMessages || []);
+                this.syncMergeRecentMessages(response.data.recentMessages || [], { replaceExistingSync: true });
             } catch (error) {
                 this.syncLog(`刷新同步状态失败：${error.response?.data?.message || error.message}`);
             }
@@ -163,7 +173,7 @@ export default {
                 });
                 this.sync.statusInfo = response.data || null;
                 this.sync.summary = response.data?.summary || this.sync.summary;
-                this.syncMergeRecentMessages(response.data?.recentMessages || []);
+                this.syncMergeRecentMessages(response.data?.recentMessages || [], { replaceExistingSync: true });
                 if (response.data?.currentDevice) {
                     this.sync.device = response.data.currentDevice;
                     this.sync.status = response.data.currentDevice.trusted ? 'trusted' : 'pending';
@@ -267,7 +277,7 @@ export default {
         },
         syncDisconnect() {
             this.syncStopClipboardPolling();
-            this.syncMergeRecentMessages([]);
+            this.syncMergeRecentMessages([], { replaceExistingSync: true });
             if (this.sync.websocket) {
                 this.sync.websocket.close();
                 this.sync.websocket = null;
