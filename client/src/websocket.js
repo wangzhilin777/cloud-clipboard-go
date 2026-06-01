@@ -47,11 +47,6 @@ export default {
                 },
                 config: data => {
                     this.$root.config = data;
-                    console.log(
-                        `%c Cloud Clipboard ${data.version} by Jonnyan404 %c https://github.com/Jonnyan404/cloud-clipboard-go `,
-                        'color:#fff;background-color:#1e88e5',
-                        'color:#fff;background-color:#64b5f6'
-                    );
                 },
                 connect: data => {
                     this.$root.device.push(data);

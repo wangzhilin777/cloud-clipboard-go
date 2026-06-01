@@ -29,7 +29,6 @@ Vue.filter('formatTimestamp', formatTimestamp);
 // 根据配置设置 axios 基础 URL
 if (config.apiBaseURL) {
     axios.defaults.baseURL = config.apiBaseURL;
-    console.log('使用 API 基础路径:', config.apiBaseURL);
 }
 
 const app = new Vue({

@@ -1257,7 +1257,6 @@ export default {
                     params: { room: this.$root.room },
                 });
             } catch (error) {
-                console.log(error);
                 this.clipboardClearedMessageVisible = false;
                 if (error.response && error.response.data.msg) {
                     this.$toast(this.$t('clearClipboardFailedMsg', { msg: error.response.data.msg }));
@@ -1294,12 +1293,8 @@ export default {
             }
         },
         goHome() {
-            console.log('goHome triggered. Current route:', this.$route.fullPath);
             if (this.$route.path !== '/' || Object.keys(this.$route.query).length > 0) {
-                 console.log('Navigating to / (Public Room)');
                  this.$router.push('/');
-            } else {
-                 console.log('Already on public room (/), not navigating.');
             }
         },
         async fetchRooms() {
@@ -1317,18 +1312,15 @@ export default {
         },
         async fetchRoomList({ silent = false } = {}) {
             if (!this.$root.config || !this.$root.config.server || !this.$root.config.server.roomList) {
-                console.log('房间列表功能未启用或配置未完成加载');
                 return;
             }
             if (this.roomsLoading) {
-                console.log('房间列表正在加载中，排队等待下一次刷新');
                 this.roomListRefreshQueued = true;
                 this.roomListRefreshSilent = this.roomListRefreshSilent && silent;
                 return;
             }
             this.roomsLoading = true;
             this.roomListRefreshSilent = true;
-            console.log('获取房间列表');
             try {
                 const rooms = await this.fetchRooms();
 
@@ -1338,7 +1330,6 @@ export default {
                     isFavorite: favoriteRooms.includes(room.name)
                 })));
                 this.ensureRoomPresent();
-                console.log(`房间列表更新成功，共 ${this.availableRooms.length} 个房间`);
             } catch (error) {
                 console.error('Failed to fetch room list:', error);
                 if (!silent) {
@@ -1436,7 +1427,6 @@ export default {
                 this.fetchRoomList({ silent: false });
             }
         }, { immediate: true });
-        console.log('App.vue mounted - 房间列表将在用户点击时获取');
     },
     watch: {
         '$route'() {
