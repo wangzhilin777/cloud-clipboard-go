@@ -513,9 +513,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun isLoopbackServerBase(serverBase: String): Boolean {
-        if (serverBase.isBlank()) return false
-        val host = runCatching { Uri.parse(serverBase).host.orEmpty().lowercase() }.getOrDefault("")
-        return host == "127.0.0.1" || host == "localhost" || host == "::1"
+        return SettingsStore.isLoopbackServerBase(serverBase)
     }
 
     private fun showLoopbackHint() {

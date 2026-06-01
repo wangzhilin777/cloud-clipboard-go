@@ -1,6 +1,7 @@
 package com.transparentlc.cloudclipboardsync.sync
 
 import android.content.Context
+import android.net.Uri
 import android.os.Build
 import android.provider.Settings
 import java.util.UUID
@@ -147,6 +148,12 @@ object SettingsStore {
     fun shouldResumeSync(context: Context): Boolean {
         val config = load(context)
         return config.autoConnectEnabled && config.lastDesiredRunningState == RUNNING_STATE_RUNNING
+    }
+
+    fun isLoopbackServerBase(serverBase: String): Boolean {
+        if (serverBase.isBlank()) return false
+        val host = runCatching { Uri.parse(serverBase).host.orEmpty().lowercase() }.getOrDefault("")
+        return host == "127.0.0.1" || host == "localhost" || host == "::1"
     }
 
     fun updateFloatingPosition(context: Context, x: Int, y: Int) {

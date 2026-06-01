@@ -14,6 +14,7 @@ class BootCompletedReceiver : BroadcastReceiver() {
         if (!config.startOnBootEnabled) return
         if (!SettingsStore.shouldResumeSync(context)) return
         if (config.serverBase.isBlank()) return
+        if (SettingsStore.isLoopbackServerBase(config.serverBase)) return
         if (!RuntimeModeValidator.validate(context, config).ready) return
         SyncService.start(context)
     }
