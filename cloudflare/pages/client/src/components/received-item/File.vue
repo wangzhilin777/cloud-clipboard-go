@@ -347,6 +347,7 @@ export default {
                     responseType: 'arraybuffer',
                     onDownloadProgress: e => {this.loadedPreview = e.loaded},
                 }).then(response => {
+                    this.releasePreviewObjectUrl();
                     this.srcPreview = URL.createObjectURL(new Blob([response.data]));
                 }).catch(error => {
                     if (error.response && error.response.data.msg) {
@@ -361,6 +362,11 @@ export default {
         },
         toggleTextPreview() {
             this.showFullTextPreview = !this.showFullTextPreview;
+        },
+        releasePreviewObjectUrl() {
+            if (this.srcPreview && this.srcPreview.startsWith('blob:')) {
+                URL.revokeObjectURL(this.srcPreview);
+            }
         },
         copyLink() {
             this.copyToClipboard(this.contentUrl, 'copySuccess');
@@ -429,6 +435,9 @@ export default {
             }
             return mdiDesktopTower;
         },
+    },
+    beforeDestroy() {
+        this.releasePreviewObjectUrl();
     },
 }
 </script>

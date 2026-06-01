@@ -75,7 +75,7 @@
                                 <span>{{ expired ? $t('expired') : $t('download') }}</span>
                             </v-tooltip>
 
-                            <template v-if="meta.thumbnail || isPreviewableVideo || isPreviewableAudio || isPreviewableText">
+                            <template v-if="meta.thumbnail || isPreviewableImage || isPreviewableVideo || isPreviewableAudio || isPreviewableText">
                                 <v-progress-circular
                                     v-if="loadingPreview"
                                     indeterminate
@@ -120,7 +120,7 @@
                         </div>
                     </div>
                 </div>
-                <v-expand-transition v-if="meta.thumbnail || isPreviewableVideo || isPreviewableAudio || isPreviewableText">
+                <v-expand-transition v-if="meta.thumbnail || isPreviewableImage || isPreviewableVideo || isPreviewableAudio || isPreviewableText">
                     <div v-show="expand">
                         <v-divider class="my-2"></v-divider>
                         <video
@@ -249,14 +249,20 @@ export default {
         expired() {
             return this.$root.date.getTime() / 1000 > this.meta.expire;
         },
+        fileName() {
+            return this.meta?.name || '';
+        },
         isPreviewableVideo() {
-            return this.meta.name.match(/\.(mp4|webm|ogv)$/gi);
+            return this.fileName.match(/\.(mp4|webm|ogv)$/gi);
+        },
+        isPreviewableImage() {
+            return this.fileName.match(/\.(jpg|jpeg|png|gif|webp|svg|bmp|ico|avif)$/gi);
         },
         isPreviewableAudio() {
-            return this.meta.name.match(/\.(mp3|wav|ogg|opus|m4a|flac)$/gi);
+            return this.fileName.match(/\.(mp3|wav|ogg|opus|m4a|flac)$/gi);
         },
         isPreviewableText() {
-            return this.meta.name.match(/\.(txt|text|md|markdown|json|log|csv|tsv|ya?ml|xml|ini|conf|cfg|toml|properties|env|gitignore|dockerfile|js|jsx|mjs|cjs|ts|tsx|vue|css|scss|sass|less|html|htm|sql|sh|bash|zsh|fish|ps1|bat|cmd|go|py|java|kt|kts|rb|php|rs|c|cc|cpp|cxx|h|hh|hpp|hxx|swift|proto)$/gi);
+            return this.fileName.match(/\.(txt|text|md|markdown|json|log|csv|tsv|ya?ml|xml|ini|conf|cfg|toml|properties|env|gitignore|dockerfile|js|jsx|mjs|cjs|ts|tsx|vue|css|scss|sass|less|html|htm|sql|sh|bash|zsh|fish|ps1|bat|cmd|go|py|java|kt|kts|rb|php|rs|c|cc|cpp|cxx|h|hh|hpp|hxx|swift|proto)$/gi);
         },
         hasTruncatedTextPreview() {
             return this.textPreview.length > this.textPreviewDisplayLimit;
@@ -277,24 +283,41 @@ export default {
             return mdiImageSearchOutline;
         },
         contentUrl() {
-            const protocol = window.location.protocol;
-            const host = window.location.host;
-            const prefix = this.$root.config?.server?.prefix || '';
             const roomQuery = this.$root.room ? `?room=${this.$root.room}` : '';
             const id = this.meta?.id ?? '';
-            return `${protocol}//${host}${prefix}/content/${id}${roomQuery}`;
+            return this.buildAbsoluteRouteUrl(`content/${id}${roomQuery}`);
         },
         fileUrl() {
-            const protocol = window.location.protocol;
-            const host = window.location.host;
-            const prefix = this.$root.config?.server?.prefix || '';
             const cache = this.meta?.cache || '';
             const encodedFilename = encodeURIComponent(this.meta?.name || 'file');
-            return `${protocol}//${host}${prefix}/file/${cache}/${encodedFilename}`;
+            return this.buildAbsoluteRouteUrl(`file/${cache}/${encodedFilename}`);
         }
     },
     methods: {
         formatTimestamp,
+        buildAbsoluteRouteUrl(path) {
+            const normalizedPath = String(path || '').replace(/^\/+/, '');
+            const baseURL = this.$http?.defaults?.baseURL || '';
+            const currentRoom = this.$root.room || '';
+            const authToken = typeof this.$root.getAuthTokenForRoom === 'function'
+                ? this.$root.getAuthTokenForRoom(currentRoom)
+                : '';
+
+            if (baseURL) {
+                const url = new URL(normalizedPath, `${baseURL.replace(/\/+$/, '')}/`);
+                if (authToken) {
+                    url.searchParams.set('auth', authToken);
+                }
+                return url.toString();
+            }
+
+            const prefix = this.$root.config?.server?.prefix || '';
+            const url = new URL(`${prefix}/${normalizedPath}`, `${window.location.origin}/`);
+            if (authToken) {
+                url.searchParams.set('auth', authToken);
+            }
+            return url.toString();
+        },
         previewFile() {
             if (this.expand) {
                 this.expand = false;
@@ -305,7 +328,7 @@ export default {
             }
             this.expand = true;
             if (this.isPreviewableVideo || this.isPreviewableAudio) {
-                this.srcPreview = `file/${this.meta.cache}/${encodeURIComponent(this.meta.name)}`;
+                this.srcPreview = this.fileUrl;
             } else if (this.isPreviewableText) {
                 this.showFullTextPreview = false;
                 this.loadingPreview = true;
@@ -331,6 +354,7 @@ export default {
                     responseType: 'arraybuffer',
                     onDownloadProgress: e => {this.loadedPreview = e.loaded},
                 }).then(response => {
+                    this.releasePreviewObjectUrl();
                     this.srcPreview = URL.createObjectURL(new Blob([response.data]));
                 }).catch(error => {
                     if (error.response && error.response.data.msg) {
@@ -345,6 +369,11 @@ export default {
         },
         toggleTextPreview() {
             this.showFullTextPreview = !this.showFullTextPreview;
+        },
+        releasePreviewObjectUrl() {
+            if (this.srcPreview && this.srcPreview.startsWith('blob:')) {
+                URL.revokeObjectURL(this.srcPreview);
+            }
         },
         copyLink() {
             this.copyToClipboard(this.contentUrl, 'copySuccess');
@@ -416,6 +445,9 @@ export default {
             }
             return mdiDesktopTower; // Default to desktop
         },
+    },
+    beforeDestroy() {
+        this.releasePreviewObjectUrl();
     },
 }
 </script>
