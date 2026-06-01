@@ -4,7 +4,6 @@ import (
 	"context" // 确保导入 embed 包
 	"crypto/rand"
 	"encoding/json"
-	"flag"
 	"fmt"
 	"io/fs"
 	"log"
@@ -119,6 +118,11 @@ func NewClipboardServer(cfg *Config) (*ClipboardServer, error) {
 	}
 	cfg.Server.RoomAuth = normalizeRoomAuthConfig(cfg.Server.RoomAuth)
 
+	deviceHashSeedBytes, err := random_bytes(32)
+	if err != nil {
+		return nil, fmt.Errorf("生成设备哈希随机种子失败: %w", err)
+	}
+
 	s := &ClipboardServer{
 		config:          cfg,
 		logger:          logger,
@@ -131,7 +135,7 @@ func NewClipboardServer(cfg *Config) (*ClipboardServer, error) {
 		historyFilePath: historyFilePath,
 		parser:          uaParser,
 		connDeviceIDMap: make(map[*websocket.Conn]string),
-		deviceHashSeed:  murmur3.Sum32(random_bytes(32)) & 0xffffffff, // 在此处初始化种子
+		deviceHashSeed:  murmur3.Sum32(deviceHashSeedBytes) & 0xffffffff, // 在此处初始化种子
 
 		// 初始化房间管理相关字段
 		roomStats:      make(map[string]*RoomStat),
@@ -563,11 +567,7 @@ func (s *ClipboardServer) performCleanExpiredFiles() {
 
 // --- main 函数 ---
 func Main() {
-	// 确保标志只解析一次。如果 flags.go 中的 init() 调用了 flag.Parse()，这里可以省略。
-	// 为安全起见，检查一下。
-	if !flag.Parsed() {
-		flag.Parse()
-	}
+	parseCommandLineArgs()
 
 	initialCfg, err := load_config(*flg_config) // flg_config 来自 flags.go
 	if err != nil {

@@ -81,13 +81,13 @@ func gen_UUID() string {
 	return uuid.New().String()
 }
 
-func random_bytes(n int) []byte {
+func random_bytes(n int) ([]byte, error) {
 	b := make([]byte, n)
 	_, err := rand.Read(b)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
-	return b
+	return b, nil
 }
 
 // ------ gen thumbnail

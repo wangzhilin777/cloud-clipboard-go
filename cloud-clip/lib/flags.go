@@ -46,9 +46,13 @@ func printHelp() {
 func init() {
 	// 自定义帮助信息
 	flag.Usage = printHelp
+}
 
+func parseCommandLineArgs() {
 	// 解析命令行参数
-	flag.Parse()
+	if !flag.Parsed() {
+		flag.Parse()
+	}
 
 	// 检查是否有未知参数
 	if flag.NArg() > 0 {
