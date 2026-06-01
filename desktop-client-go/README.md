@@ -40,6 +40,8 @@ go run ./cmd/cloud-clipboard-desktop
 
 首次运行会自动生成 `config.json`。
 
+打包成 exe 后直接双击运行时，默认会在 exe 同目录读取或生成 `config.json`；`go run` 开发运行时则使用当前命令所在目录。也可以复制 `config.example.json` 为 `config.json` 后再启动，留空的设备名、设备 ID 和下载目录会在首次加载时自动补齐并写回。
+
 如果只想无托盘运行，方便调试：
 
 ```powershell
@@ -103,6 +105,7 @@ go run ./cmd/cloud-clipboard-desktop -headless
 ## 本地文件
 
 - `config.json`：客户端配置
+- `config.example.json`：可复制的干净配置模板，不包含本机设备 ID 和个人路径
 - `state.json`：连接状态与最近动作
 - `downloads/` 或自定义下载目录：拉取的文件缓存
 

@@ -1,6 +1,7 @@
 package config
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"os"
@@ -92,6 +93,11 @@ func Load(path string) (Config, error) {
 		return Config{}, err
 	}
 	cfg.normalize()
+	if normalized, err := json.MarshalIndent(cfg, "", "  "); err == nil && !bytes.Equal(bytes.TrimSpace(data), normalized) {
+		if err := os.WriteFile(path, append(normalized, '\n'), 0o644); err != nil {
+			return Config{}, err
+		}
+	}
 	return cfg, nil
 }
 

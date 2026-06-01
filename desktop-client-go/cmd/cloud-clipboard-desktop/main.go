@@ -22,7 +22,7 @@ import (
 )
 
 func main() {
-	defaultConfig := filepath.Join(".", "config.json")
+	defaultConfig := defaultConfigPath()
 	configPath := flag.String("config", defaultConfig, "desktop client config path")
 	headless := flag.Bool("headless", false, "run without tray")
 	shellSend := flag.String("shell-send", "", "one-shot send file path")
@@ -74,6 +74,21 @@ func main() {
 	if err := <-errCh; err != nil && err != context.Canceled {
 		logger.Fatalf("桌面同步客户端退出: %v", err)
 	}
+}
+
+func defaultConfigPath() string {
+	if exePath, err := os.Executable(); err == nil {
+		exeDir := filepath.Dir(exePath)
+		// `go run` starts a temporary binary from Go's build cache; keep the
+		// development config beside the current working directory in that case.
+		if !strings.Contains(strings.ToLower(exeDir), "go-build") {
+			return filepath.Join(exeDir, "config.json")
+		}
+	}
+	if cwd, err := os.Getwd(); err == nil && strings.TrimSpace(cwd) != "" {
+		return filepath.Join(cwd, "config.json")
+	}
+	return filepath.Join(".", "config.json")
 }
 
 func runShellAction(logger *log.Logger, cfg config.Config, shellSend string, shellDownloadDir string, shellFetchLatestFile bool) (string, error) {
