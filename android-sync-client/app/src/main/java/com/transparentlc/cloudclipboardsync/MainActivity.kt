@@ -787,16 +787,16 @@ class MainActivity : AppCompatActivity() {
     ): String = when (config.clipboardMode) {
         SettingsStore.CLIPBOARD_MODE_ACCESSIBILITY -> {
             if (status.accessibilityEnabled) {
-                "当前模式：无障碍增强\n启动状态：可直接启动同步\n说明：除了系统剪贴板回调，还会在界面交互时主动触发补检查，后台文本监听会更稳，但会比前台模式更耗电。"
+                "当前模式：无障碍增强\n启动状态：可直接启动同步\n系统限制：${clipboardRestrictionSummary()}\n说明：除了系统剪贴板回调，还会在界面交互时主动触发补检查，后台文本监听会更稳，但会比前台模式更耗电。"
             } else {
-                "当前模式：无障碍增强\n启动状态：暂时被拦截\n原因：${validation.message}\n说明：开启后后台复制会更稳，但耗电略高。"
+                "当前模式：无障碍增强\n启动状态：暂时被拦截\n原因：${validation.message}\n系统限制：${clipboardRestrictionSummary()}\n说明：开启后后台复制会更稳，但耗电略高。"
             }
         }
 
         SettingsStore.CLIPBOARD_MODE_SHIZUKU -> {
             when {
-                !status.shizukuInstalled -> "当前模式：Shizuku\n启动状态：当前版本暂不开放启动\n原因：${validation.message}\n说明：后续接入真实增强链路后，再开放给受系统限制明显的设备使用。"
-                else -> "当前模式：Shizuku\n启动状态：当前版本暂不开放启动\n原因：${validation.message}\n说明：当前已探测到 Shizuku 环境，但独立增强链路仍在接入中。"
+                !status.shizukuInstalled -> "当前模式：Shizuku\n启动状态：当前版本暂不开放启动\n原因：${validation.message}\n系统限制：${clipboardRestrictionSummary()}\n说明：后续接入真实增强链路后，再开放给受系统限制明显的设备使用。"
+                else -> "当前模式：Shizuku\n启动状态：当前版本暂不开放启动\n原因：${validation.message}\n系统限制：${clipboardRestrictionSummary()}\n说明：当前已探测到 Shizuku 环境，但独立增强链路仍在接入中。"
             }
         }
 
@@ -806,7 +806,12 @@ class MainActivity : AppCompatActivity() {
             } else {
                 "电池策略：建议补开忽略电池优化，否则系统可能后台回收同步服务。"
             }
-            "当前模式：前台服务\n启动状态：可直接启动同步\n$batteryLine\n说明：这是最省心的模式；如果后台复制经常丢失，再切到无障碍或 Shizuku。"
+            val notificationLine = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && !status.notificationsEnabled) {
+                "通知策略：当前还没允许通知，前台服务状态和重连提醒会不完整。"
+            } else {
+                "通知策略：前台服务提示链路已就绪。"
+            }
+            "当前模式：前台服务\n启动状态：可直接启动同步\n系统限制：${clipboardRestrictionSummary()}\n$batteryLine\n$notificationLine\n说明：这是最省心的模式；如果后台复制经常丢失，再切到无障碍或 Shizuku。"
         }
     }
 
@@ -860,7 +865,7 @@ class MainActivity : AppCompatActivity() {
         } else {
             checklist.suggestions.joinToString("；")
         }
-        return "$baseStatus\n\n当前阻塞项：$blockers\n建议优化项：$suggestions"
+        return "系统版本：${androidVersionSummary()}\n$baseStatus\n\n当前阻塞项：$blockers\n建议优化项：$suggestions"
     }
 
     private fun buildPermissionGuide(checklist: StatusChecklist): String {
@@ -914,11 +919,36 @@ class MainActivity : AppCompatActivity() {
         if (config.clipboardMode == SettingsStore.CLIPBOARD_MODE_FOREGROUND && !status.accessibilityEnabled) {
             suggestions += "如果后续遇到后台复制不稳定，可以再开启无障碍增强模式。"
         }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && config.clipboardMode == SettingsStore.CLIPBOARD_MODE_FOREGROUND) {
+            suggestions += "Android 10 及以上系统会明显收紧后台剪贴板读取；如果你主要依赖后台复制回传，建议优先改成无障碍增强模式。"
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE && config.clipboardMode == SettingsStore.CLIPBOARD_MODE_FOREGROUND) {
+            suggestions += "Android 14 及以上系统对后台读取剪贴板更严格，前台服务模式更适合前台使用；需要更稳的后台补传时，建议开启无障碍增强。"
+        }
         if (!status.shizukuInstalled) {
             suggestions += "Shizuku 更适合系统限制明显的设备，需要时再安装并授权即可。"
         }
 
         return StatusChecklist(blockers = blockers, suggestions = suggestions)
+    }
+
+    private fun clipboardRestrictionSummary(): String = when {
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE ->
+            "Android 14 及以上会更严格限制后台读取系统剪贴板，前台模式更适合你正在看着 App 的场景。"
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU ->
+            "Android 13 及以上会同时收紧通知和后台行为，前台服务状态、重连提醒和权限提示要一起补齐。"
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q ->
+            "Android 10 及以上开始明显限制后台读取剪贴板，单靠前台服务模式时，后台复制回传可能不稳定。"
+        else ->
+            "当前系统对后台剪贴板限制相对较少，但仍建议保留前台服务和电池优化设置。"
+    }
+
+    private fun androidVersionSummary(): String = buildString {
+        append("Android ")
+        append(Build.VERSION.RELEASE ?: Build.VERSION.SDK_INT)
+        append(" (API ")
+        append(Build.VERSION.SDK_INT)
+        append(")")
     }
 
     private fun buildReceiveCacheSummary(): String {
