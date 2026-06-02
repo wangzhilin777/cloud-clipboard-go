@@ -88,7 +88,7 @@ async function handleServer(request, env) {
     roomProtected,
     version: "cloudflare-worker-v1.0.0",
     roomList: isRoomListEnabled(env),
-    history: parseInt(env.HISTORY_LIMIT || '10', 10),
+    history: parseInt(env.HISTORY_LIMIT || '50', 10),
   }), {
     headers: {
       'Content-Type': 'application/json',

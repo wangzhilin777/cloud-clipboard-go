@@ -205,7 +205,7 @@ export class WebSocketRoom {
         data: {
           version: 'cloudflare-worker-v1.0.0',
           server: {
-            history: parseInt(this.env.HISTORY_LIMIT) || 10,
+            history: parseInt(this.env.HISTORY_LIMIT || '50', 10),
             prefix: '',
             roomList: isRoomListEnabled(this.env)
           },
@@ -245,8 +245,8 @@ export class WebSocketRoom {
         return;
       }
 
-      // 获取历史消息限制，默认为 10
-      const historyLimit = parseInt(this.env.HISTORY_LIMIT || '10');
+      // 获取历史消息限制，默认与文档和同步协议保持一致。
+      const historyLimit = parseInt(this.env.HISTORY_LIMIT || '50', 10);
       debugLog(this.env, `历史消息限制: ${historyLimit}`);
 
       const query = `
