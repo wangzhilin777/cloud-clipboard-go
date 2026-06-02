@@ -2,6 +2,7 @@ package com.transparentlc.cloudclipboardsync
 
 import android.Manifest
 import android.content.BroadcastReceiver
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
@@ -281,6 +282,9 @@ class MainActivity : AppCompatActivity() {
         }
         findViewById<Button>(R.id.openBatterySettingsButton).setOnClickListener {
             openBatteryOptimizationSettings()
+        }
+        findViewById<Button>(R.id.openVendorBackgroundSettingsButton).setOnClickListener {
+            openVendorBackgroundSettings()
         }
         runtimeModeActionButton.setOnClickListener {
             handleRuntimeModeQuickAction()
@@ -722,6 +726,74 @@ class MainActivity : AppCompatActivity() {
         startActivity(intent)
     }
 
+    private fun openVendorBackgroundSettings() {
+        val intents = buildVendorBackgroundIntents()
+        intents.firstOrNull { intent ->
+            runCatching {
+                startActivity(intent)
+                true
+            }.getOrDefault(false)
+        }?.let {
+            Toast.makeText(this, R.string.vendor_background_settings_toast, Toast.LENGTH_LONG).show()
+            return
+        }
+
+        val fallback = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName"))
+        runCatching {
+            startActivity(fallback)
+            Toast.makeText(this, R.string.vendor_background_settings_missing_toast, Toast.LENGTH_LONG).show()
+        }.onFailure {
+            Toast.makeText(this, R.string.vendor_background_settings_missing_toast, Toast.LENGTH_LONG).show()
+        }
+    }
+
+    private fun buildVendorBackgroundIntents(): List<Intent> {
+        val manufacturer = Build.MANUFACTURER.orEmpty().lowercase()
+        val packageUri = Uri.parse("package:$packageName")
+
+        fun componentIntent(packageName: String, className: String): Intent =
+            Intent().apply {
+                component = ComponentName(packageName, className)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                putExtra("package_name", this@MainActivity.packageName)
+                putExtra("packageName", this@MainActivity.packageName)
+                data = packageUri
+            }
+
+        return when {
+            manufacturer.contains("xiaomi") || manufacturer.contains("redmi") || manufacturer.contains("poco") ->
+                listOf(
+                    componentIntent("com.miui.securitycenter", "com.miui.permcenter.autostart.AutoStartManagementActivity"),
+                    componentIntent("com.miui.powerkeeper", "com.miui.powerkeeper.ui.HiddenAppsConfigActivity"),
+                )
+
+            manufacturer.contains("huawei") || manufacturer.contains("honor") ->
+                listOf(
+                    componentIntent("com.huawei.systemmanager", "com.huawei.systemmanager.startupmgr.ui.StartupNormalAppListActivity"),
+                    componentIntent("com.huawei.systemmanager", "com.huawei.systemmanager.optimize.process.ProtectActivity"),
+                )
+
+            manufacturer.contains("oppo") || manufacturer.contains("oneplus") || manufacturer.contains("realme") ->
+                listOf(
+                    componentIntent("com.coloros.safecenter", "com.coloros.safecenter.startupapp.StartupAppListActivity"),
+                    componentIntent("com.oplus.safecenter", "com.oplus.safecenter.startupapp.view.StartupAppListActivity"),
+                )
+
+            manufacturer.contains("vivo") || manufacturer.contains("iqoo") ->
+                listOf(
+                    componentIntent("com.vivo.permissionmanager", "com.vivo.permissionmanager.activity.BgStartUpManagerActivity"),
+                    componentIntent("com.iqoo.secure", "com.iqoo.secure.ui.phoneoptimize.AddWhiteListActivity"),
+                )
+
+            manufacturer.contains("samsung") ->
+                listOf(
+                    componentIntent("com.samsung.android.lool", "com.samsung.android.sm.ui.battery.BatteryActivity"),
+                )
+
+            else -> emptyList()
+        }
+    }
+
     private fun openShizuku(installed: Boolean) {
         if (installed) {
             val launchIntent = packageManager.getLaunchIntentForPackage("moe.shizuku.privileged.api")
@@ -948,6 +1020,10 @@ class MainActivity : AppCompatActivity() {
                 lines += "${index + 1}. $item"
             }
         }
+        buildVendorBackgroundHint()?.let { hint ->
+            lines += "厂商后台建议："
+            lines += hint
+        }
         return lines.joinToString("\n")
     }
 
@@ -976,6 +1052,7 @@ class MainActivity : AppCompatActivity() {
         if (!status.batteryOptimizationIgnored) {
             suggestions += "建议忽略电池优化，尤其是澎湃 / MIUI 一类系统，否则后台容易被杀。"
         }
+        buildVendorBackgroundChecklistTip()?.let { suggestions += it }
         if (config.floatingEnabled && !status.overlayEnabled) {
             suggestions += "已启用悬浮确认，但系统还没允许悬浮窗显示，图片/文件会回退到通知确认。"
         }
@@ -1012,6 +1089,40 @@ class MainActivity : AppCompatActivity() {
         append(" (API ")
         append(Build.VERSION.SDK_INT)
         append(")")
+    }
+
+    private fun buildVendorBackgroundHint(): String? {
+        val manufacturer = Build.MANUFACTURER.orEmpty().lowercase()
+        return when {
+            manufacturer.contains("xiaomi") || manufacturer.contains("redmi") || manufacturer.contains("poco") ->
+                "澎湃 / MIUI 机型建议再检查一次自启动、后台弹出界面和无限制省电，否则无障碍与通知都开了也可能被系统回收。"
+            manufacturer.contains("huawei") || manufacturer.contains("honor") ->
+                "华为 / 荣耀机型建议把云剪同步加入启动管理和受保护应用，避免锁屏后后台同步被停掉。"
+            manufacturer.contains("oppo") || manufacturer.contains("oneplus") || manufacturer.contains("realme") ->
+                "OPPO / OnePlus / realme 机型建议补开自启动、后台活动和电池无限制，否则后台复制回传容易断。"
+            manufacturer.contains("vivo") || manufacturer.contains("iqoo") ->
+                "vivo / iQOO 机型建议补开后台高耗电允许、自启动和后台弹出界面。"
+            manufacturer.contains("samsung") ->
+                "三星机型建议把云剪同步移出睡眠应用或深度睡眠列表，避免长时间后台后被暂停。"
+            else -> null
+        }
+    }
+
+    private fun buildVendorBackgroundChecklistTip(): String? {
+        val manufacturer = Build.MANUFACTURER.orEmpty().lowercase()
+        return when {
+            manufacturer.contains("xiaomi") || manufacturer.contains("redmi") || manufacturer.contains("poco") ->
+                "如果你用的是澎湃 / MIUI，建议再打开自启动、后台弹出界面和无限制省电。"
+            manufacturer.contains("huawei") || manufacturer.contains("honor") ->
+                "如果你用的是华为 / 荣耀，建议把云剪同步加入启动管理和受保护后台。"
+            manufacturer.contains("oppo") || manufacturer.contains("oneplus") || manufacturer.contains("realme") ->
+                "如果你用的是 OPPO / OnePlus / realme，建议补开自启动和后台活动权限。"
+            manufacturer.contains("vivo") || manufacturer.contains("iqoo") ->
+                "如果你用的是 vivo / iQOO，建议补开自启动、后台高耗电允许和后台弹出界面。"
+            manufacturer.contains("samsung") ->
+                "如果你用的是三星，建议检查电池中的睡眠应用列表，避免本应用被限制。"
+            else -> null
+        }
     }
 
     private fun buildReceiveCacheSummary(): String {

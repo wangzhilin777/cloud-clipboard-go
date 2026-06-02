@@ -590,6 +590,16 @@
                             android:textColor="@color/cc_primary"
                             app:strokeColor="@color/cc_primary_soft" />
                     </LinearLayout>
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/openVendorBackgroundSettingsButton"
+                        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:text="@string/open_vendor_background_settings_button"
+                        android:textColor="@color/cc_primary"
+                        app:strokeColor="@color/cc_primary_soft" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
@@ -955,4 +965,5 @@
         app:labelVisibilityMode="labeled"
         app:menu="@menu/main_sections" />
 </LinearLayout>
+
 
