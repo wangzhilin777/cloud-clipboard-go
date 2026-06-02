@@ -750,14 +750,15 @@ export class WebSocketRoom {
       recentMessages: this.getRecentSyncItems(messages, room),
       recentPayloads: this.getRecentSyncItems(payloads, room),
       limits: {
-        textLimit: parseInt(this.env.TEXT_LIMIT || '40960', 10),
+        textLimit: parseInt(this.env.TEXT_LIMIT || '4096', 10),
         historyLimit: parseInt(this.env.HISTORY_LIMIT || '50', 10),
       },
       cleanup: {
+        stateCleanup: parseInt(this.env.SYNC_STATE_CLEANUP || '600', 10),
         messageExpire: parseInt(this.env.SYNC_MESSAGE_EXPIRE || '86400', 10),
         payloadExpire: parseInt(this.env.SYNC_PAYLOAD_EXPIRE || '86400', 10),
         pendingDeviceExpire: parseInt(this.env.SYNC_PENDING_DEVICE_EXPIRE || '604800', 10),
-        trustedDeviceExpire: parseInt(this.env.SYNC_TRUSTED_DEVICE_EXPIRE || '2592000', 10),
+        trustedDeviceExpire: parseInt(this.env.SYNC_TRUSTED_DEVICE_EXPIRE || '0', 10),
       },
       serverTime: nowMillis(),
     });
@@ -997,7 +998,7 @@ export class WebSocketRoom {
     const text = trimString(data.text);
     if (!text) return;
 
-    const textLimit = parseInt(this.env.TEXT_LIMIT || '40960', 10);
+    const textLimit = parseInt(this.env.TEXT_LIMIT || '4096', 10);
     if (textLimit > 0 && text.length > textLimit) {
       this.sendSync(session, {
         event: 'clipboardAck',
@@ -1073,7 +1074,7 @@ export class WebSocketRoom {
     const messageExpireMillis = parseInt(this.env.SYNC_MESSAGE_EXPIRE || '86400', 10) * 1000;
     const payloadExpireMillis = parseInt(this.env.SYNC_PAYLOAD_EXPIRE || '86400', 10) * 1000;
     const pendingDeviceExpireMillis = parseInt(this.env.SYNC_PENDING_DEVICE_EXPIRE || '604800', 10) * 1000;
-    const trustedDeviceExpireMillis = parseInt(this.env.SYNC_TRUSTED_DEVICE_EXPIRE || '2592000', 10) * 1000;
+    const trustedDeviceExpireMillis = parseInt(this.env.SYNC_TRUSTED_DEVICE_EXPIRE || '0', 10) * 1000;
 
     const devices = await this.getSyncDevices();
     const messages = await this.getSyncMessages();

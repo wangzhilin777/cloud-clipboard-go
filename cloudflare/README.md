@@ -70,14 +70,15 @@ AUTH_PASSWORD = "123"
 ROOM_AUTH = "{\"private\":\"\",\"finance\":\"finance-pass\"}"
 ROOM_LIST = "false"
 HISTORY_LIMIT = "50"
-TEXT_LIMIT = "40960"
+TEXT_LIMIT = "4096"
 FILE_LIMIT = "204857600"
 FILE_EXPIRE = "3600"
 DEBUG_LOG = "false"
+SYNC_STATE_CLEANUP = "600"
 SYNC_MESSAGE_EXPIRE = "86400"
 SYNC_PAYLOAD_EXPIRE = "86400"
 SYNC_PENDING_DEVICE_EXPIRE = "604800"
-SYNC_TRUSTED_DEVICE_EXPIRE = "2592000"
+SYNC_TRUSTED_DEVICE_EXPIRE = "0"
 ```
 
 | 变量 | 默认值 | 类型 | 说明 |
@@ -86,14 +87,15 @@ SYNC_TRUSTED_DEVICE_EXPIRE = "2592000"
 | `ROOM_AUTH` | `{"private":"","finance":"finance-pass"}` | JSON 字符串 | 房间级密码映射。不会让 `AUTH_PASSWORD` 失效，而是为指定房间增加额外可用密码 |
 | `ROOM_LIST` | `"false"` | 布尔语义字符串 | 是否启用房间列表功能，支持 `1`、`true`、`yes`、`on` |
 | `HISTORY_LIMIT` | `"50"` | 整数字符串 | 每个房间保留的历史消息条数 |
-| `TEXT_LIMIT` | `"40960"` | 整数字符串 | 单条文本消息最大长度 |
+| `TEXT_LIMIT` | `"4096"` | 整数字符串 | 单条文本消息最大长度 |
 | `FILE_LIMIT` | `"204857600"` | 整数字符串 | 单个文件上传大小上限，单位字节 |
 | `FILE_EXPIRE` | `"3600"` | 整数字符串 | 文件过期时间，单位秒 |
 | `DEBUG_LOG` | `"false"` | 布尔语义字符串 | 是否输出 Worker 调试流程日志，发布使用默认关闭，排查时可临时开启 |
+| `SYNC_STATE_CLEANUP` | `"600"` | 整数字符串 | 同步状态清理触发参考间隔，单位秒 |
 | `SYNC_MESSAGE_EXPIRE` | `"86400"` | 整数字符串 | 同步文本历史保留时间，单位秒 |
 | `SYNC_PAYLOAD_EXPIRE` | `"86400"` | 整数字符串 | 同步文件通知历史保留时间，单位秒 |
 | `SYNC_PENDING_DEVICE_EXPIRE` | `"604800"` | 整数字符串 | 未批准同步设备离线后保留时间，单位秒 |
-| `SYNC_TRUSTED_DEVICE_EXPIRE` | `"2592000"` | 整数字符串 | 已信任同步设备离线后保留时间，单位秒 |
+| `SYNC_TRUSTED_DEVICE_EXPIRE` | `"0"` | 整数字符串 | 已信任同步设备离线后保留时间，单位秒；0 表示不因离线时长自动移除 |
 
 ## 多端同步协议
 
