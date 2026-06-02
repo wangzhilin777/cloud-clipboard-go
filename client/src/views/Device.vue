@@ -200,9 +200,7 @@ export default {
     },
     methods: {
         refreshSyncDevices() {
-            this.$root.syncLoadDevices();
-            this.$root.syncRefreshBootstrap();
-            this.$root.syncLoadStatus();
+            this.$root.syncRefreshAll();
         },
         iconFor(platform) {
             switch ((platform || '').toLowerCase()) {
@@ -241,3 +239,4 @@ export default {
     word-break: break-word;
 }
 </style>
+
