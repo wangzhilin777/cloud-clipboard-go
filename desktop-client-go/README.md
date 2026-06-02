@@ -14,7 +14,7 @@
 - `tip` 模式支持主题切换、尺寸设置、拖动定位、位置记忆
 - 支持成功提示开关，默认开启；直接动作成功后会替换旧 Tip
 - 内置本地控制面板，按 `概览 / 连接 / 动作 / 高级` 分组收口配置
-- 控制面板概览页已补充“连接诊断 / 缓存与目录”摘要，便于直接识别回环地址、待批准、自动重连暂停和下载缓存位置
+- 控制面板概览页已补充“连接诊断 / 缓存与目录 / 平台能力”摘要，便于直接识别回环地址、待批准、自动重连暂停、下载缓存位置，以及当前平台支持的文件选择、文件剪贴板和右键菜单能力
 - 支持失败自动重连次数与重连间隔控制，超过上限后暂停自动重连，等待手动重连
 - 支持启动时自动打开控制面板
 - 支持选择文件上传并广播文件通知
@@ -125,3 +125,4 @@ go run ./cmd/cloud-clipboard-desktop -headless
 - Linux / macOS 已支持基础文件选择、文件上传和下载后写入文件剪贴板；Linux 桌面环境需要可用的 `zenity`、`kdialog` 或 `yad`，文件剪贴板需要 `wl-copy` 或 `xclip`
 - Android 同步客户端在仓库独立目录 `android-sync-client/`
 - Windows 打包图标统一使用 `desktop-client-go/internal/tray/assets/cloud-clipboard-desktop.ico`，当前已切换为 `ahk-legacy` 分支沿用的 `cloud-clipboard-sync.ico`；如果后续重新打包，请先保留并继续使用这份资源再生成 `rsrc_windows_amd64.syso`
+

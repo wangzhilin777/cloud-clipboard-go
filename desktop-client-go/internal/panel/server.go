@@ -8,6 +8,7 @@ import (
 	"io/fs"
 	"net"
 	"net/http"
+	"runtime"
 	"time"
 
 	"github.com/jonnyan404/cloud-clipboard-go/desktop-client-go/internal/config"
@@ -59,14 +60,25 @@ type StateSnapshot struct {
 	LastUpdatedAt              int64    `json:"lastUpdatedAt"`
 }
 
+type CapabilityView struct {
+	Platform                  string `json:"platform"`
+	FilePicker                string `json:"filePicker"`
+	FileClipboardWrite        string `json:"fileClipboardWrite"`
+	ShellMenu                 string `json:"shellMenu"`
+	ShellMenuRecommended      bool   `json:"shellMenuRecommended"`
+	ClipboardFileConfirmation string `json:"clipboardFileConfirmation"`
+}
+
 type StatusView struct {
-	Config config.Config `json:"config"`
-	State  StateSnapshot `json:"state"`
+	Config       config.Config   `json:"config"`
+	State        StateSnapshot   `json:"state"`
+	Capabilities CapabilityView  `json:"capabilities"`
 }
 
 type statusResponse struct {
-	State  StateSnapshot `json:"state"`
-	Config configView    `json:"config"`
+	State        StateSnapshot  `json:"state"`
+	Config       configView     `json:"config"`
+	Capabilities CapabilityView `json:"capabilities"`
 }
 
 type configView struct {
@@ -159,8 +171,9 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 	}
 	status := s.backend.Status()
 	writeJSON(w, http.StatusOK, statusResponse{
-		State:  status.State,
-		Config: toConfigView(status.Config),
+		State:        status.State,
+		Config:       toConfigView(status.Config),
+		Capabilities: status.Capabilities,
 	})
 }
 
@@ -211,8 +224,9 @@ func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
 	}
 	status := s.backend.Status()
 	writeJSON(w, http.StatusOK, statusResponse{
-		State:  status.State,
-		Config: toConfigView(status.Config),
+		State:        status.State,
+		Config:       toConfigView(status.Config),
+		Capabilities: status.Capabilities,
 	})
 }
 
@@ -391,6 +405,35 @@ func (s *Server) handleSuppressClipboardFiles(w http.ResponseWriter, r *http.Req
 	s.backend.SuppressClipboardFiles(body.Paths)
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
+func DetectCapabilities() CapabilityView {
+	view := CapabilityView{
+		Platform: runtime.GOOS,
+	}
+	switch runtime.GOOS {
+	case "windows":
+		view.FilePicker = "支持本地文件选择"
+		view.FileClipboardWrite = "支持把最新文件写入系统文件剪贴板"
+		view.ShellMenu = "支持 Windows 右键子菜单"
+		view.ShellMenuRecommended = true
+		view.ClipboardFileConfirmation = "支持剪贴板文件待确认发送"
+	case "linux":
+		view.FilePicker = "支持本地文件选择，依赖 zenity、kdialog 或 yad"
+		view.FileClipboardWrite = "支持文件剪贴板，依赖 wl-copy 或 xclip"
+		view.ShellMenu = "当前未接入桌面右键子菜单"
+		view.ClipboardFileConfirmation = "支持剪贴板文件待确认发送"
+	case "darwin":
+		view.FilePicker = "支持本地文件选择"
+		view.FileClipboardWrite = "支持把最新文件写入系统文件剪贴板"
+		view.ShellMenu = "当前未接入 Finder 右键子菜单"
+		view.ClipboardFileConfirmation = "支持剪贴板文件待确认发送"
+	default:
+		view.FilePicker = "当前平台暂未实现本地文件选择"
+		view.FileClipboardWrite = "当前平台暂不支持文件剪贴板写入"
+		view.ShellMenu = "当前平台未接入右键子菜单"
+		view.ClipboardFileConfirmation = "当前平台仅保留基础文本同步链路"
+	}
+	return view
+}
 func toConfigView(cfg config.Config) configView {
 	return configView{
 		ServerBase:                    cfg.ServerBase,
@@ -475,3 +518,5 @@ func writeTipHTML(w http.ResponseWriter, code int, title string, detail string) 
 </body>
 </html>`, title, title, detail)
 }
+
+

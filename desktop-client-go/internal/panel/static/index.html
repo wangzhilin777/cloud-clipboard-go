@@ -346,6 +346,10 @@
           <span class="label">缓存与目录</span>
           <div id="cachePolicyText" class="value">-</div>
         </article>
+        <article class="card">
+          <span class="label">平台能力</span>
+          <div id="capabilityText" class="value">-</div>
+        </article>
       </section>
       <section class="form-card">
         <h2 class="form-title">常用动作</h2>
@@ -634,6 +638,7 @@
     const cacheCleanupText = document.getElementById('cacheCleanupText');
     const connectionDiagnosisText = document.getElementById('connectionDiagnosisText');
     const cachePolicyText = document.getElementById('cachePolicyText');
+    const capabilityText = document.getElementById('capabilityText');
     const connectionHintText = document.getElementById('connectionHintText');
     const message = document.getElementById('message');
     const tabButtons = Array.from(document.querySelectorAll('[data-tab-button]'));
@@ -678,6 +683,7 @@
       hotkeyText.textContent = formatHotkeySummary(cfg);
       connectionDiagnosisText.textContent = formatConnectionDiagnosis(cfg, window.__latestState || {});
       cachePolicyText.textContent = formatCachePolicy(cfg, window.__latestState || {});
+      capabilityText.textContent = formatCapabilities(window.__latestCapabilities || {}, cfg);
       connectionHintText.textContent = formatConnectionHint(cfg, window.__latestState || {});
     }
 
@@ -694,6 +700,7 @@
       window.__latestState = state || {};
       connectionDiagnosisText.textContent = formatConnectionDiagnosis(window.__latestConfig || {}, state || {});
       cachePolicyText.textContent = formatCachePolicy(window.__latestConfig || {}, state || {});
+      capabilityText.textContent = formatCapabilities(window.__latestCapabilities || {}, window.__latestConfig || {});
       connectionHintText.textContent = formatConnectionHint(window.__latestConfig || {}, state || {});
     }
 
@@ -821,6 +828,19 @@
       return `${retention || 0}h / ${dir} / ${cleanupText}`;
     }
 
+    function formatCapabilities(capabilities, cfg) {
+      const platform = String(capabilities.platform || '').trim() || 'unknown';
+      const parts = [];
+      if (capabilities.filePicker) parts.push(`选文件：${capabilities.filePicker}`);
+      if (capabilities.fileClipboardWrite) parts.push(`文件剪贴板：${capabilities.fileClipboardWrite}`);
+      if (capabilities.shellMenu) {
+        const shellPrefix = cfg && cfg.shellMenuEnabled ? '右键菜单：已启用，' : '右键菜单：';
+        parts.push(shellPrefix + capabilities.shellMenu);
+      }
+      if (capabilities.clipboardFileConfirmation) parts.push(`剪贴板文件确认：${capabilities.clipboardFileConfirmation}`);
+      if (!parts.length) return platform;
+      return `${platform} / ${parts.join(' / ')}`;
+    }
     function formatConnectionHint(cfg, state) {
       const serverBase = String(cfg.serverBase || '').trim();
       const room = String(cfg.room || '').trim() || '默认房间';
@@ -924,6 +944,7 @@
         const resp = await fetch('/api/status', { cache: 'no-store' });
         if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
         const data = await resp.json();
+        window.__latestCapabilities = data.capabilities || {};
         fillConfig(data.config || {});
         fillState(data.state || {});
         if (!silent) message.textContent = '状态已刷新';
@@ -1184,4 +1205,6 @@
   </script>
 </body>
 </html>
+
+
 

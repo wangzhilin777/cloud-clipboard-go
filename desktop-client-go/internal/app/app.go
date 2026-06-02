@@ -280,8 +280,9 @@ func (a *App) Status() panel.StatusView {
 	defer a.mu.Unlock()
 	a.clearExpiredClipboardPendingLocked()
 	return panel.StatusView{
-		Config: a.cfg,
-		State:  panel.StateSnapshot(a.state.Current()),
+		Config:       a.cfg,
+		State:        panel.StateSnapshot(a.state.Current()),
+		Capabilities: panel.DetectCapabilities(),
 	}
 }
 
@@ -613,3 +614,4 @@ func (a *App) cleanupExpiredDownloadDir() (int, error) {
 func clipboardFilesSignature(paths []string) string {
 	return strings.Join(paths, "\n")
 }
+
