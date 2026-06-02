@@ -428,6 +428,10 @@
           <button class="primary" id="saveButton" type="button">保存并重连</button>
           <button class="secondary" id="connectionReconnectButton" type="button">仅重连</button>
         </div>
+        <div class="card" style="padding:14px 16px; margin-top:14px;">
+          <span class="label">连接前检查</span>
+          <div id="connectionHintText" class="value" style="font-size:15px; font-weight:600;">-</div>
+        </div>
         <div class="message" id="message"></div>
         <div class="footer">配置保存后会立即触发桌面客户端重连。若修改了面板监听地址，本页面需要手动用新地址重新打开。</div>
       </section>
@@ -630,6 +634,7 @@
     const cacheCleanupText = document.getElementById('cacheCleanupText');
     const connectionDiagnosisText = document.getElementById('connectionDiagnosisText');
     const cachePolicyText = document.getElementById('cachePolicyText');
+    const connectionHintText = document.getElementById('connectionHintText');
     const message = document.getElementById('message');
     const tabButtons = Array.from(document.querySelectorAll('[data-tab-button]'));
     const tabPanels = Array.from(document.querySelectorAll('[data-tab-panel]'));
@@ -669,7 +674,11 @@
         }
       });
       deviceNameText.textContent = cfg.deviceName || '-';
+      window.__latestConfig = cfg || {};
       hotkeyText.textContent = formatHotkeySummary(cfg);
+      connectionDiagnosisText.textContent = formatConnectionDiagnosis(cfg, window.__latestState || {});
+      cachePolicyText.textContent = formatCachePolicy(cfg, window.__latestState || {});
+      connectionHintText.textContent = formatConnectionHint(cfg, window.__latestState || {});
     }
 
     function fillState(state) {
@@ -682,6 +691,10 @@
       actionText.textContent = state.lastActionDetail ? `${actionLabel(state.lastActionType)} / ${state.lastActionDetail}` : '-';
       pendingClipboardText.textContent = formatPendingClipboard(state);
       cacheCleanupText.textContent = formatCacheCleanup(state);
+      window.__latestState = state || {};
+      connectionDiagnosisText.textContent = formatConnectionDiagnosis(window.__latestConfig || {}, state || {});
+      cachePolicyText.textContent = formatCachePolicy(window.__latestConfig || {}, state || {});
+      connectionHintText.textContent = formatConnectionHint(window.__latestConfig || {}, state || {});
     }
 
     function normalizeStatusLabel(status) {
@@ -806,6 +819,31 @@
       const cleanup = Number(state.lastCacheCleanupAt || 0);
       const cleanupText = cleanup ? new Date(cleanup).toLocaleString() : '暂无清理记录';
       return `${retention || 0}h / ${dir} / ${cleanupText}`;
+    }
+
+    function formatConnectionHint(cfg, state) {
+      const serverBase = String(cfg.serverBase || '').trim();
+      const room = String(cfg.room || '').trim() || '默认房间';
+      const status = String(state.status || '').trim().toLowerCase();
+      if (!serverBase) {
+        return '先填写服务端地址，再保存并重连。';
+      }
+      if (/^https?:\/\/(127\.0\.0\.1|localhost|::1)(:\d+)?/i.test(serverBase)) {
+        return '当前地址仍是本机回环；如果安卓或其他电脑要接入，请改成 Windows 局域网 IP。';
+      }
+      if (status === 'pending') {
+        return `当前设备已接入 ${room}，下一步请到网页端批准设备。`;
+      }
+      if (status === 'stopped') {
+        return '自动重连已经暂停；确认服务端恢复后，点一次“仅重连”即可。';
+      }
+      if (status === 'retrying') {
+        return '客户端正在自动重连；如果长时间不恢复，请检查服务端地址、房间密码和网络。';
+      }
+      if (status === 'trusted' || status === 'connected') {
+        return `当前已连到 ${room}；如要切房间或改密码，保存后会立即重连。`;
+      }
+      return '保存配置后会立即重连；如果改了面板监听地址，需要用新地址重新打开本页面。';
     }
 
     function normalizeHotkeyDisplay(parts, key) {
