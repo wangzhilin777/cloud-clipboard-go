@@ -566,7 +566,7 @@ class MainActivity : AppCompatActivity() {
             warningText = getString(R.string.runtime_recommendation_blocked),
         )
         runtimeAdviceText.text = buildClipboardModeAdvice(config, status, validation)
-        runtimeImplementationText.text = support.implementationSummary
+        runtimeImplementationText.text = buildRuntimeImplementationSummary(config, status, support)
         runtimeModeActionButton.text = runtimeModeActionLabel(config, status)
         autoResumeSummaryText.text = buildAutoResumeSummary(config, status)
         runtimeClipboardDebugText.text = buildClipboardDebugSummary(config, status, validation)
@@ -673,18 +673,31 @@ class MainActivity : AppCompatActivity() {
         val status = PermissionStatusHelper.read(this)
         when (config.clipboardMode) {
             SettingsStore.CLIPBOARD_MODE_ACCESSIBILITY -> {
-                startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+                when {
+                    !status.accessibilityEnabled -> startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+                    !status.batteryOptimizationIgnored -> openBatteryOptimizationSettings()
+                    shouldSuggestVendorBackgroundSettings() -> openVendorBackgroundSettings()
+                    !status.notificationsEnabled -> openNotificationSettings()
+                    else -> Toast.makeText(this, R.string.runtime_mode_action_accessibility_ready_toast, Toast.LENGTH_LONG).show()
+                }
             }
 
             SettingsStore.CLIPBOARD_MODE_SHIZUKU -> {
-                openShizuku(status.shizukuInstalled)
+                if (!status.shizukuInstalled) {
+                    openShizuku(false)
+                } else if (!status.notificationsEnabled) {
+                    openNotificationSettings()
+                } else {
+                    openShizuku(true)
+                }
             }
 
             else -> {
-                if (status.batteryOptimizationIgnored) {
-                    Toast.makeText(this, R.string.runtime_mode_action_foreground_ready_toast, Toast.LENGTH_LONG).show()
-                } else {
-                    openBatteryOptimizationSettings()
+                when {
+                    !status.notificationsEnabled -> openNotificationSettings()
+                    !status.batteryOptimizationIgnored -> openBatteryOptimizationSettings()
+                    shouldSuggestVendorBackgroundSettings() -> openVendorBackgroundSettings()
+                    else -> Toast.makeText(this, R.string.runtime_mode_action_foreground_ready_toast, Toast.LENGTH_LONG).show()
                 }
             }
         }
@@ -817,22 +830,97 @@ class MainActivity : AppCompatActivity() {
         config: SettingsStore.Config,
         status: PermissionStatus,
     ): String = when (config.clipboardMode) {
-        SettingsStore.CLIPBOARD_MODE_ACCESSIBILITY -> getString(R.string.runtime_mode_action_accessibility)
+        SettingsStore.CLIPBOARD_MODE_ACCESSIBILITY -> when {
+            !status.accessibilityEnabled -> getString(R.string.runtime_mode_action_accessibility)
+            !status.batteryOptimizationIgnored -> getString(R.string.runtime_mode_action_battery)
+            shouldSuggestVendorBackgroundSettings() -> getString(R.string.open_vendor_background_settings_button)
+            !status.notificationsEnabled -> getString(R.string.open_notification_settings_button)
+            else -> getString(R.string.runtime_mode_action_accessibility_ready)
+        }
         SettingsStore.CLIPBOARD_MODE_SHIZUKU -> getString(
-            if (status.shizukuInstalled) {
-                R.string.runtime_mode_action_shizuku
-            } else {
+            if (!status.shizukuInstalled) {
                 R.string.runtime_mode_action_shizuku_install
+            } else if (!status.notificationsEnabled) {
+                R.string.open_notification_settings_button
+            } else {
+                R.string.runtime_mode_action_shizuku
             },
         )
 
-        else -> getString(
-            if (status.batteryOptimizationIgnored) {
-                R.string.runtime_mode_action_foreground_ready
-            } else {
-                R.string.runtime_mode_action_battery
-            },
-        )
+        else -> when {
+            !status.notificationsEnabled -> getString(R.string.open_notification_settings_button)
+            !status.batteryOptimizationIgnored -> getString(R.string.runtime_mode_action_battery)
+            shouldSuggestVendorBackgroundSettings() -> getString(R.string.open_vendor_background_settings_button)
+            else -> getString(R.string.runtime_mode_action_foreground_ready)
+        }
+    }
+
+    private fun buildRuntimeImplementationSummary(
+        config: SettingsStore.Config,
+        status: PermissionStatus,
+        support: ClipboardModeSupport,
+    ): String {
+        val readyItems = mutableListOf<String>()
+        val pendingItems = mutableListOf<String>()
+
+        when (config.clipboardMode) {
+            SettingsStore.CLIPBOARD_MODE_ACCESSIBILITY -> {
+                if (status.accessibilityEnabled) {
+                    readyItems += "无障碍服务已开启"
+                } else {
+                    pendingItems += "需要先开启无障碍服务"
+                }
+            }
+
+            SettingsStore.CLIPBOARD_MODE_SHIZUKU -> {
+                if (status.shizukuInstalled) {
+                    readyItems += "已检测到 Shizuku 环境"
+                    pendingItems += "独立增强链路仍在接入，当前阶段暂不开放启动"
+                } else {
+                    pendingItems += "需要先安装或拉起 Shizuku"
+                }
+            }
+
+            else -> {
+                readyItems += "前台服务主链路已可用"
+            }
+        }
+
+        if (status.notificationsEnabled) {
+            readyItems += "通知权限已开启"
+        } else {
+            pendingItems += "建议开启通知，避免前台服务状态和接收提醒不完整"
+        }
+        if (status.batteryOptimizationIgnored) {
+            readyItems += "已忽略电池优化"
+        } else {
+            pendingItems += "建议忽略电池优化，降低后台被系统回收的概率"
+        }
+        if (shouldSuggestVendorBackgroundSettings()) {
+            pendingItems += "建议再检查厂商后台保活设置"
+        }
+
+        val nextAction = runtimeModeActionLabel(config, status)
+        val readyLine = if (readyItems.isEmpty()) "当前已就绪：暂无" else "当前已就绪：${readyItems.joinToString("；")}" 
+        val pendingLine = if (pendingItems.isEmpty()) "当前待补齐：暂无" else "当前待补齐：${pendingItems.joinToString("；")}" 
+        return buildString {
+            appendLine(support.implementationSummary)
+            appendLine()
+            appendLine(readyLine)
+            appendLine(pendingLine)
+            append("快捷处理：下方按钮会优先带你去“")
+            append(nextAction)
+            append("”。")
+        }
+    }
+
+    private fun shouldSuggestVendorBackgroundSettings(): Boolean {
+        val manufacturer = Build.MANUFACTURER.orEmpty().lowercase()
+        return manufacturer.contains("xiaomi") || manufacturer.contains("redmi") || manufacturer.contains("poco") ||
+            manufacturer.contains("huawei") || manufacturer.contains("honor") ||
+            manufacturer.contains("oppo") || manufacturer.contains("oneplus") || manufacturer.contains("realme") ||
+            manufacturer.contains("vivo") || manufacturer.contains("iqoo") ||
+            manufacturer.contains("samsung")
     }
 
     private fun stateLabel(enabled: Boolean): String = getString(
@@ -1152,3 +1240,4 @@ class MainActivity : AppCompatActivity() {
         private const val TAB_RECEIVE = 3
     }
 }
+

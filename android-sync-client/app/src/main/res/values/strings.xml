@@ -108,7 +108,9 @@
     <string name="runtime_mode_action_shizuku_install">查看 Shizuku</string>
     <string name="runtime_mode_action_battery">打开电池优化设置</string>
     <string name="runtime_mode_action_foreground_ready">查看前台模式建议</string>
+    <string name="runtime_mode_action_accessibility_ready">查看无障碍模式建议</string>
     <string name="runtime_mode_action_foreground_ready_toast">前台服务模式当前无需额外授权；如需更稳的后台复制，再切到无障碍或 Shizuku。</string>
+    <string name="runtime_mode_action_accessibility_ready_toast">无障碍增强模式当前基础授权已就绪；如果后台复制仍不稳，优先再检查电池优化和厂商后台保活设置。</string>
     <string name="runtime_mode_action_shizuku_missing_toast">当前设备还没有可打开的 Shizuku 入口，请先安装或检查系统应用页。</string>
     <string name="runtime_mode_accessibility_blocked">当前选的是无障碍增强模式，但系统还没开启无障碍服务，请先补开后再启动同步。</string>
     <string name="runtime_mode_shizuku_blocked">当前选的是 Shizuku 模式，但设备还没有可用的 Shizuku 环境，请先安装或授权后再启动同步。</string>
@@ -231,5 +233,6 @@
     <string name="payload_status_snoozed">稍后提醒中</string>
     <string name="payload_mark_processed_done_button">已标记为已处理</string>
 </resources>
+
 
 
