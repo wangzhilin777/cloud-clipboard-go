@@ -92,8 +92,11 @@ func Load(path string) (Config, error) {
 	if err := json.Unmarshal(data, &cfg); err != nil {
 		return Config{}, err
 	}
+	if err := applyFriendlyDurationFields(data, &cfg); err != nil {
+		return Config{}, err
+	}
 	cfg.normalize()
-	if normalized, err := json.MarshalIndent(cfg, "", "  "); err == nil && !bytes.Equal(bytes.TrimSpace(data), normalized) {
+	if normalized, err := marshalDiskConfig(cfg); err == nil && !bytes.Equal(bytes.TrimSpace(data), normalized) {
 		if err := os.WriteFile(path, append(normalized, '\n'), 0o644); err != nil {
 			return Config{}, err
 		}
@@ -106,11 +109,100 @@ func Save(path string, cfg Config) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
 	}
-	data, err := json.MarshalIndent(cfg, "", "  ")
+	data, err := marshalDiskConfig(cfg)
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(path, data, 0o644)
+	return os.WriteFile(path, append(data, '\n'), 0o644)
+}
+
+type friendlyDurationFields struct {
+	PollIntervalMs                int64 `json:"pollIntervalMs"`
+	DownloadCacheRetentionHours   int64 `json:"downloadCacheRetentionHours"`
+	ClipboardFileConfirmWindowSec int64 `json:"clipboardFileConfirmWindowSec"`
+	ReconnectDelayMs              int64 `json:"reconnectDelayMs"`
+}
+
+type diskConfig struct {
+	ServerBase                    string `json:"serverBase"`
+	Room                          string `json:"room"`
+	RoomPassword                  string `json:"roomPassword"`
+	DeviceName                    string `json:"deviceName"`
+	DeviceID                      string `json:"deviceId"`
+	PollIntervalMs                int64  `json:"pollIntervalMs"`
+	NoticeMode                    string `json:"noticeMode"`
+	PanelAddress                  string `json:"panelAddress"`
+	OpenPanelOnLaunch             bool   `json:"openPanelOnLaunch"`
+	DownloadDir                   string `json:"downloadDir"`
+	DownloadCacheRetentionHours   int64  `json:"downloadCacheRetentionHours"`
+	ShellMenuEnabled              bool   `json:"shellMenuEnabled"`
+	ClipboardFileConfirmEnabled   bool   `json:"clipboardFileConfirmEnabled"`
+	ClipboardFileConfirmWindowSec int64  `json:"clipboardFileConfirmWindowSec"`
+	OpenPanelHotkey               string `json:"openPanelHotkey"`
+	SendClipboardHotkey           string `json:"sendClipboardHotkey"`
+	FetchLatestHotkey             string `json:"fetchLatestHotkey"`
+	FetchLatestFileHotkey         string `json:"fetchLatestFileHotkey"`
+	DownloadLatestHotkey          string `json:"downloadLatestHotkey"`
+	ReconnectDelayMs              int64  `json:"reconnectDelayMs"`
+	MaxReconnectAttempts          int    `json:"maxReconnectAttempts"`
+	TipWidth                      int    `json:"tipWidth"`
+	TipHeight                     int    `json:"tipHeight"`
+	TipTheme                      string `json:"tipTheme"`
+	TipLeft                       int    `json:"tipLeft"`
+	TipTop                        int    `json:"tipTop"`
+	SuccessNoticeEnabled          bool   `json:"successNoticeEnabled"`
+}
+
+func applyFriendlyDurationFields(data []byte, cfg *Config) error {
+	var fields friendlyDurationFields
+	if err := json.Unmarshal(data, &fields); err != nil {
+		return err
+	}
+	if fields.PollIntervalMs > 0 {
+		cfg.PollInterval = time.Duration(fields.PollIntervalMs) * time.Millisecond
+	}
+	if fields.DownloadCacheRetentionHours > 0 {
+		cfg.DownloadCacheRetention = time.Duration(fields.DownloadCacheRetentionHours) * time.Hour
+	}
+	if fields.ClipboardFileConfirmWindowSec > 0 {
+		cfg.ClipboardFileConfirmWindow = time.Duration(fields.ClipboardFileConfirmWindowSec) * time.Second
+	}
+	if fields.ReconnectDelayMs > 0 {
+		cfg.ReconnectDelay = time.Duration(fields.ReconnectDelayMs) * time.Millisecond
+	}
+	return nil
+}
+
+func marshalDiskConfig(cfg Config) ([]byte, error) {
+	return json.MarshalIndent(diskConfig{
+		ServerBase:                    cfg.ServerBase,
+		Room:                          cfg.Room,
+		RoomPassword:                  cfg.RoomPassword,
+		DeviceName:                    cfg.DeviceName,
+		DeviceID:                      cfg.DeviceID,
+		PollIntervalMs:                int64(cfg.PollInterval / time.Millisecond),
+		NoticeMode:                    cfg.NoticeMode,
+		PanelAddress:                  cfg.PanelAddress,
+		OpenPanelOnLaunch:             cfg.OpenPanelOnLaunch,
+		DownloadDir:                   cfg.DownloadDir,
+		DownloadCacheRetentionHours:   int64(cfg.DownloadCacheRetention / time.Hour),
+		ShellMenuEnabled:              cfg.ShellMenuEnabled,
+		ClipboardFileConfirmEnabled:   cfg.ClipboardFileConfirmEnabled,
+		ClipboardFileConfirmWindowSec: int64(cfg.ClipboardFileConfirmWindow / time.Second),
+		OpenPanelHotkey:               cfg.OpenPanelHotkey,
+		SendClipboardHotkey:           cfg.SendClipboardHotkey,
+		FetchLatestHotkey:             cfg.FetchLatestHotkey,
+		FetchLatestFileHotkey:         cfg.FetchLatestFileHotkey,
+		DownloadLatestHotkey:          cfg.DownloadLatestHotkey,
+		ReconnectDelayMs:              int64(cfg.ReconnectDelay / time.Millisecond),
+		MaxReconnectAttempts:          cfg.MaxReconnectAttempts,
+		TipWidth:                      cfg.TipWidth,
+		TipHeight:                     cfg.TipHeight,
+		TipTheme:                      cfg.TipTheme,
+		TipLeft:                       cfg.TipLeft,
+		TipTop:                        cfg.TipTop,
+		SuccessNoticeEnabled:          cfg.SuccessNoticeEnabled,
+	}, "", "  ")
 }
 
 func (c *Config) normalize() {
