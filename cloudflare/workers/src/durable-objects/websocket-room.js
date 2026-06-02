@@ -540,7 +540,7 @@ export class WebSocketRoom {
   }
 
   async putSyncMessages(messages) {
-    await this.state.storage.put('sync:messages', messages.slice(-20));
+    await this.state.storage.put('sync:messages', this.trimRecentSyncItemsByRoom(messages));
   }
 
   async getSyncPayloads() {
@@ -548,7 +548,29 @@ export class WebSocketRoom {
   }
 
   async putSyncPayloads(payloads) {
-    await this.state.storage.put('sync:payloads', payloads.slice(-20));
+    await this.state.storage.put('sync:payloads', this.trimRecentSyncItemsByRoom(payloads));
+  }
+
+  syncHistoryLimit() {
+    const limit = parseInt(this.env.HISTORY_LIMIT || '50', 10);
+    return Number.isFinite(limit) && limit > 0 ? limit : 50;
+  }
+
+  trimRecentSyncItemsByRoom(items) {
+    const limit = this.syncHistoryLimit();
+    const counts = new Map();
+    const kept = [];
+
+    for (let index = items.length - 1; index >= 0; index -= 1) {
+      const item = items[index];
+      const room = normalizeRoomName(item?.room);
+      const count = counts.get(room) || 0;
+      if (count >= limit) continue;
+      counts.set(room, count + 1);
+      kept.push(item);
+    }
+
+    return kept.reverse();
   }
 
   isSyncDeviceOnline(room, deviceId) {
@@ -712,7 +734,7 @@ export class WebSocketRoom {
 
   getRecentSyncItems(items, room) {
     const targetRoom = normalizeRoomName(room);
-    return items.filter(item => normalizeRoomName(item.room) === targetRoom).slice(-20);
+    return items.filter(item => normalizeRoomName(item.room) === targetRoom).slice(-this.syncHistoryLimit());
   }
 
   async handleSyncDevices(url) {

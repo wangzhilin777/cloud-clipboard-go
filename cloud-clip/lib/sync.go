@@ -546,10 +546,38 @@ func (h *SyncHub) AddMessage(payload SyncMessageRecord) (SyncMessageRecord, erro
 		record.CreatedAt = time.Now().UnixMilli()
 	}
 	h.state.Messages = append(h.state.Messages, record)
-	if len(h.state.Messages) > h.messageLimit {
-		h.state.Messages = h.state.Messages[len(h.state.Messages)-h.messageLimit:]
-	}
+	h.trimMessagesForRoomLocked(record.Room)
 	return record, h.persistLocked()
+}
+
+func (h *SyncHub) trimMessagesForRoomLocked(room string) {
+	if h.messageLimit <= 0 {
+		h.state.Messages = []SyncMessageRecord{}
+		return
+	}
+
+	normalizedRoom := normalizeSyncRoom(room)
+	roomCount := 0
+	for _, message := range h.state.Messages {
+		if message.Room == normalizedRoom {
+			roomCount++
+		}
+	}
+
+	for roomCount > h.messageLimit {
+		evictedIndex := -1
+		for i, message := range h.state.Messages {
+			if message.Room == normalizedRoom {
+				evictedIndex = i
+				break
+			}
+		}
+		if evictedIndex == -1 {
+			return
+		}
+		h.state.Messages = append(h.state.Messages[:evictedIndex], h.state.Messages[evictedIndex+1:]...)
+		roomCount--
+	}
 }
 
 func (h *SyncHub) GetRecentMessages(room string) []SyncMessageRecord {
@@ -557,14 +585,14 @@ func (h *SyncHub) GetRecentMessages(room string) []SyncMessageRecord {
 	defer h.mu.RUnlock()
 
 	normalizedRoom := normalizeSyncRoom(room)
-	result := make([]SyncMessageRecord, 0, 20)
+	result := make([]SyncMessageRecord, 0, h.messageLimit)
 	for _, message := range h.state.Messages {
 		if message.Room == normalizedRoom {
 			result = append(result, message)
 		}
 	}
-	if len(result) > 20 {
-		result = result[len(result)-20:]
+	if len(result) > h.messageLimit {
+		result = result[len(result)-h.messageLimit:]
 	}
 	return result
 }
@@ -590,10 +618,38 @@ func (h *SyncHub) AddPayloadNotice(payload SyncPayloadNotice) (SyncPayloadNotice
 		}
 	}
 	h.state.Payloads = append(h.state.Payloads, record)
-	if len(h.state.Payloads) > h.messageLimit {
-		h.state.Payloads = h.state.Payloads[len(h.state.Payloads)-h.messageLimit:]
-	}
+	h.trimPayloadsForRoomLocked(record.Room)
 	return record, h.persistLocked()
+}
+
+func (h *SyncHub) trimPayloadsForRoomLocked(room string) {
+	if h.messageLimit <= 0 {
+		h.state.Payloads = []SyncPayloadNotice{}
+		return
+	}
+
+	normalizedRoom := normalizeSyncRoom(room)
+	roomCount := 0
+	for _, payload := range h.state.Payloads {
+		if payload.Room == normalizedRoom {
+			roomCount++
+		}
+	}
+
+	for roomCount > h.messageLimit {
+		evictedIndex := -1
+		for i, payload := range h.state.Payloads {
+			if payload.Room == normalizedRoom {
+				evictedIndex = i
+				break
+			}
+		}
+		if evictedIndex == -1 {
+			return
+		}
+		h.state.Payloads = append(h.state.Payloads[:evictedIndex], h.state.Payloads[evictedIndex+1:]...)
+		roomCount--
+	}
 }
 
 func (h *SyncHub) GetRecentPayloads(room string) []SyncPayloadNotice {
@@ -601,14 +657,14 @@ func (h *SyncHub) GetRecentPayloads(room string) []SyncPayloadNotice {
 	defer h.mu.RUnlock()
 
 	normalizedRoom := normalizeSyncRoom(room)
-	result := make([]SyncPayloadNotice, 0, 20)
+	result := make([]SyncPayloadNotice, 0, h.messageLimit)
 	for _, payload := range h.state.Payloads {
 		if payload.Room == normalizedRoom {
 			result = append(result, payload)
 		}
 	}
-	if len(result) > 20 {
-		result = result[len(result)-20:]
+	if len(result) > h.messageLimit {
+		result = result[len(result)-h.messageLimit:]
 	}
 	return result
 }
