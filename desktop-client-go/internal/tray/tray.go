@@ -1,3 +1,5 @@
+//go:build windows
+
 package tray
 
 import (
@@ -9,20 +11,6 @@ import (
 	"github.com/jonnyan404/cloud-clipboard-go/desktop-client-go/internal/panel"
 	"github.com/tadvi/systray"
 )
-
-type Backend interface {
-	Status() panel.StatusView
-	RequestReconnect()
-	OpenPanel() error
-	OpenDownloadDir() error
-	ClearDownloadDir() (int, error)
-	ConfirmPendingClipboardFiles() ([]string, error)
-	SendFiles(paths []string) ([]string, error)
-	SendText(text string, fromClipboard bool) (string, error)
-	FetchLatestText() (string, error)
-	FetchLatestFileToClipboard() (string, error)
-	DownloadLatestFile() (string, error)
-}
 
 func Run(ctx context.Context, logger *log.Logger, backend Backend, stop func()) error {
 	if backend == nil {
