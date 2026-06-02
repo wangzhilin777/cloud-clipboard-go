@@ -24,7 +24,6 @@
     "@vue/cli-plugin-router": "^4.5.19",
     "@vue/cli-service": "^4.5.19",
     "cross-env": "^7.0.3",
-    "fs-extra": "^11.2.0",
     "glob": "^11.0.0",
     "sass": "^1.83.0",
     "sass-loader": "^10.5.2",
