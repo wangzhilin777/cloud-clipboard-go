@@ -101,6 +101,8 @@
     <string name="runtime_advice_placeholder">推荐优先使用前台服务模式；如果后台复制经常丢失，再切到无障碍或 Shizuku。</string>
     <string name="runtime_implementation_placeholder">当前模式的实现阶段会显示在这里。</string>
     <string name="auto_resume_placeholder">自动续连状态会在这里显示。</string>
+    <string name="runtime_clipboard_debug_title">后台复制诊断</string>
+    <string name="runtime_clipboard_debug_placeholder">启动同步后，这里会显示当前剪贴板回传来源、最近一次后台补传结果，以及下一步建议。</string>
     <string name="runtime_mode_action_accessibility">打开无障碍设置</string>
     <string name="runtime_mode_action_shizuku">打开 Shizuku</string>
     <string name="runtime_mode_action_shizuku_install">查看 Shizuku</string>
@@ -226,3 +228,4 @@
     <string name="payload_status_snoozed">稍后提醒中</string>
     <string name="payload_mark_processed_done_button">已标记为已处理</string>
 </resources>
+

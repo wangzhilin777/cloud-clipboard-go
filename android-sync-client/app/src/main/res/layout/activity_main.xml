@@ -447,6 +447,26 @@
                         android:padding="14dp"
                         android:textAppearance="@style/TextAppearance.MaterialComponents.Body2"
                         android:textColor="@color/cc_text_muted" />
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="16dp"
+                        android:text="@string/runtime_clipboard_debug_title"
+                        android:textAppearance="@style/TextAppearance.MaterialComponents.Subtitle2"
+                        android:textColor="@color/cc_text"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/runtimeClipboardDebugText"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:background="@drawable/content_panel_background"
+                        android:padding="14dp"
+                        android:text="@string/runtime_clipboard_debug_placeholder"
+                        android:textAppearance="@style/TextAppearance.MaterialComponents.Body2"
+                        android:textColor="@color/cc_text_muted" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
@@ -935,3 +955,4 @@
         app:labelVisibilityMode="labeled"
         app:menu="@menu/main_sections" />
 </LinearLayout>
+

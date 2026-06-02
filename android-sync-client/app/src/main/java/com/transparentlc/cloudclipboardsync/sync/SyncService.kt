@@ -45,6 +45,8 @@ class SyncService : Service() {
     private var serviceStarted = false
     private var reconnectAttempt = 0
     private val downloadingPayloads = mutableSetOf<String>()
+    private var lastClipboardRoute = "idle"
+    private var lastClipboardDetail = "等待开始"
 
     private val clipboardListener = ClipboardManager.OnPrimaryClipChangedListener {
         publishLocalClipboardIfNeeded("listener")
@@ -104,6 +106,7 @@ class SyncService : Service() {
 
     private fun stopStartupWithMessage(message: String): Int {
         startForeground(NOTIFICATION_ID, buildNotification(message))
+        updateClipboardDiagnostic("startup-blocked", message)
         broadcastStatus(getString(R.string.status_idle), message)
         showReconnectFailureAlert(message)
         stopSelf()
@@ -125,6 +128,7 @@ class SyncService : Service() {
         client = ClipboardSyncClient(config, object : ClipboardSyncClient.Callbacks {
             override fun onConnected() {
                 reconnectAttempt = 0
+                updateClipboardDiagnostic("connected", "同步连接已建立，等待本地或远端剪贴板事件")
                 broadcastStatus(getString(R.string.status_connected), "同步连接已建立")
                 updateNotification(getString(R.string.status_connected))
             }
@@ -132,11 +136,16 @@ class SyncService : Service() {
             override fun onTrustedChanged(trusted: Boolean) {
                 this@SyncService.trusted = trusted
                 val status = if (trusted) getString(R.string.status_trusted) else getString(R.string.status_pending)
+                updateClipboardDiagnostic(
+                    if (trusted) "trusted" else "pending",
+                    if (trusted) "设备已连接，可开始处理本地和远端剪贴板" else "设备等待网页批准，当前不会正式同步内容",
+                )
                 broadcastStatus(status, if (trusted) "设备已连接" else "设备等待网页批准")
                 updateNotification(status)
             }
 
             override fun onRemoteText(messageId: String, text: String) {
+                updateClipboardDiagnostic("remote", "已收到远端文本，准备写入系统剪贴板")
                 applyRemoteText(messageId, text, "已接收远端文本并写入剪贴板")
             }
 
@@ -159,6 +168,7 @@ class SyncService : Service() {
 
             override fun onForbidden() {
                 reconnectAttempt = 0
+                updateClipboardDiagnostic("forbidden", "房间认证失败，请检查房间密码或全局密码")
                 broadcastStatus(getString(R.string.status_forbidden), "认证失败")
                 updateNotification(getString(R.string.status_forbidden))
             }
@@ -174,6 +184,7 @@ class SyncService : Service() {
         if (reconnectAttempt >= reconnectDelaysMs.size) {
             reconnectAttempt = 0
             val message = getString(R.string.reconnect_failure_limit_message)
+            updateClipboardDiagnostic("reconnect-stopped", message)
             broadcastStatus(getString(R.string.status_disconnected), message)
             updateNotification(getString(R.string.status_disconnected))
             showReconnectFailureAlert(message)
@@ -183,6 +194,7 @@ class SyncService : Service() {
         val delayMs = reconnectDelaysMs[reconnectAttempt]
         reconnectAttempt++
         val message = getString(R.string.reconnect_retry_message, attempt, reconnectDelaysMs.size)
+        updateClipboardDiagnostic("reconnect-$attempt", "$message，等待 ${delayMs / 1000} 秒后再试")
         broadcastStatus(getString(R.string.status_disconnected), message)
         updateNotification(getString(R.string.status_disconnected))
         handler.postDelayed({ connect() }, delayMs)
@@ -239,34 +251,56 @@ class SyncService : Service() {
         lastRemoteText = text
         lastRemoteAt = System.currentTimeMillis()
         lastObservedLocalText = text
+        updateClipboardDiagnostic("remote-apply", resultText)
         clipboardManager.setPrimaryClip(ClipData.newPlainText("cloud-clipboard", text))
         broadcastStatus(getString(R.string.status_trusted), resultText)
         handler.postDelayed({ applyingRemoteText = false }, 1500)
     }
 
     private fun publishLocalClipboardIfNeeded(source: String): Boolean {
-        if (applyingRemoteText || !trusted) return false
+        if (applyingRemoteText) {
+            updateClipboardDiagnostic("skip-$source", "刚完成远端文本写回，暂时跳过本地回传，避免自激同步")
+            return false
+        }
+        if (!trusted) {
+            updateClipboardDiagnostic("skip-$source", "设备尚未获批准，暂不处理本地剪贴板")
+            return false
+        }
         val clip = runCatching { clipboardManager.primaryClip }.getOrNull()
         if (clip == null) {
+            updateClipboardDiagnostic(source, "系统当前没有可读取的剪贴板内容")
             if (source == "accessibility") {
                 return publishAccessibilitySnapshotFallback(source, "clipboard-null")
             }
             return false
         }
-        if (clip.itemCount <= 0) return false
+        if (clip.itemCount <= 0) {
+            updateClipboardDiagnostic(source, "系统剪贴板为空，暂时没有可发送文本")
+            return false
+        }
         val text = clip.getItemAt(0).coerceToText(this)?.toString().orEmpty().trim()
         if (text.isBlank()) {
+            updateClipboardDiagnostic(source, "本次剪贴板不是可发送的纯文本，已跳过")
             if (source == "accessibility") {
                 return publishAccessibilitySnapshotFallback(source, "clipboard-blank")
             }
             return false
         }
-        if (text == lastObservedLocalText && source == "poll") return false
+        if (text == lastObservedLocalText && source == "poll") {
+            updateClipboardDiagnostic(source, "轮询检测到的文本与上次一致，已忽略重复内容")
+            return false
+        }
         lastObservedLocalText = text
         val now = System.currentTimeMillis()
-        if (text == lastRemoteText && now - lastRemoteAt < 5_000) return false
-        if (text == lastPublishedText && now - lastPublishedAt < 2_000) return false
-        return publishTextToServer(text, now, "已推送本地文本到服务端")
+        if (text == lastRemoteText && now - lastRemoteAt < 5_000) {
+            updateClipboardDiagnostic(source, "本地内容刚由远端写回，已忽略回环文本")
+            return false
+        }
+        if (text == lastPublishedText && now - lastPublishedAt < 2_000) {
+            updateClipboardDiagnostic(source, "短时间内检测到重复发布，已跳过")
+            return false
+        }
+        return publishTextToServer(text, now, "已推送本地文本到服务端", source)
     }
 
     private fun handleAccessibilityPulse(intent: Intent) {
@@ -290,7 +324,7 @@ class SyncService : Service() {
                     append(" · ")
                     append(reason.take(60))
                 }
-            })) {
+            }, "accessibility-snapshot")) {
             return
         }
         val detail = buildString {
@@ -325,15 +359,21 @@ class SyncService : Service() {
             append(" · ")
             append(fallbackReason)
         }
-        return publishTextToServer(text, now, result)
+        return publishTextToServer(text, now, result, "$source-fallback")
     }
 
-    private fun publishTextToServer(text: String, publishedAt: Long, resultText: String): Boolean {
+    private fun publishTextToServer(text: String, publishedAt: Long, resultText: String, route: String): Boolean {
         lastPublishedText = text
         lastPublishedAt = publishedAt
+        updateClipboardDiagnostic(route, resultText)
         client?.publishText(text)
         broadcastStatus(getString(R.string.status_trusted), resultText)
         return true
+    }
+
+    private fun updateClipboardDiagnostic(route: String, detail: String) {
+        lastClipboardRoute = route
+        lastClipboardDetail = detail
     }
 
     private fun currentStatus(): String = when {
@@ -475,6 +515,8 @@ class SyncService : Service() {
             setPackage(packageName)
             putExtra(EXTRA_STATUS, status)
             putExtra(EXTRA_LAST_RESULT, lastResult)
+            putExtra(EXTRA_CLIPBOARD_ROUTE, lastClipboardRoute)
+            putExtra(EXTRA_CLIPBOARD_DETAIL, lastClipboardDetail)
         })
     }
 
@@ -524,6 +566,8 @@ class SyncService : Service() {
         const val ACTION_PAYLOAD_UPDATED = "com.transparentlc.cloudclipboardsync.PAYLOAD_UPDATED"
         const val EXTRA_STATUS = "extra_status"
         const val EXTRA_LAST_RESULT = "extra_last_result"
+        const val EXTRA_CLIPBOARD_ROUTE = "extra_clipboard_route"
+        const val EXTRA_CLIPBOARD_DETAIL = "extra_clipboard_detail"
         const val EXTRA_PAYLOAD_ID = "extra_payload_id"
         private const val EXTRA_ACCESSIBILITY_PACKAGE = "extra_accessibility_package"
         private const val EXTRA_ACCESSIBILITY_REASON = "extra_accessibility_reason"

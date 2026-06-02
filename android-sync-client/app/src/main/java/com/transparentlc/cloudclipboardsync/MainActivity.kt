@@ -76,6 +76,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var runtimeAdviceText: TextView
     private lateinit var runtimeImplementationText: TextView
     private lateinit var autoResumeSummaryText: TextView
+    private lateinit var runtimeClipboardDebugText: TextView
     private lateinit var runtimeModeBadgeText: TextView
     private lateinit var permissionOverviewBadgeText: TextView
     private lateinit var runtimeModeActionButton: Button
@@ -88,6 +89,8 @@ class MainActivity : AppCompatActivity() {
     private var receiveFloatingSettingsExpanded = false
     private var receiveCacheSettingsExpanded = false
     private var suppressAutoSave = false
+    private var latestClipboardRoute = "idle"
+    private var latestClipboardDetail = ""
 
     private val notificationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -97,6 +100,9 @@ class MainActivity : AppCompatActivity() {
         override fun onReceive(context: Context?, intent: Intent?) {
             statusText.text = intent?.getStringExtra(SyncService.EXTRA_STATUS) ?: getString(R.string.status_idle)
             lastSyncText.text = intent?.getStringExtra(SyncService.EXTRA_LAST_RESULT) ?: getString(R.string.last_result_idle)
+            latestClipboardRoute = intent?.getStringExtra(SyncService.EXTRA_CLIPBOARD_ROUTE) ?: latestClipboardRoute
+            latestClipboardDetail = intent?.getStringExtra(SyncService.EXTRA_CLIPBOARD_DETAIL) ?: latestClipboardDetail
+            refreshRuntimeHints()
             updateHomeHeaderSummary()
         }
     }
@@ -152,6 +158,7 @@ class MainActivity : AppCompatActivity() {
         runtimeAdviceText = findViewById(R.id.runtimeAdviceText)
         runtimeImplementationText = findViewById(R.id.runtimeImplementationText)
         autoResumeSummaryText = findViewById(R.id.autoResumeSummaryText)
+        runtimeClipboardDebugText = findViewById(R.id.runtimeClipboardDebugText)
         runtimeModeBadgeText = findViewById(R.id.runtimeModeBadgeText)
         permissionOverviewBadgeText = findViewById(R.id.permissionOverviewBadgeText)
         runtimeModeActionButton = findViewById(R.id.runtimeModeActionButton)
@@ -558,6 +565,7 @@ class MainActivity : AppCompatActivity() {
         runtimeImplementationText.text = support.implementationSummary
         runtimeModeActionButton.text = runtimeModeActionLabel(config, status)
         autoResumeSummaryText.text = buildAutoResumeSummary(config, status)
+        runtimeClipboardDebugText.text = buildClipboardDebugSummary(config, status, validation)
         floatingLayoutSummaryText.text = getString(
             R.string.floating_layout_summary_format,
             config.floatingPosX,
@@ -841,6 +849,61 @@ class MainActivity : AppCompatActivity() {
             warnings += "未开启开机自动恢复，当前仅在你打开 App 时自动续连"
         }
         return "自动续连：已就绪\n${warnings.joinToString("；")}。"
+    }
+
+    private fun buildClipboardDebugSummary(
+        config: SettingsStore.Config,
+        status: PermissionStatus,
+        validation: RuntimeModeValidation,
+    ): String {
+        val routeLine = when (val route = latestClipboardRoute.trim()) {
+            "", "idle" -> "最近回传来源：尚未产生新的剪贴板事件"
+            "remote" -> "最近回传来源：远端设备下发文本"
+            "remote-apply" -> "最近回传来源：远端文本已写回本机剪贴板"
+            "connected" -> "最近回传来源：刚建立同步连接"
+            "trusted" -> "最近回传来源：设备刚切到已连接状态"
+            "pending" -> "最近回传来源：设备仍在等待网页批准"
+            "forbidden" -> "最近回传来源：房间认证失败"
+            "startup-blocked" -> "最近回传来源：启动前校验拦截"
+            else -> "最近回传来源：$route"
+        }
+
+        val modeLine = when (config.clipboardMode) {
+            SettingsStore.CLIPBOARD_MODE_ACCESSIBILITY -> {
+                if (status.accessibilityEnabled) {
+                    "当前监听策略：无障碍增强已开启，除了系统剪贴板回调，还会尝试用界面事件做补检查。"
+                } else {
+                    "当前监听策略：你选了无障碍增强，但系统无障碍还没打开，所以后台补传还不会生效。"
+                }
+            }
+
+            SettingsStore.CLIPBOARD_MODE_SHIZUKU ->
+                "当前监听策略：Shizuku 入口已经展示，但独立增强链路还没接完，本阶段仍建议先用前台服务或无障碍模式。"
+
+            else -> when {
+                status.accessibilityEnabled ->
+                    "当前监听策略：主通道仍是前台服务；如果前台回调没拿到新文本，后续可改成无障碍增强获得更稳的后台补传。"
+                else ->
+                    "当前监听策略：当前只依赖系统剪贴板回调和轮询，Android 10 以上后台限制会更明显。"
+            }
+        }
+
+        val nextStepLine = when {
+            !validation.ready -> "下一步建议：先按上面的模式引导补齐授权，再重新启动同步。"
+            config.clipboardMode == SettingsStore.CLIPBOARD_MODE_FOREGROUND && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q ->
+                "下一步建议：如果后台复制还是经常没有回传，优先切到无障碍增强模式。"
+            config.clipboardMode == SettingsStore.CLIPBOARD_MODE_ACCESSIBILITY && !status.accessibilityEnabled ->
+                "下一步建议：打开无障碍后再试一次后台复制。"
+            latestClipboardRoute.startsWith("skip-") ->
+                "下一步建议：当前有一次被跳过的本地检查，先看最近结果里的具体原因。"
+            else ->
+                "下一步建议：保持当前模式，做一次前台复制和一次后台复制，对比最近结果即可判断是否被系统限制。"
+        }
+
+        val detail = latestClipboardDetail.trim().ifBlank {
+            "最近结果：还没有收到新的本地或远端剪贴板事件。"
+        }
+        return "$routeLine\n最近结果：$detail\n$modeLine\n$nextStepLine"
     }
 
     private fun buildPermissionSummary(
