@@ -79,6 +79,20 @@ type payloadNoticePayload struct {
 	Title string `json:"title"`
 }
 
+type httpStatusError struct {
+	Action     string
+	StatusCode int
+	Body       string
+}
+
+func (e httpStatusError) Error() string {
+	detail := strings.TrimSpace(e.Body)
+	if detail == "" {
+		return fmt.Sprintf("%s: HTTP %d", e.Action, e.StatusCode)
+	}
+	return fmt.Sprintf("%s: HTTP %d %s", e.Action, e.StatusCode, detail)
+}
+
 func New(cfg config.Config, logger *log.Logger, events EventHandler) *Client {
 	if events == nil {
 		events = noopEventHandler{}
@@ -165,8 +179,27 @@ func (c *Client) runSession(ctx context.Context) error {
 }
 
 func (c *Client) fetchServerURL(ctx context.Context) (string, error) {
-	u := c.cfg.ServerBase + "/sync/server?room=" + url.QueryEscape(c.cfg.Room)
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
+	var lastErr error
+	endpoints := syncServerEndpoints(c.cfg.ServerBase, c.cfg.Room)
+	for index, endpoint := range endpoints {
+		wsURL, err := c.fetchServerURLFromEndpoint(ctx, endpoint)
+		if err == nil {
+			return wsURL, nil
+		}
+		lastErr = err
+		var statusErr httpStatusError
+		if !errors.As(err, &statusErr) || !canFallbackEndpointStatus(statusErr.StatusCode) || index == len(endpoints)-1 {
+			return "", err
+		}
+	}
+	if lastErr != nil {
+		return "", lastErr
+	}
+	return "", errors.New("没有可用的同步入口")
+}
+
+func (c *Client) fetchServerURLFromEndpoint(ctx context.Context, endpoint string) (string, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
 	if err != nil {
 		return "", err
 	}
@@ -180,7 +213,7 @@ func (c *Client) fetchServerURL(ctx context.Context) (string, error) {
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		body, _ := readResponsePreview(resp)
-		return "", fmt.Errorf("获取同步入口失败: HTTP %d %s", resp.StatusCode, strings.TrimSpace(string(body)))
+		return "", httpStatusError{Action: "获取同步入口失败", StatusCode: resp.StatusCode, Body: string(body)}
 	}
 	var payload struct {
 		Server string `json:"server"`
@@ -202,6 +235,63 @@ func (c *Client) fetchServerURL(ctx context.Context) (string, error) {
 	}
 	serverURL.RawQuery = query.Encode()
 	return serverURL.String(), nil
+}
+
+func syncServerEndpoints(serverBase string, room string) []string {
+	seen := map[string]bool{}
+	endpoints := make([]string, 0, 2)
+	for _, path := range []string{"sync/server", "api/sync/server"} {
+		endpoint := desktopEndpointURL(serverBase, path, url.Values{"room": []string{room}})
+		if !seen[endpoint] {
+			seen[endpoint] = true
+			endpoints = append(endpoints, endpoint)
+		}
+	}
+	return endpoints
+}
+
+func desktopEndpointURL(serverBase string, path string, query url.Values) string {
+	base := strings.TrimRight(strings.TrimSpace(serverBase), "/")
+	path = normalizeDesktopEndpointPath(base, path)
+	endpoint := base + "/" + path
+	return addDesktopQueryValues(endpoint, query)
+}
+
+func normalizeDesktopEndpointPath(base string, path string) string {
+	path = strings.TrimLeft(strings.TrimSpace(path), "/")
+	if strings.EqualFold(lastDesktopURLSegment(base), "api") && strings.HasPrefix(path, "api/") {
+		return strings.TrimPrefix(path, "api/")
+	}
+	return path
+}
+
+func lastDesktopURLSegment(raw string) string {
+	parsed, err := url.Parse(raw)
+	if err == nil && parsed.Path != "" {
+		parts := strings.Split(strings.Trim(strings.TrimRight(parsed.Path, "/"), "/"), "/")
+		return parts[len(parts)-1]
+	}
+	parts := strings.Split(strings.Trim(strings.TrimRight(raw, "/"), "/"), "/")
+	return parts[len(parts)-1]
+}
+
+func addDesktopQueryValues(raw string, values url.Values) string {
+	parsed, err := url.Parse(raw)
+	if err != nil {
+		return raw
+	}
+	query := parsed.Query()
+	for key, list := range values {
+		for _, value := range list {
+			query.Set(key, value)
+		}
+	}
+	parsed.RawQuery = query.Encode()
+	return parsed.String()
+}
+
+func canFallbackEndpointStatus(status int) bool {
+	return status == http.StatusNotFound || status == http.StatusMethodNotAllowed
 }
 
 func (c *Client) sendHello() error {

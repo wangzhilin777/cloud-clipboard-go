@@ -793,15 +793,19 @@ func resolveLatestFileURL(serverBase string, uuid string, name string, rawURL st
 		if serverBase == "" {
 			return appendDownloadQuery(normalizedURL)
 		}
-		if !strings.HasPrefix(normalizedURL, "/") {
-			normalizedURL = "/" + normalizedURL
-		}
-		return appendDownloadQuery(serverBase + normalizedURL)
+		return appendDownloadQuery(joinServerRelativeURL(serverBase, normalizedURL))
 	}
 	if uuid != "" && name != "" && serverBase != "" {
-		return fmt.Sprintf("%s/file/%s/%s?download=true", serverBase, url.PathEscape(uuid), url.PathEscape(name)), nil
+		return appendDownloadQuery(joinServerRelativeURL(serverBase, "file/"+url.PathEscape(uuid)+"/"+url.PathEscape(name)))
 	}
 	return "", fmt.Errorf("最新文件信息不完整")
+}
+
+func joinServerRelativeURL(serverBase string, target string) string {
+	base := strings.TrimRight(strings.TrimSpace(serverBase), "/")
+	target = strings.ReplaceAll(strings.TrimSpace(target), "\\", "/")
+	target = normalizeEndpointPath(base, target)
+	return base + "/" + target
 }
 
 func normalizeLegacyLatestURL(rawURL string) string {
