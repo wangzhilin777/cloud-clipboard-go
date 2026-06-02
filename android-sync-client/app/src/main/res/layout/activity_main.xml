@@ -449,6 +449,17 @@
                         android:textColor="@color/cc_text_muted" />
 
                     <TextView
+                        android:id="@+id/runtimeClipboardReadinessText"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:background="@drawable/content_panel_background"
+                        android:padding="14dp"
+                        android:text="@string/runtime_clipboard_readiness_placeholder"
+                        android:textAppearance="@style/TextAppearance.MaterialComponents.Body2"
+                        android:textColor="@color/cc_text_muted" />
+
+                    <TextView
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="16dp"

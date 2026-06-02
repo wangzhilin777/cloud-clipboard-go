@@ -1011,6 +1011,56 @@ class MainActivity : AppCompatActivity() {
         return "自动续连：已就绪\n${warnings.joinToString("；")}。"
     }
 
+    private fun buildClipboardReadinessSummary(
+        config: SettingsStore.Config,
+        status: PermissionStatus,
+        validation: RuntimeModeValidation,
+    ): String {
+        val readiness = when {
+            !validation.ready -> "后台复制就绪度：当前被拦截"
+            config.clipboardMode == SettingsStore.CLIPBOARD_MODE_ACCESSIBILITY && status.accessibilityEnabled -> "后台复制就绪度：较稳"
+            config.clipboardMode == SettingsStore.CLIPBOARD_MODE_FOREGROUND && Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE -> "后台复制就绪度：受限"
+            config.clipboardMode == SettingsStore.CLIPBOARD_MODE_FOREGROUND && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q -> "后台复制就绪度：一般"
+            config.clipboardMode == SettingsStore.CLIPBOARD_MODE_SHIZUKU -> "后台复制就绪度：当前版本未开放"
+            else -> "后台复制就绪度：可用"
+        }
+
+        val reason = when {
+            !validation.ready -> "原因：${validation.message}"
+            config.clipboardMode == SettingsStore.CLIPBOARD_MODE_ACCESSIBILITY && status.accessibilityEnabled ->
+                "原因：无障碍增强已开启，系统剪贴板回调之外还会做界面事件补检查。"
+            config.clipboardMode == SettingsStore.CLIPBOARD_MODE_FOREGROUND && Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE ->
+                "原因：Android 14 及以上对后台读取系统剪贴板限制更严，前台服务模式更适合你正在看着 App 的场景。"
+            config.clipboardMode == SettingsStore.CLIPBOARD_MODE_FOREGROUND && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q ->
+                "原因：Android 10 及以上已经明显收紧后台剪贴板读取，单靠前台服务时后台复制回传可能不稳定。"
+            config.clipboardMode == SettingsStore.CLIPBOARD_MODE_SHIZUKU ->
+                "原因：Shizuku 独立增强链路仍在接入中，当前阶段还不能作为后台复制主通道。"
+            else ->
+                "原因：当前系统限制相对少，现有前台服务链路通常可以覆盖日常复制场景。"
+        }
+
+        val risk = when {
+            !status.notificationsEnabled -> "风险提示：通知权限未开启，前台服务状态和失败提醒会不完整。"
+            !status.batteryOptimizationIgnored -> "风险提示：还没忽略电池优化，系统可能会后台回收同步服务。"
+            shouldSuggestVendorBackgroundSettings() -> "风险提示：当前机型仍建议再检查一次厂商后台保活设置。"
+            else -> "风险提示：当前常见后台限制项已基本补齐。"
+        }
+
+        val nextStep = when {
+            !validation.ready -> "下一步：先点上面的快捷处理按钮补齐当前模式所需授权。"
+            config.clipboardMode == SettingsStore.CLIPBOARD_MODE_FOREGROUND && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q ->
+                "下一步：先做一次前台复制和一次后台复制；如果后台经常没回传，优先切到无障碍增强模式。"
+            config.clipboardMode == SettingsStore.CLIPBOARD_MODE_ACCESSIBILITY && !status.batteryOptimizationIgnored ->
+                "下一步：补开忽略电池优化，再测一次锁屏或切后台后的复制回传。"
+            config.clipboardMode == SettingsStore.CLIPBOARD_MODE_ACCESSIBILITY && shouldSuggestVendorBackgroundSettings() ->
+                "下一步：去厂商后台保活页面补开自启动或无限制省电，再测一次后台复制。"
+            else ->
+                "下一步：保持当前模式，分别做一次前台复制和后台复制，对照下面的诊断结果看是否被系统限制。"
+        }
+
+        return "$readiness\n$reason\n$risk\n$nextStep"
+    }
+
     private fun buildClipboardDebugSummary(
         config: SettingsStore.Config,
         status: PermissionStatus,
@@ -1240,4 +1290,6 @@ class MainActivity : AppCompatActivity() {
         private const val TAB_RECEIVE = 3
     }
 }
+
+
 
