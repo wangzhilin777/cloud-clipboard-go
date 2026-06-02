@@ -14,9 +14,7 @@ function Show-Help {
     Write-Host ""
     Write-Host "说明:" -ForegroundColor Green
     Write-Host "  1. 构建 client/dist"
-    Write-Host "  2. 自动同步到 server/static"
-    Write-Host "  3. 自动同步到 server-node/static"
-    Write-Host "  4. 自动同步到 cloud-clip/lib/static（供 go run -tags embed / gomobile bind 使用）"
+    Write-Host "  2. 自动同步到 cloud-clip/lib/static（供 go run -tags embed / gomobile bind 使用）"
     Write-Host ""
 }
 
@@ -74,6 +72,4 @@ try {
 
 Write-Host ""
 Write-Host "[完成] 前端构建成功，静态资源已同步到：" -ForegroundColor Green
-Write-Host "  - server/static" -ForegroundColor Green
-Write-Host "  - server-node/static" -ForegroundColor Green
 Write-Host "  - cloud-clip/lib/static" -ForegroundColor Green

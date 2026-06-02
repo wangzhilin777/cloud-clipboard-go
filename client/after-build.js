@@ -28,8 +28,6 @@ await Promise.all(files.map(e => [
 ]).flat());
 
 const targets = [
-    path.resolve(__dirname, '../server/static'),
-    path.resolve(__dirname, '../server-node/static'),
     path.resolve(__dirname, '../cloud-clip/lib/static'),
 ];
 

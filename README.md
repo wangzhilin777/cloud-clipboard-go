@@ -163,9 +163,9 @@ go run -tags embed .
 ```
 
 说明：
-- `build-web.ps1` 会在 `npm run build` 后自动把最新前端产物同步到 `server/static`、`server-node/static`、`cloud-clip/lib/static`
-- 如果只更新了 `client/dist` 或 `server/static`，但没有同步到 `cloud-clip/lib/static`，那么 `go run -tags embed .` 仍可能带着旧前端启动，出现页面资源 hash 不匹配
-- 若希望运行时始终直接读取磁盘静态目录，也可以使用：`go run -tags embed . -static ../server/static`
+- `build-web.ps1` 会在 `npm run build` 后自动把最新前端产物同步到 `cloud-clip/lib/static`
+- 如果只更新了 `client/dist`，但没有同步到 `cloud-clip/lib/static`，那么 `go run -tags embed .` 仍可能带着旧前端启动，出现页面资源 hash 不匹配
+- 若希望运行时始终直接读取磁盘静态目录，也可以使用：`go run -tags embed . -static ../client/dist`
 
 ### 7️⃣ 使用 Cloudflare（云端部署）
 

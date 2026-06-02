@@ -1,4 +1,3 @@
-const fs = require('fs-extra');
 const glob = require('glob');
 const zlib = require('zlib');
 
@@ -25,10 +24,5 @@ await Promise.all(files.map(e => [
             .on('finish', error => error ? reject(error) : resolve());
     }),
 ]).flat());
-
-fs.rmSync('../server/static', { recursive: true, force: true });
-fs.rmSync('../server-node/static', { recursive: true, force: true });
-fs.copySync('dist', '../server/static');
-fs.copySync('dist', '../server-node/static');
 
 })()
