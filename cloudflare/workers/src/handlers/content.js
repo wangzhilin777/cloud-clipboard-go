@@ -54,6 +54,21 @@ function buildJsonContentPayload(row) {
   };
 }
 
+function toSafeAsciiFilename(filename = '') {
+  const normalized = String(filename || '')
+    .trim()
+    .replace(/[\\/"\r\n\t]/g, '_')
+    .replace(/[^\x20-\x7E]/g, '_')
+    .replace(/^\.+|\.+$/g, '');
+  return normalized || 'file';
+}
+
+function buildContentDisposition(filename = '', disposition = 'inline') {
+  const safeFallback = toSafeAsciiFilename(filename);
+  const encodedFilename = encodeURIComponent(String(filename || safeFallback).trim() || safeFallback);
+  return `${disposition}; filename="${safeFallback}"; filename*=UTF-8''${encodedFilename}`;
+}
+
 export class ContentHandler {
   static async buildFileResponse(env, result, { forceDownload = false } = {}) {
     if (!env.R2_BUCKET) {
@@ -95,7 +110,7 @@ export class ContentHandler {
     };
 
     if (forceDownload) {
-      headers['Content-Disposition'] = `attachment; filename="${encodeURIComponent(result.name)}"`;
+      headers['Content-Disposition'] = buildContentDisposition(result.name, 'attachment');
     } else if (
       fileType === 'image' ||
       fileType === 'video' ||
@@ -103,10 +118,10 @@ export class ContentHandler {
       contentType.startsWith('text/') ||
       contentType === 'application/pdf'
     ) {
-      headers['Content-Disposition'] = `inline; filename="${encodeURIComponent(result.name)}"`;
+      headers['Content-Disposition'] = buildContentDisposition(result.name, 'inline');
       headers['Cache-Control'] = 'public, max-age=300';
     } else {
-      headers['Content-Disposition'] = `attachment; filename="${encodeURIComponent(result.name)}"`;
+      headers['Content-Disposition'] = buildContentDisposition(result.name, 'attachment');
     }
 
     return new Response(object.body, { headers });

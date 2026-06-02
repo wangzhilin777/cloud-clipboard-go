@@ -72,6 +72,45 @@ func (s *ClipboardServer) buildFileURL(r *http.Request, uuid string, filename st
 	return fileURL
 }
 
+func buildContentDisposition(dispositionType string, filename string) string {
+	dispositionType = strings.TrimSpace(dispositionType)
+	if dispositionType == "" {
+		dispositionType = "inline"
+	}
+
+	fallback := safeASCIIFilename(filename)
+	encoded := url.PathEscape(strings.TrimSpace(filename))
+	if encoded == "" {
+		encoded = url.PathEscape(fallback)
+	}
+	return fmt.Sprintf("%s; filename=%q; filename*=UTF-8''%s", dispositionType, fallback, encoded)
+}
+
+func safeASCIIFilename(filename string) string {
+	filename = strings.TrimSpace(filename)
+	if filename == "" {
+		return "file"
+	}
+
+	var builder strings.Builder
+	for _, r := range filename {
+		switch {
+		case r == '\\' || r == '/' || r == '"' || r == '\r' || r == '\n' || r == '\t':
+			builder.WriteRune('_')
+		case r >= 32 && r <= 126:
+			builder.WriteRune(r)
+		case r > 126:
+			builder.WriteRune('_')
+		}
+	}
+
+	cleaned := strings.Trim(strings.TrimSpace(builder.String()), ".")
+	if cleaned == "" {
+		return "file"
+	}
+	return cleaned
+}
+
 func (s *ClipboardServer) handle_push(w http.ResponseWriter, r *http.Request) {
 	ip := get_remote_ip(r)
 	room := normalizeRoomName(r.URL.Query().Get("room"))
@@ -308,8 +347,7 @@ func (s *ClipboardServer) handle_file(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Query().Get("download") == "true" {
 			dispositionType = "attachment"
 		}
-		disposition := fmt.Sprintf("%s; filename=%q", dispositionType, fileInfo.Name)
-		w.Header().Set("Content-Disposition", disposition)
+		w.Header().Set("Content-Disposition", buildContentDisposition(dispositionType, fileInfo.Name))
 
 		// 使用 http.ServeContent 提供文件内容
 		http.ServeContent(w, r, fileInfo.Name, stat.ModTime(), file)
@@ -984,7 +1022,7 @@ func (s *ClipboardServer) handleContent(w http.ResponseWriter, r *http.Request) 
 					if r.URL.Query().Get("download") == "true" {
 						dispositionType = "attachment"
 					}
-					w.Header().Set("Content-Disposition", fmt.Sprintf("%s; filename=%q", dispositionType, msg.Data.FileReceive.Name))
+					w.Header().Set("Content-Disposition", buildContentDisposition(dispositionType, msg.Data.FileReceive.Name))
 					http.ServeContent(w, r, msg.Data.FileReceive.Name, stat.ModTime(), file)
 					return
 				}
@@ -1163,8 +1201,7 @@ func (s *ClipboardServer) handleLatestContent(w http.ResponseWriter, r *http.Req
 			if r.URL.Query().Get("download") == "true" {
 				dispositionType = "attachment"
 			}
-			disposition := fmt.Sprintf("%s; filename=%q", dispositionType, filename)
-			w.Header().Set("Content-Disposition", disposition)
+			w.Header().Set("Content-Disposition", buildContentDisposition(dispositionType, filename))
 
 			// 提供文件内容
 			s.logger.Printf("直接提供最新文件内容: %s", filename)

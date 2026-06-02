@@ -32,6 +32,22 @@ func TestBuildFileURLOmitsEmptyFilename(t *testing.T) {
 	}
 }
 
+func TestBuildContentDispositionSupportsChineseFilename(t *testing.T) {
+	got := buildContentDisposition("attachment", "截图 1.png")
+	want := "attachment; filename=\"__ 1.png\"; filename*=UTF-8''%E6%88%AA%E5%9B%BE%201.png"
+	if got != want {
+		t.Fatalf("buildContentDisposition() = %q, want %q", got, want)
+	}
+}
+
+func TestBuildContentDispositionSanitizesFallbackFilename(t *testing.T) {
+	got := buildContentDisposition("", "bad\r\nname\".txt")
+	want := "inline; filename=\"bad__name_.txt\"; filename*=UTF-8''bad%0D%0Aname%22.txt"
+	if got != want {
+		t.Fatalf("buildContentDisposition() = %q, want %q", got, want)
+	}
+}
+
 func testServerWithPrefix(prefix string) *ClipboardServer {
 	config := &Config{}
 	config.Server.Prefix = prefix
