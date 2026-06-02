@@ -338,6 +338,14 @@
           <span class="label">最近缓存清理</span>
           <div id="cacheCleanupText" class="value">-</div>
         </article>
+        <article class="card">
+          <span class="label">连接诊断</span>
+          <div id="connectionDiagnosisText" class="value">-</div>
+        </article>
+        <article class="card">
+          <span class="label">缓存与目录</span>
+          <div id="cachePolicyText" class="value">-</div>
+        </article>
       </section>
       <section class="form-card">
         <h2 class="form-title">常用动作</h2>
@@ -620,6 +628,8 @@
     const hotkeyText = document.getElementById('hotkeyText');
     const pendingClipboardText = document.getElementById('pendingClipboardText');
     const cacheCleanupText = document.getElementById('cacheCleanupText');
+    const connectionDiagnosisText = document.getElementById('connectionDiagnosisText');
+    const cachePolicyText = document.getElementById('cachePolicyText');
     const message = document.getElementById('message');
     const tabButtons = Array.from(document.querySelectorAll('[data-tab-button]'));
     const tabPanels = Array.from(document.querySelectorAll('[data-tab-panel]'));
@@ -757,6 +767,45 @@
       if (!at) return '-';
       const timeText = new Date(at).toLocaleString();
       return `${removed} 项 / ${timeText}`;
+    }
+
+    function formatConnectionDiagnosis(cfg, state) {
+      const issues = [];
+      const serverBase = String(cfg.serverBase || '').trim();
+      const room = String(cfg.room || '').trim() || '默认房间';
+      const status = String(state.status || '').trim().toLowerCase();
+      if (!serverBase) {
+        issues.push('未填写服务端地址');
+      } else if (/^https?:\/\/(127\.0\.0\.1|localhost|::1)(:\d+)?/i.test(serverBase)) {
+        issues.push('当前地址仍是本机回环，跨设备时请改成 Windows 局域网 IP');
+      }
+      if (status === 'pending') {
+        issues.push(`设备已接入 ${room}，但还在等待网页批准`);
+      }
+      if (status === 'retrying') {
+        issues.push('客户端正在自动重连，可检查服务端是否在线');
+      }
+      if (status === 'stopped') {
+        issues.push('自动重连已暂停，需要手动点一次“立即重连”');
+      }
+      if (status === 'error' && state.lastError) {
+        issues.push(state.lastError);
+      }
+      if (!issues.length) {
+        if (status === 'trusted' || status === 'connected') {
+          return `已连接 / ${room}`;
+        }
+        return `待启动 / ${room}`;
+      }
+      return issues.join(' / ');
+    }
+
+    function formatCachePolicy(cfg, state) {
+      const dir = String(cfg.downloadDir || '').trim() || '-';
+      const retention = Number(cfg.downloadCacheRetentionHours || 0);
+      const cleanup = Number(state.lastCacheCleanupAt || 0);
+      const cleanupText = cleanup ? new Date(cleanup).toLocaleString() : '暂无清理记录';
+      return `${retention || 0}h / ${dir} / ${cleanupText}`;
     }
 
     function normalizeHotkeyDisplay(parts, key) {
@@ -1097,3 +1146,4 @@
   </script>
 </body>
 </html>
+
