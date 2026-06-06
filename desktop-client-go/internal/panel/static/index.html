@@ -323,6 +323,10 @@
           <div id="payloadText" class="value">-</div>
         </article>
         <article class="card">
+          <span class="label">最近远端文本同步</span>
+          <div id="remoteTextText" class="value">-</div>
+        </article>
+        <article class="card">
           <span class="label">最近错误</span>
           <div id="errorText" class="value">-</div>
         </article>
@@ -353,6 +357,10 @@
         <article class="card">
           <span class="label">平台能力</span>
           <div id="capabilityText" class="value">-</div>
+        </article>
+        <article class="card">
+          <span class="label">状态最近刷新</span>
+          <div id="updatedAtText" class="value">-</div>
         </article>
       </section>
       <section class="form-card">
@@ -636,6 +644,7 @@
     const nextStepText = document.getElementById('nextStepText');
     const deviceNameText = document.getElementById('deviceNameText');
     const payloadText = document.getElementById('payloadText');
+    const remoteTextText = document.getElementById('remoteTextText');
     const errorText = document.getElementById('errorText');
     const actionText = document.getElementById('actionText');
     const hotkeyText = document.getElementById('hotkeyText');
@@ -645,6 +654,7 @@
     const cachePolicyText = document.getElementById('cachePolicyText');
     const capabilityText = document.getElementById('capabilityText');
     const connectionHintText = document.getElementById('connectionHintText');
+    const updatedAtText = document.getElementById('updatedAtText');
     const message = document.getElementById('message');
     const tabButtons = Array.from(document.querySelectorAll('[data-tab-button]'));
     const tabPanels = Array.from(document.querySelectorAll('[data-tab-panel]'));
@@ -698,11 +708,13 @@
       const statusLabel = normalizeStatusLabel(status);
       statusText.textContent = state.connected && statusLabel !== '已连接' ? `${statusLabel} / 已连接` : statusLabel;
       statusText.className = `value ${statusClass(status)}`;
-      payloadText.textContent = state.lastPayloadTitle ? `${state.lastPayloadKind || 'file'} / ${state.lastPayloadTitle}` : '-';
+      payloadText.textContent = formatPayloadSummary(state);
+      remoteTextText.textContent = formatRemoteTextSummary(state);
       errorText.textContent = state.lastError || '-';
       actionText.textContent = state.lastActionDetail ? `${actionLabel(state.lastActionType)} / ${state.lastActionDetail}` : '-';
       pendingClipboardText.textContent = formatPendingClipboard(state);
       cacheCleanupText.textContent = formatCacheCleanup(state);
+      updatedAtText.textContent = formatLastUpdated(state);
       window.__latestState = state || {};
       connectionDiagnosisText.textContent = formatConnectionDiagnosis(window.__latestConfig || {}, state || {});
       nextStepText.textContent = formatNextStep(window.__latestConfig || {}, state || {}, window.__latestCapabilities || {});
@@ -794,6 +806,27 @@
       if (!at) return '-';
       const timeText = new Date(at).toLocaleString();
       return `${removed} 项 / ${timeText}`;
+    }
+
+    function formatPayloadSummary(state) {
+      const title = String(state.lastPayloadTitle || '').trim();
+      if (!title) return '-';
+      const kind = String(state.lastPayloadKind || '').trim() || 'file';
+      const at = Number(state.lastPayloadAt || 0);
+      const timeText = at ? new Date(at).toLocaleString() : '时间未知';
+      return `${kind} / ${title} / ${timeText}`;
+    }
+
+    function formatRemoteTextSummary(state) {
+      const at = Number(state.lastRemoteTextAt || 0);
+      if (!at) return '-';
+      return `最近一次 ${new Date(at).toLocaleString()}`;
+    }
+
+    function formatLastUpdated(state) {
+      const at = Number(state.lastUpdatedAt || 0);
+      if (!at) return '-';
+      return new Date(at).toLocaleString();
     }
 
     function formatConnectionDiagnosis(cfg, state) {
