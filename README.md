@@ -77,10 +77,6 @@
 
 ### 1️⃣ 使用 Docker（最推荐）
 
-- [【腾讯云】2核2G云服务器新老同享 99元/年，续费同价](https://cloud.tencent.com/act/cps/redirect?redirect=6150&cps_key=0b1dfaf9bb573dac05abef76202dc8cc&from=console)
-- [【阿里云】2核2G云服务器新老同享 99元/年，续费同价](https://www.aliyun.com/daily-act/ecs/activity_selection?userCode=79h2wrag)
-
-
 ```bash
 # 方式一：Docker Compose（推荐）
 docker compose up -d
@@ -348,10 +344,6 @@ ROOM_AUTH_JSON='{"finance":"new-pass","ops":"ops-pass"}' docker compose up -d
 
 ### 🖥️ 桌面端应用
 
-- **Clipboard Sync**（仅提供给捐赠用户）
-  - 双向同步剪贴板
-  - 支持 Windows/macOS/Linux
-
 仓库内当前实际维护的桌面同步客户端请见：
 
 - [`desktop-client-go/`](./desktop-client-go)
@@ -359,8 +351,10 @@ ROOM_AUTH_JSON='{"finance":"new-pass","ops":"ops-pass"}' docker compose up -d
 当前已具备：
 
 - 本地控制面板，按 `概览 / 连接 / 动作 / 高级` 分组管理
-- 控制面板概览页可直接查看连接诊断、缓存目录与最近缓存清理
+- 控制面板概览页可直接查看下一步建议、连接诊断、缓存目录、最近缓存清理与平台能力
 - Windows 托盘、全局热键、右键菜单、文件通知发送、拉取最新文本/文件、下载缓存清理
+- 支持右下角 Tip / 系统通知 / 日志 / 关闭通知等提示模式，Tip 支持主题、尺寸和位置记忆
+- 支持失败自动重连上限，超过次数后暂停重连并提示手动检查
 
 ### 💻 UI 辅助工具
 
@@ -436,42 +430,6 @@ docker pull jonnyan404/cloud-clipboard-go:latest
 - **[Cloud Clipboard Go Launcher](https://github.com/jonnyan404/cloud-clipboard-go-launcher)** - UI 辅助工具，方便不使用终端的用户
 ---
 
-## ☕ 支持项目
-
-如果这个项目对你有帮助，欢迎通过以下方式支持我们：
-
-### 💰 赞赏捐助
-
-你的支持是我们继续维护和改进项目的动力！
-
-| 方式 | 二维码 |
-|------|--------|
-| **微信** | <img src="https://github.com/Jonnyan404/cloud-clipboard-go/blob/main/wechat.png" width="300" alt="微信赞赏码"> |
-
-
-
-### 🌟 其他支持方式
-
-- [【腾讯云】2核2G云服务器新老同享 99元/年，续费同价](https://cloud.tencent.com/act/cps/redirect?redirect=6150&cps_key=0b1dfaf9bb573dac05abef76202dc8cc&from=console)
-- [【阿里云】2核2G云服务器新老同享 99元/年，续费同价](https://www.aliyun.com/daily-act/ecs/activity_selection?userCode=79h2wrag)
-- ⭐ **Star 项目** - 如果觉得项目不错，请给个 Star
-- 🐛 **报告问题** - 提交 Issues 帮助我们改进
-- 💡 **提出建议** - 在 Discussions 中分享你的想法
-- 🔀 **贡献代码** - 提交 Pull Requests 帮助项目发展
-- 📢 **分享项目** - 告诉更多需要的人
-
-### 📝 赞赏者名单
-
-感谢以下用户的支持：
-
-- 🥇 xxxxxxxx（赞赏 ¥199）
-- 🥈 xxxxxxxx（赞赏 ¥99）
-- 🥉 xxxxxxxx（赞赏 ¥50）
-
-> 如果你也想出现在这里，请在赞赏时备注你的名字或昵称！
-
----
-
 ## 🙏 致谢
 
 本项目前端(client)和后端(cloud-clip) fork以下开源项目修改而来：
@@ -500,5 +458,5 @@ MIT License - 详见 [LICENSE](LICENSE)
 
 ---
 
-**最后更新**: 2025年11月25日 | 📖 [English Version](README.en.md)
+**最后更新**: 2026年6月6日 | 📖 [English Version](README.en.md)
 

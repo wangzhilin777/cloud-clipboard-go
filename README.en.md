@@ -17,6 +17,10 @@
   <strong>A cross-platform cloud clipboard tool that supports real-time send of text, images, and files to cloud or local servers.</strong>
 </p>
 
+<p align="center">
+  The current branch focuses on web, desktop, and Android text synchronization, plus file transfer and Android confirm-before-download handling.
+</p>
+
 ---
 
 ## 📸 Screenshots
@@ -102,6 +106,20 @@ Then access from other devices: `http://your-android-device-ip:9501`
 - 🚀 Ready to use, no additional dependencies
 - 💾 Data persistence support
 
+### 3.1️⃣ Android Sync Client
+
+For phase-one sync features such as web / desktop / Android text synchronization and Android file/image confirm-before-download, use the standalone project:
+
+- [`android-sync-client/`](./android-sync-client)
+
+Notes:
+
+- `android/` remains the original Android server app from the upstream project.
+- `android-sync-client/` is the Android sync client and is intentionally kept separate.
+- Sync access uses the dual gate of room/global password plus web-side device approval.
+- On Android 10+ and some vendor ROMs, background clipboard reads may be restricted by the system.
+- The Android runtime page now provides clipboard readiness, background diagnostics, vendor background-keepalive guidance, and direct troubleshooting actions.
+
 ### 4️⃣ Homebrew (macOS)
 
 ```bash
@@ -122,16 +140,20 @@ opkg install cloud-clipboard-go_*_all.ipk
 ```bash
 # Requirements: Node.js >= 22.12, Go >= 1.22
 
-# 1. Build frontend
-cd client
-npm install
-npm run build
+# 1. Build frontend and sync static assets
+./build-web.ps1
 
 # 2. Run backend
-cd ../cloud-clip
+cd cloud-clip
 go mod tidy
 go run -tags embed .
 ```
+
+Notes:
+
+- `build-web.ps1` copies the latest frontend build into `cloud-clip/lib/static`.
+- If you only update `client/dist` without syncing it to `cloud-clip/lib/static`, `go run -tags embed .` may still serve older frontend assets.
+- To serve frontend assets from disk during development, run: `go run -tags embed . -static ../client/dist`.
 
 ### 7️⃣ Cloudflare Deployment
 
@@ -307,9 +329,17 @@ Example:
 
 ### 🖥️ Desktop Application
 
-- **Clipboard Sync** (仅提供给捐赠用户)
-  - Auto clipboard sync
-  - Supports Windows/macOS/Linux
+The currently maintained desktop sync client lives in:
+
+- [`desktop-client-go/`](./desktop-client-go)
+
+Current capabilities:
+
+- Local control panel grouped by `Overview / Connection / Actions / Advanced`.
+- Overview cards for next-step guidance, connection diagnostics, cache directory, recent cleanup, and platform capabilities.
+- Windows tray, global hotkeys, shell context menu, file notice sending, latest text/file pull, and download cache cleanup.
+- Notification modes: corner Tip, system notification, log-only, or off. Tip supports theme, size, and remembered position.
+- Automatic reconnect attempts stop after the configured limit and then guide the user to check the service manually.
 
 ### 💻 UI Launcher Tool
 
@@ -413,7 +443,6 @@ Full Guide: [Troubleshooting](./docs/troubleshooting.md)
 ## 📦 Related Projects
 
 - **[Cloud Clipboard Go Launcher](https://github.com/jonnyan404/cloud-clipboard-go-launcher)** - UI launcher tool for easier usage
-- **[Clipboard Monitor](./clipboard-monitor/)** - Desktop monitoring application
 
 ---
 
@@ -435,38 +464,6 @@ This project is based on:
 ## 📄 License
 
 MIT License - See [LICENSE](LICENSE) for details
-
----
-
-## ☕ Support the Project
-
-If this project has been helpful to you, please consider supporting us:
-
-### 💰 Donation
-
-Your support motivates us to continue maintaining and improving this project!
-
-| Method | QR Code |
-|--------|---------|
-| **WeChat** | <img src="https://github.com/Jonnyan404/cloud-clipboard-go/blob/main/wechat.png" width="300" alt="WeChat"> |
-
-### 🌟 Other Ways to Support
-
-- ⭐ **Star** - Give us a star if you like the project
-- 🐛 **Report Issues** - Help us improve by reporting bugs
-- 💡 **Suggestions** - Share your ideas in Discussions
-- 🔀 **Contribute Code** - Submit Pull Requests
-- 📢 **Share** - Tell others about this project
-
-### 📝 Supporters
-
-Thanks to those who have supported us:
-
-- 🥇 xxxxxxxx (¥199)
-- 🥈 xxxxxxxx (¥99)
-- 🥉 xxxxxxxx (¥50)
-
-> If you'd like to appear here, please leave your name or nickname when donating!
 
 ---
 
