@@ -150,12 +150,24 @@ ROOM_AUTH = "{\"private\":\"\",\"finance\":\"finance-pass\",\"ops\":\"ops-pass\"
 
 Pages 前端源码内置了默认配置文件 [cloudflare/pages/client/src/config.js](cloudflare/pages/client/src/config.js)，默认使用同源 API，便于本地构建和预览。
 
+Cloudflare Pages 前端中的“同步设备管理”页当前已经与主站 `client/` 收口到同一套刷新策略：
+
+- 统一通过 `syncRefreshAll()` 同时刷新同步设备列表、bootstrap 摘要和诊断状态
+- 同步诊断文案与主站一致显示 `stateCleanup`、文本历史、payload 通知和设备清理参数
+- `deviceState` 推送到达后，不再只刷新局部状态，避免 Pages 前端与主站前端出现待批准数量、当前设备状态或诊断摘要不一致
+
 部署脚本会在构建前临时生成 `cloudflare/pages/client/.env.production`，把 Worker 地址注入为：
 
 - `VUE_APP_API_BASE_URL`
 - `VUE_APP_WS_BASE_URL`
 
 构建完成后该临时环境文件会自动清理；正常情况下不需要手动修改前端配置文件。
+
+补充说明：
+
+- `cloudflare/pages/client/package.json` 的 `npm run build` 除了执行 Vue 生产构建，还会运行 `after-build.js`
+- `after-build.js` 会为 `dist/` 下的 `js/css/html/svg` 额外生成 `.gz` 和 `.br` 压缩产物，便于后续部署时直接使用压缩资源
+- 如果本地只想验证页面逻辑，至少要确认 `npm run build` 能完整跑过 `after-build.js`，而不只是停在 Vue 打包完成
 
 ## 数据库迁移
 
