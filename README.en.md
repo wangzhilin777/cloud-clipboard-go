@@ -17,23 +17,13 @@
   <strong>A cross-platform cloud clipboard tool that supports real-time send of text, images, and files to cloud or local servers.</strong>
 </p>
 
----
-
-## Current Additions
-
-This branch keeps the original web clipboard and file transfer flow, and adds the following sync-focused capabilities:
-
-- **Independent sync protocol**: Adds `/sync/server`, `/sync/ws`, and `/api/sync/*` without replacing the legacy `/push` text/file flow.
-- **Dual access gate**: Sync clients must pass the room/global password first, then wait for web-side device approval before becoming connected.
-- **Web device management**: The device page supports sync device lists, pending / trusted states, device approval, status summaries, and auto-refreshing diagnostics.
-- **Three-end text sync**: Web, desktop, and Android sync clients support plain-text clipboard synchronization with duplicate and loop prevention.
-- **Desktop Go client**: `desktop-client-go/` replaces the earlier AHK path and provides tray mode, local control panel, hotkeys, shell menu, Tip notifications, file notice sending, latest text/file pull, and download cache cleanup.
-- **Desktop UX guidance**: The control panel overview shows next-step guidance, connection diagnostics, cache directory, recent cleanup, and platform capabilities. Automatic reconnect stops after the configured limit and prompts manual inspection.
-- **Android sync client**: `android-sync-client/` supports text sync, floating confirm for incoming images/files, confirm-before-download into private cache, and receive-page preview/open/share/save-as/mark-processed actions.
-- **Android high-version guidance**: The runtime page provides clipboard readiness, background diagnostics, and a dynamic troubleshooting button for notification, accessibility, battery optimization, and vendor keepalive settings.
-- **Cache lifecycle**: Android receive cache keeps items for 24 hours by default. Desktop download cache supports retention configuration and manual cleanup.
-
----
+<p align="center">
+  <a href="./docs/03-sync-usage-and-effects.md"><strong>🔄 Sync Usage and Effects Guide</strong></a>
+  ·
+  <a href="#-automatic-sync">Automatic Sync</a>
+  ·
+  <a href="#-quick-start">Quick Start</a>
+</p>
 
 ## 📸 Screenshots
 
@@ -70,9 +60,27 @@ This branch keeps the original web clipboard and file transfer flow, and adds th
 
 ---
 
+## Current Additions
+
+This branch keeps the original web clipboard and file transfer flow, and adds the following sync-focused capabilities:
+
+- **Independent sync protocol**: Adds `/sync/server`, `/sync/ws`, and `/api/sync/*` without replacing the legacy `/push` text/file flow.
+- **Dual access gate**: Sync clients must pass the room/global password first, then wait for web-side device approval before becoming connected.
+- **Web device management**: The device page supports sync device lists, pending / trusted states, device approval, status summaries, and auto-refreshing diagnostics.
+- **Three-end text sync**: Web, desktop, and Android sync clients support plain-text clipboard synchronization with duplicate and loop prevention.
+- **Desktop Go client**: `desktop-client-go/` replaces the earlier AHK path and provides tray mode, local control panel, hotkeys, shell menu, Tip notifications, file notice sending, latest text/file pull, and download cache cleanup.
+- **Desktop UX guidance**: The control panel overview shows next-step guidance, connection diagnostics, cache directory, recent cleanup, and platform capabilities. Automatic reconnect stops after the configured limit and prompts manual inspection.
+- **Android sync client**: `android-sync-client/` supports text sync, floating confirm for incoming images/files, confirm-before-download into private cache, and receive-page preview/open/share/save-as/mark-processed actions.
+- **Android high-version guidance**: The runtime page provides clipboard readiness, background diagnostics, and a dynamic troubleshooting button for notification, accessibility, battery optimization, and vendor keepalive settings.
+- **Cache lifecycle**: Android receive cache keeps items for 24 hours by default. Desktop download cache supports retention configuration and manual cleanup.
+
+---
+
 ## 🔄 Automatic Sync
 
 The new sync capability is an independent protocol separate from the legacy `/push` flow. It is intended for the “copy here, automatically appear on another device” workflow. The original web manual text send, file upload, and file download flow is still preserved.
+
+Usage steps and expected behavior: [Sync Usage and Effects Guide](./docs/03-sync-usage-and-effects.md).
 
 ### Supported Scope
 
@@ -404,7 +412,7 @@ curl http://localhost:9501/content/latest
 curl http://localhost:9501/content/latest?room=work
 ```
 
-Full API Documentation: [API.md](./cloud-clip/config.md)
+API and configuration guide: [cloud-clip/config.md](./cloud-clip/config.md)
 
 ---
 
@@ -428,8 +436,9 @@ docker pull jonnyan404/cloud-clipboard-go:latest
 ## 📚 Documentation
 
 - 📖 [Configuration Guide](./cloud-clip/config.md)
-- 🔌 [HTTP API Documentation](./cloud-clip/config.md)
+- 🔌 [API and Configuration Guide](./cloud-clip/config.md)
 - 📱 [Client Deployment](#-client-usage)
+- 🔄 [Sync Usage and Effects Guide](./docs/03-sync-usage-and-effects.md)
 
 ---
 
@@ -473,10 +482,6 @@ docker restart cloud-clipboard-go
 - Verify `FILE_LIMIT` environment variable setting
 - Ensure data directory is writable: `chmod 777 ./data`
 
-Full Guide: [Troubleshooting](./docs/troubleshooting.md)
-
-
-
 ## 📦 Related Projects
 
 - **[Cloud Clipboard Go Launcher](https://github.com/jonnyan404/cloud-clipboard-go-launcher)** - UI launcher tool for easier usage
@@ -512,4 +517,4 @@ MIT License - See [LICENSE](LICENSE) for details
 
 ---
 
-**Last Updated**: November 25, 2025 | 📖 [中文版本](README.md)
+**Last Updated**: June 6, 2026 | 📖 [中文版本](README.md)
