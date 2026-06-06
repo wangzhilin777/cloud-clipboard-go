@@ -183,6 +183,19 @@ export default {
                 this.syncLog(`加载同步诊断失败：${error.response?.data?.message || error.message}`);
             }
         },
+        async syncRefreshAll(options = {}) {
+            const {
+                includeDevices = true,
+                includeBootstrap = true,
+                includeStatus = true,
+            } = options;
+
+            const tasks = [];
+            if (includeDevices) tasks.push(this.syncLoadDevices());
+            if (includeBootstrap) tasks.push(this.syncRefreshBootstrap());
+            if (includeStatus) tasks.push(this.syncLoadStatus());
+            await Promise.all(tasks);
+        },
         async syncConnect() {
             if (this.sync.connecting || this.sync.websocket) return;
 
@@ -228,8 +241,7 @@ export default {
                                 this.sync.device = payload.data.device;
                                 this.sync.status = payload.data.device.trusted ? 'trusted' : 'pending';
                                 this.syncLog(payload.data.device.trusted ? '同步设备已连接' : '同步设备等待批准');
-                                await this.syncLoadDevices();
-                                await this.syncLoadStatus();
+                                await this.syncRefreshAll({ includeBootstrap: false });
                                 this.syncStartClipboardPolling();
                                 break;
                             case 'clipboardSync':
@@ -248,9 +260,7 @@ export default {
                                 else this.syncLog(`文本同步被拒绝：${payload.data.reason || payload.data.status}`);
                                 break;
                             case 'deviceState':
-                                await this.syncLoadDevices();
-                                await this.syncRefreshBootstrap();
-                                await this.syncLoadStatus();
+                                await this.syncRefreshAll();
                                 break;
                             case 'forbidden':
                                 this.sync.status = 'forbidden';
@@ -316,14 +326,14 @@ export default {
             if (this.sync.refreshTimer) return;
             this.sync.refreshTimer = setInterval(async () => {
                 if (!this.sync.deviceId) return;
-                await this.syncRefreshBootstrap();
+                await this.syncRefreshAll();
             }, 4000);
         },
         syncQueuePushRefresh() {
             if (!this.sync.deviceId || this.sync.pushRefreshTimer) return;
             this.sync.pushRefreshTimer = setTimeout(async () => {
                 this.sync.pushRefreshTimer = null;
-                await this.syncRefreshBootstrap();
+                await this.syncRefreshAll();
             }, 200);
         },
         syncStopClipboardPolling() {
@@ -370,9 +380,7 @@ export default {
                 room: this.room || '',
                 name,
             });
-            await this.syncLoadDevices();
-            await this.syncRefreshBootstrap();
-            await this.syncLoadStatus();
+            await this.syncRefreshAll();
         },
         async syncToggleTrust(device) {
             await this.$http.post(buildSyncApiPath(`device/${device.deviceId}/trust`), {
@@ -380,9 +388,7 @@ export default {
                 trusted: !device.trusted,
                 name: device.name,
             });
-            await this.syncLoadDevices();
-            await this.syncRefreshBootstrap();
-            await this.syncLoadStatus();
+            await this.syncRefreshAll();
         },
     },
     watch: {

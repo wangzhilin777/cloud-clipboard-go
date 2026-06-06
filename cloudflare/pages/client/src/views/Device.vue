@@ -195,14 +195,12 @@ export default {
         cleanupText() {
             const cleanup = this.$root.sync.statusInfo?.cleanup;
             if (!cleanup) return '未知';
-            return `文本 ${cleanup.messageExpire || 0}s，通知 ${cleanup.payloadExpire || 0}s，待批准设备 ${cleanup.pendingDeviceExpire || 0}s，已连接设备 ${cleanup.trustedDeviceExpire || 0}s`;
+            return `间隔 ${cleanup.stateCleanup || 0}s，文本 ${cleanup.messageExpire || 0}s，通知 ${cleanup.payloadExpire || 0}s，待批准设备 ${cleanup.pendingDeviceExpire || 0}s，已连接设备 ${cleanup.trustedDeviceExpire || 0}s`;
         },
     },
     methods: {
         refreshSyncDevices() {
-            this.$root.syncLoadDevices();
-            this.$root.syncRefreshBootstrap();
-            this.$root.syncLoadStatus();
+            this.$root.syncRefreshAll();
         },
         iconFor(platform) {
             switch ((platform || '').toLowerCase()) {

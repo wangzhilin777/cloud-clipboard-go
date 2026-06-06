@@ -104,6 +104,9 @@
 - 已同步补记 `b2fc42a` 文档里程碑，并将最新计划摘要、完成记录与最近提交重新对齐
 - 已再次核对当前工作区为干净状态，确认 `server-node/`、`cloud-clip/uploads/`、`cloud-clip/config.json`、`cloud-clip/history.json` 为 `.gitignore` 管理的本地运行态或历史兼容目录，本轮未做破坏性清理
 - 已再次审计 tracked 文件，确认当前主线桌面端仍为 `desktop-client-go`，没有需要继续迁回主线的旧 AHK 客户端代码残留
+- 已将 Cloudflare Pages 前端同步设备页与主站 `client` 的刷新逻辑对齐，统一改为通过 `syncRefreshAll()` 刷新设备列表、bootstrap 摘要和诊断状态，减少两个网页前端在设备状态和自动刷新上的行为分叉
+- 已补齐 Cloudflare Pages 前端同步诊断中的状态清理文案，和主站一致展示 `stateCleanup` 间隔
+- 已修复 Cloudflare Pages 前端 `after-build.js` 缺少 `fs` 导入的问题，避免 `npm run build` 在产物压缩后处理阶段直接报错
 
 ## 当前判断还在继续推进的部分
 
