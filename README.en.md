@@ -17,9 +17,21 @@
   <strong>A cross-platform cloud clipboard tool that supports real-time send of text, images, and files to cloud or local servers.</strong>
 </p>
 
-<p align="center">
-  The current branch focuses on web, desktop, and Android text synchronization, plus file transfer and Android confirm-before-download handling.
-</p>
+---
+
+## Current Additions
+
+This branch keeps the original web clipboard and file transfer flow, and adds the following sync-focused capabilities:
+
+- **Independent sync protocol**: Adds `/sync/server`, `/sync/ws`, and `/api/sync/*` without replacing the legacy `/push` text/file flow.
+- **Dual access gate**: Sync clients must pass the room/global password first, then wait for web-side device approval before becoming connected.
+- **Web device management**: The device page supports sync device lists, pending / trusted states, device approval, status summaries, and auto-refreshing diagnostics.
+- **Three-end text sync**: Web, desktop, and Android sync clients support plain-text clipboard synchronization with duplicate and loop prevention.
+- **Desktop Go client**: `desktop-client-go/` replaces the earlier AHK path and provides tray mode, local control panel, hotkeys, shell menu, Tip notifications, file notice sending, latest text/file pull, and download cache cleanup.
+- **Desktop UX guidance**: The control panel overview shows next-step guidance, connection diagnostics, cache directory, recent cleanup, and platform capabilities. Automatic reconnect stops after the configured limit and prompts manual inspection.
+- **Android sync client**: `android-sync-client/` supports text sync, floating confirm for incoming images/files, confirm-before-download into private cache, and receive-page preview/open/share/save-as/mark-processed actions.
+- **Android high-version guidance**: The runtime page provides clipboard readiness, background diagnostics, and a dynamic troubleshooting button for notification, accessibility, battery optimization, and vendor keepalive settings.
+- **Cache lifecycle**: Android receive cache keeps items for 24 hours by default. Desktop download cache supports retention configuration and manual cleanup.
 
 ---
 
@@ -50,10 +62,11 @@
 | 📦 **Easy Deploy** | Docker, Binary, Source code, Homebrew, OpenWrt, and more options |
 | 🌍 **Cross-platform** | Windows, macOS, Linux, Android, iOS |
 | ⚡ **Fast Sync** | Real-time synchronization, zero delay |
-| 🔐 **Security** | Password and Token authentication support |
+| 🔐 **Security** | Global password, room password, and sync device approval |
 | 💾 **Flexible Storage** | Configurable history and file expiration |
 | 🚀 **Lightweight** | Low resource usage, runs smoothly on low-end devices |
 | 🔍 **Shortcuts** | Android/iOS shortcuts support |
+| 🧩 **Sync Clients** | Web, desktop, and Android sync clients |
 
 ---
 
@@ -119,6 +132,7 @@ Notes:
 - Sync access uses the dual gate of room/global password plus web-side device approval.
 - On Android 10+ and some vendor ROMs, background clipboard reads may be restricted by the system.
 - The Android runtime page now provides clipboard readiness, background diagnostics, vendor background-keepalive guidance, and direct troubleshooting actions.
+- Image/file receiving prefers floating confirmation. Downloads start only after user confirmation, then files can be previewed, opened, shared, saved as, or marked processed in the receive page.
 
 ### 4️⃣ Homebrew (macOS)
 
