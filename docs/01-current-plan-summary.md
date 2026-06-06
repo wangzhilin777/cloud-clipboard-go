@@ -111,11 +111,11 @@
 
 ## 当前待继续收口的重点
 
-- 网页端状态展示与自动刷新一致性
 - Android 真机后台复制与权限受限场景体验
 - 桌面端 Go 客户端继续替换早期遗留交互问题
 - 服务端、网页端、桌面端、安卓端说明文档继续同步更新
 - README 与 `docs/03-sync-usage-and-effects.md` 已补充自动同步使用入口，后续功能变化仍需同步维护
+- Cloudflare Pages 前端已补齐同步设备页刷新逻辑、诊断文案和统一发送面板上传链路；后续如主站继续调整发送入口或同步页交互，需要同步维护，避免再次分叉
 - 当前工作区最近一次审计时保持干净；`server-node/`、`cloud-clip/uploads/`、`cloud-clip/config.json`、`cloud-clip/history.json` 属于 `.gitignore` 管理的本地运行态或历史兼容目录，后续清理前需避免误删真实联调数据
 
 ## 执行原则
