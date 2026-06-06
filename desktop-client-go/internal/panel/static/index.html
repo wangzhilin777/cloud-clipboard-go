@@ -311,6 +311,10 @@
           <div id="statusText" class="value">加载中</div>
         </article>
         <article class="card">
+          <span class="label">下一步建议</span>
+          <div id="nextStepText" class="value">-</div>
+        </article>
+        <article class="card">
           <span class="label">设备名称</span>
           <div id="deviceNameText" class="value">-</div>
         </article>
@@ -629,6 +633,7 @@
     };
     const manualText = document.getElementById('manualText');
     const statusText = document.getElementById('statusText');
+    const nextStepText = document.getElementById('nextStepText');
     const deviceNameText = document.getElementById('deviceNameText');
     const payloadText = document.getElementById('payloadText');
     const errorText = document.getElementById('errorText');
@@ -682,6 +687,7 @@
       window.__latestConfig = cfg || {};
       hotkeyText.textContent = formatHotkeySummary(cfg);
       connectionDiagnosisText.textContent = formatConnectionDiagnosis(cfg, window.__latestState || {});
+      nextStepText.textContent = formatNextStep(cfg, window.__latestState || {}, window.__latestCapabilities || {});
       cachePolicyText.textContent = formatCachePolicy(cfg, window.__latestState || {});
       capabilityText.textContent = formatCapabilities(window.__latestCapabilities || {}, cfg);
       connectionHintText.textContent = formatConnectionHint(cfg, window.__latestState || {});
@@ -699,6 +705,7 @@
       cacheCleanupText.textContent = formatCacheCleanup(state);
       window.__latestState = state || {};
       connectionDiagnosisText.textContent = formatConnectionDiagnosis(window.__latestConfig || {}, state || {});
+      nextStepText.textContent = formatNextStep(window.__latestConfig || {}, state || {}, window.__latestCapabilities || {});
       cachePolicyText.textContent = formatCachePolicy(window.__latestConfig || {}, state || {});
       capabilityText.textContent = formatCapabilities(window.__latestCapabilities || {}, window.__latestConfig || {});
       connectionHintText.textContent = formatConnectionHint(window.__latestConfig || {}, state || {});
@@ -818,6 +825,50 @@
         return `待启动 / ${room}`;
       }
       return issues.join(' / ');
+    }
+
+    function formatNextStep(cfg, state, capabilities) {
+      const serverBase = String(cfg.serverBase || '').trim();
+      const status = String(state.status || '').trim().toLowerCase();
+      const lastError = String(state.lastError || '').trim();
+      const pendingFiles = Array.isArray(state.pendingClipboardFiles) ? state.pendingClipboardFiles : [];
+      if (!serverBase) {
+        return '到“连接”页填写服务端地址，然后保存并重连。';
+      }
+      if (/^https?:\/\/(127\.0\.0\.1|localhost|::1)(:\d+)?/i.test(serverBase)) {
+        return '跨设备同步前，先把服务端地址改成这台电脑的局域网 IP。';
+      }
+      if (status === 'pending') {
+        return '到网页端“同步设备管理”批准本设备，批准后会自动开始同步。';
+      }
+      if (status === 'stopped') {
+        return '确认服务端恢复后，点“立即重连”或连接页“仅重连”。';
+      }
+      if (status === 'retrying') {
+        return `正在自动重连，最多尝试 ${cfg.maxReconnectAttempts || 0} 次；若仍失败请检查服务端、房间名和房间密码。`;
+      }
+      if (status === 'error') {
+        if (/认证|密码|auth|forbidden|401/i.test(lastError)) {
+          return '优先检查房间密码或全局密码，保存后重新连接。';
+        }
+        return lastError ? `先处理最近错误：${lastError}` : '先检查服务端地址、网络和房间配置。';
+      }
+      if (pendingFiles.length) {
+        return '检测到待确认剪贴板文件，可点“发送待确认剪贴板文件”完成上传。';
+      }
+      if (cfg.clipboardFileConfirmEnabled && cfg.noticeMode === 'popup') {
+        return '文件二次确认建议把通知模式切到“右下角提示”，避免系统通知堆积。';
+      }
+      if (capabilities.shellMenuRecommended && !cfg.shellMenuEnabled) {
+        return '如果常从资源管理器发文件，可在“高级”页开启 Windows 右键菜单。';
+      }
+      if (!cfg.sendClipboardHotkey && !cfg.fetchLatestHotkey && !cfg.fetchLatestFileHotkey) {
+        return '可以在“高级”页配置常用热键，避开 Ctrl+Alt+V 等已被占用组合。';
+      }
+      if (status === 'trusted' || status === 'connected') {
+        return '当前链路可用，可以直接复制文本同步，或使用动作页发送/拉取文件。';
+      }
+      return '保存配置并启动同步后，这里会按当前状态给出下一步操作。';
     }
 
     function formatCachePolicy(cfg, state) {
