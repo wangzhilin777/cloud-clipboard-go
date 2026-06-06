@@ -8,7 +8,7 @@
 
 - 工作目录：`E:\Workspace\VSCode\cloud-clipboard`
 - 当前主分支：`main`
-- 当前远端：`origin = https://github.com/wangzhilin777/cloudpan-bridge.git`
+- 当前远端：`origin = https://github.com/wangzhilin777/cloud-clipboard-go.git`
 - 当前基座：`Jonnyan404/cloud-clipboard-go` 路线上的本地持续开发版本
 
 ## 一期范围
@@ -99,6 +99,11 @@
 - `5bb27ba` `优化桌面端配置字段兼容性`
 - `5e9292c` `清理前端构建旧服务端同步路径`
 - `8ae0408` `移除 Cloudflare Pages 无用构建依赖`
+- `c31529c` `更新说明文档并移除赞助内容`
+- `97d6020` `补充新同步功能说明`
+- `a58d8f5` `补充自动同步能力说明`
+- `aec702b` `调整同步客户端说明位置`
+- `1450486` `补充自动同步使用效果说明`
 
 ## 当前待继续收口的重点
 
@@ -106,6 +111,7 @@
 - Android 真机后台复制与权限受限场景体验
 - 桌面端 Go 客户端继续替换早期遗留交互问题
 - 服务端、网页端、桌面端、安卓端说明文档继续同步更新
+- README 与 `docs/03-sync-usage-and-effects.md` 已补充自动同步使用入口，后续功能变化仍需同步维护
 
 ## 执行原则
 
