@@ -108,6 +108,7 @@
 - 已补齐 Cloudflare Pages 前端同步诊断中的状态清理文案，和主站一致展示 `stateCleanup` 间隔
 - 已修复 Cloudflare Pages 前端 `after-build.js` 缺少 `fs` 导入的问题，避免 `npm run build` 在产物压缩后处理阶段直接报错
 - 已同步更新 `cloudflare/README.md`，补充 Pages 前端同步设备页当前已与主站统一刷新策略、`syncRefreshAll()` 覆盖范围，以及 `after-build.js` 会生成 `.gz` / `.br` 压缩产物的构建说明
+- 已再次补齐 `docs/01-current-plan-summary.md` 的“最近已经完成的关键提交”列表，使其覆盖到 `161dff9` 为止，避免计划摘要落后于实际里程碑记录
 
 ## 当前判断还在继续推进的部分
 
