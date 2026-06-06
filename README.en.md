@@ -70,6 +70,36 @@ This branch keeps the original web clipboard and file transfer flow, and adds th
 
 ---
 
+## 🔄 Automatic Sync
+
+The new sync capability is an independent protocol separate from the legacy `/push` flow. It is intended for the “copy here, automatically appear on another device” workflow. The original web manual text send, file upload, and file download flow is still preserved.
+
+### Supported Scope
+
+| Capability | Web | Desktop Go | Android Sync Client | Notes |
+|------------|-----|------------|---------------------|-------|
+| Plain-text auto sync | Supported | Supported | Supported | All three clients can publish local text changes and write remote text into the local clipboard |
+| Device pairing approval | Manager | Client | Client | New devices enter pending first and can sync only after web-side approval |
+| Room/global password | Supported | Supported | Supported | Clients pass room access validation before device approval |
+| File/image notice sending | Supported | Supported | Not the primary sender | Web and desktop can upload files and send `payloadNotice` |
+| File/image confirm receiving | No auto receive | No auto receive | Supported | Non-text automatic receive is currently Android-only and downloads only after user confirmation |
+| Cache cleanup | Legacy file expiration | Download cache cleanup | Receive cache cleanup | Desktop and Android both provide local cache lifecycle handling |
+
+### Client Entrypoints
+
+- Web: open the server page and use the device / sync device management area to enable and approve sync devices.
+- Desktop: use [`desktop-client-go/`](./desktop-client-go) for tray mode, control panel, hotkeys, shell menu, Tip notifications, and file notice sending.
+- Android sync client: use [`android-sync-client/`](./android-sync-client) for text sync, floating confirmation for images/files, background clipboard diagnostics, and permission guidance.
+
+### Boundaries
+
+- Current automatic clipboard sync is plain text only. Rich text sync is not implemented.
+- Automatic paste into third-party input fields is not implemented.
+- Images/files are not automatically written into the system clipboard. Android also downloads them only after confirmation into the app private cache.
+- Windows and Web do not currently auto-receive images/files. They keep file notice sending and manual download capabilities.
+
+---
+
 ## 🚀 Quick Start
 
 ### 1️⃣ Docker (Recommended)
