@@ -77,6 +77,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var runtimeAdviceText: TextView
     private lateinit var runtimeImplementationText: TextView
     private lateinit var autoResumeSummaryText: TextView
+    private lateinit var runtimeClipboardReadinessText: TextView
+    private lateinit var runtimeClipboardTroubleshootButton: Button
     private lateinit var runtimeClipboardDebugText: TextView
     private lateinit var runtimeModeBadgeText: TextView
     private lateinit var permissionOverviewBadgeText: TextView
@@ -159,6 +161,8 @@ class MainActivity : AppCompatActivity() {
         runtimeAdviceText = findViewById(R.id.runtimeAdviceText)
         runtimeImplementationText = findViewById(R.id.runtimeImplementationText)
         autoResumeSummaryText = findViewById(R.id.autoResumeSummaryText)
+        runtimeClipboardReadinessText = findViewById(R.id.runtimeClipboardReadinessText)
+        runtimeClipboardTroubleshootButton = findViewById(R.id.runtimeClipboardTroubleshootButton)
         runtimeClipboardDebugText = findViewById(R.id.runtimeClipboardDebugText)
         runtimeModeBadgeText = findViewById(R.id.runtimeModeBadgeText)
         permissionOverviewBadgeText = findViewById(R.id.permissionOverviewBadgeText)
@@ -288,6 +292,9 @@ class MainActivity : AppCompatActivity() {
         }
         runtimeModeActionButton.setOnClickListener {
             handleRuntimeModeQuickAction()
+        }
+        runtimeClipboardTroubleshootButton.setOnClickListener {
+            handleClipboardTroubleshootAction()
         }
         clipboardModeGroup.setOnCheckedChangeListener { _, _ ->
             refreshRuntimeHints()
@@ -569,6 +576,8 @@ class MainActivity : AppCompatActivity() {
         runtimeImplementationText.text = buildRuntimeImplementationSummary(config, status, support)
         runtimeModeActionButton.text = runtimeModeActionLabel(config, status)
         autoResumeSummaryText.text = buildAutoResumeSummary(config, status)
+        runtimeClipboardReadinessText.text = buildClipboardReadinessSummary(config, status, validation)
+        runtimeClipboardTroubleshootButton.text = clipboardTroubleshootActionLabel(config, status, validation)
         runtimeClipboardDebugText.text = buildClipboardDebugSummary(config, status, validation)
         floatingLayoutSummaryText.text = getString(
             R.string.floating_layout_summary_format,
@@ -701,6 +710,43 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
+    }
+
+    private fun handleClipboardTroubleshootAction() {
+        val config = SettingsStore.load(this)
+        val status = PermissionStatusHelper.read(this)
+        val validation = RuntimeModeValidator.validate(this, config)
+        when {
+            !validation.ready -> openRuntimeModeAction(validation.action)
+            !status.notificationsEnabled -> openNotificationSettings()
+            config.clipboardMode == SettingsStore.CLIPBOARD_MODE_FOREGROUND && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q -> {
+                clipboardModeAccessibility.isChecked = true
+                saveConfig()
+                refreshRuntimeHints()
+                startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+            }
+            config.clipboardMode == SettingsStore.CLIPBOARD_MODE_ACCESSIBILITY && !status.accessibilityEnabled ->
+                startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+            !status.batteryOptimizationIgnored -> openBatteryOptimizationSettings()
+            shouldSuggestVendorBackgroundSettings() -> openVendorBackgroundSettings()
+            else -> Toast.makeText(this, R.string.runtime_clipboard_diagnosis_ready_toast, Toast.LENGTH_LONG).show()
+        }
+    }
+
+    private fun clipboardTroubleshootActionLabel(
+        config: SettingsStore.Config,
+        status: PermissionStatus,
+        validation: RuntimeModeValidation,
+    ): String = when {
+        !validation.ready -> runtimeModeActionLabel(config, status)
+        !status.notificationsEnabled -> getString(R.string.open_notification_settings_button)
+        config.clipboardMode == SettingsStore.CLIPBOARD_MODE_FOREGROUND && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q ->
+            getString(R.string.runtime_clipboard_switch_accessibility_button)
+        config.clipboardMode == SettingsStore.CLIPBOARD_MODE_ACCESSIBILITY && !status.accessibilityEnabled ->
+            getString(R.string.runtime_mode_action_accessibility)
+        !status.batteryOptimizationIgnored -> getString(R.string.runtime_mode_action_battery)
+        shouldSuggestVendorBackgroundSettings() -> getString(R.string.open_vendor_background_settings_button)
+        else -> getString(R.string.runtime_clipboard_troubleshoot_button)
     }
 
     private fun openRuntimeModeAction(action: RuntimeModeAction) {
@@ -1290,6 +1336,3 @@ class MainActivity : AppCompatActivity() {
         private const val TAB_RECEIVE = 3
     }
 }
-
-
-
