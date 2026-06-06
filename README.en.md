@@ -91,6 +91,14 @@ The new sync capability is an independent protocol separate from the legacy `/pu
 - Desktop: use [`desktop-client-go/`](./desktop-client-go) for tray mode, control panel, hotkeys, shell menu, Tip notifications, and file notice sending.
 - Android sync client: use [`android-sync-client/`](./android-sync-client) for text sync, floating confirmation for images/files, background clipboard diagnostics, and permission guidance.
 
+### Android Sync Client Notes
+
+- `android/` remains the original Android server app from the upstream project.
+- `android-sync-client/` is the Android sync client and is intentionally kept separate from the server APK.
+- Android text clipboard sync is most reliable in foreground scenarios. On Android 10+ and some vendor ROMs, background clipboard reads may be restricted by the system.
+- The runtime page provides clipboard readiness, background diagnostics, and a dynamic troubleshooting button. The permission page provides common vendor background-keepalive guidance.
+- Image/file receiving prefers floating confirmation. Downloads start only after user confirmation, then files can be previewed, opened, shared, saved as, or marked processed in the receive page.
+
 ### Boundaries
 
 - Current automatic clipboard sync is plain text only. Rich text sync is not implemented.
@@ -148,21 +156,6 @@ Then access from other devices: `http://your-android-device-ip:9501`
 - 📱 Run server directly on your phone without a computer
 - 🚀 Ready to use, no additional dependencies
 - 💾 Data persistence support
-
-### 3.1️⃣ Android Sync Client
-
-For phase-one sync features such as web / desktop / Android text synchronization and Android file/image confirm-before-download, use the standalone project:
-
-- [`android-sync-client/`](./android-sync-client)
-
-Notes:
-
-- `android/` remains the original Android server app from the upstream project.
-- `android-sync-client/` is the Android sync client and is intentionally kept separate.
-- Sync access uses the dual gate of room/global password plus web-side device approval.
-- On Android 10+ and some vendor ROMs, background clipboard reads may be restricted by the system.
-- The Android runtime page now provides clipboard readiness, background diagnostics, vendor background-keepalive guidance, and direct troubleshooting actions.
-- Image/file receiving prefers floating confirmation. Downloads start only after user confirmation, then files can be previewed, opened, shared, saved as, or marked processed in the receive page.
 
 ### 4️⃣ Homebrew (macOS)
 
