@@ -99,7 +99,7 @@
     <string name="permission_suggestions_none">无</string>
     <string name="permission_guide_placeholder">推荐先开通知和忽略电池优化；需要更稳定的后台文本同步时，再开启无障碍或 Shizuku。</string>
     <string name="runtime_advice_placeholder">推荐优先使用前台服务模式；如果后台复制经常丢失，再切到无障碍或 Shizuku。</string>
-    <string name="runtime_implementation_placeholder">当前模式的实现阶段会显示在这里。</string>
+    <string name="runtime_implementation_placeholder">当前模式的能力说明会显示在这里。</string>
     <string name="auto_resume_placeholder">自动续连状态会在这里显示。</string>
     <string name="runtime_clipboard_readiness_placeholder">这里会先给出当前后台复制的大致就绪度，再结合下方诊断判断是否被系统限制。</string>
     <string name="runtime_clipboard_troubleshoot_button">处理后台复制限制</string>
@@ -215,7 +215,7 @@
     <string name="payload_cache_empty_hint">本地缓存会按设置的保留时长自动清理。</string>
     <string name="payload_index_format">第 %1$d / %2$d 条</string>
     <string name="payload_collapsed_summary_format">%1$s · %2$s · %3$s</string>
-    <string name="payload_action_hint_empty">当前没有待处理内容；后续收到图片或文件后会在这里集中查看。</string>
+    <string name="payload_action_hint_empty">当前没有待处理内容；收到图片或文件后会在这里集中查看。</string>
     <string name="payload_action_hint_download">当前内容还没下载到本地缓存，先点“下载到缓存”再继续处理。</string>
     <string name="payload_action_hint_image_ready">图片已经缓存完成，可以直接预览、分享、另存；处理后会自动切到下一条。</string>
     <string name="payload_action_hint_file_ready">文件已经缓存完成，可以直接打开、分享、另存；处理后会自动切到下一条。</string>

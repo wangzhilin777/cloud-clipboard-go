@@ -999,7 +999,7 @@ class MainActivity : AppCompatActivity() {
                     }
                     else -> {
                         readyItems += "Shizuku 已授权${status.shizukuUid?.let { "（UID $it）" }.orEmpty()}"
-                        pendingItems += "独立剪贴板增强链路仍在接入，当前阶段暂不开放启动"
+                        readyItems += "已纳入系统授权与剪贴板 AppOps 诊断"
                     }
                 }
             }
@@ -1129,7 +1129,7 @@ class MainActivity : AppCompatActivity() {
             return "自动续连：暂不可用\n原因：当前服务地址还是 127.0.0.1/localhost，请改成 Windows 局域网 IP。"
         }
         if (config.lastDesiredRunningState != SettingsStore.RUNNING_STATE_RUNNING) {
-            return "自动续连：等待下次生效\n原因：上次是手动停止状态，后续即使重新打开 App，也不会自动恢复同步。"
+            return "自动续连：等待手动启动\n原因：上次是手动停止状态，重新打开 App 时不会自动恢复同步。"
         }
         val warnings = mutableListOf<String>()
         if (!status.batteryOptimizationIgnored) {
@@ -1229,7 +1229,7 @@ class MainActivity : AppCompatActivity() {
 
             else -> when {
                 status.accessibilityEnabled ->
-                    "当前监听策略：主通道仍是前台服务；如果前台回调没拿到新文本，后续可改成无障碍增强获得更稳的后台补传。"
+                    "当前监听策略：主通道仍是前台服务；如果前台回调没拿到新文本，可以切到无障碍增强获得更稳的后台补传。"
                 else ->
                     "当前监听策略：当前只依赖系统剪贴板回调和轮询，Android 10 以上后台限制会更明显。"
             }
@@ -1343,7 +1343,7 @@ class MainActivity : AppCompatActivity() {
             suggestions += "已启用悬浮确认，但系统还没允许悬浮窗显示，图片/文件会回退到通知确认。"
         }
         if (config.clipboardMode == SettingsStore.CLIPBOARD_MODE_FOREGROUND && !status.accessibilityEnabled) {
-            suggestions += "如果后续遇到后台复制不稳定，可以再开启无障碍增强模式。"
+            suggestions += "如果遇到后台复制不稳定，可以再开启无障碍增强模式。"
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && config.clipboardMode == SettingsStore.CLIPBOARD_MODE_FOREGROUND) {
             suggestions += "Android 10 及以上系统会明显收紧后台剪贴板读取；如果你主要依赖后台复制回传，建议优先改成无障碍增强模式。"

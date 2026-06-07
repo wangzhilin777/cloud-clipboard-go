@@ -17,14 +17,14 @@ object ClipboardModeSupportHelper {
                 ClipboardModeSupport(
                     canStart = true,
                     readyMessage = "无障碍增强模式已就绪。",
-                    implementationSummary = "当前阶段：无障碍模式已接入授权检查、启动前置校验、恢复流程，以及界面交互触发的剪贴板补检查；后续会继续补强后台增强细节。",
+                    implementationSummary = "无障碍增强会在系统剪贴板回调之外，结合界面交互触发补检查，适合高版本 Android 的后台复制回传场景。",
                 )
             } else {
                 ClipboardModeSupport(
                     canStart = false,
                     readyMessage = "",
                     blockedMessage = context.getString(R.string.runtime_mode_accessibility_blocked),
-                    implementationSummary = "当前阶段：无障碍模式已经接好配置入口和补检查链路，但还需要先开启系统无障碍服务，开启后才会按该模式启动同步。",
+                    implementationSummary = "无障碍增强需要先开启系统无障碍服务，开启后才能按该模式启动同步。",
                 )
             }
         }
@@ -35,27 +35,27 @@ object ClipboardModeSupportHelper {
                     canStart = false,
                     readyMessage = "",
                     blockedMessage = context.getString(R.string.runtime_mode_shizuku_blocked),
-                    implementationSummary = "当前阶段：Shizuku 入口已接入；当前设备还没有安装 Shizuku，请先安装并启动服务。",
+                    implementationSummary = "当前设备还没有可用的 Shizuku 环境，请先安装 Shizuku 并启动服务。",
                 )
 
                 !status.shizukuRunning -> ClipboardModeSupport(
                     canStart = false,
                     readyMessage = "",
                     blockedMessage = context.getString(R.string.runtime_mode_shizuku_not_running),
-                    implementationSummary = "当前阶段：已检测到 Shizuku App，但服务还没有运行；如果使用 root 启动 Shizuku，请先在 Shizuku 内确认服务状态。",
+                    implementationSummary = "已检测到 Shizuku App，但服务还没有运行；如果使用 root 启动 Shizuku，请先在 Shizuku 内确认服务状态。",
                 )
 
                 !status.shizukuPermissionGranted -> ClipboardModeSupport(
                     canStart = false,
                     readyMessage = "",
                     blockedMessage = context.getString(R.string.runtime_mode_shizuku_permission_required),
-                    implementationSummary = "当前阶段：Shizuku 服务已运行，但云剪同步还没获得授权；点快捷处理按钮可以直接弹出授权请求。",
+                    implementationSummary = "Shizuku 服务已运行，但云剪同步还没获得授权；点快捷处理按钮可以直接弹出授权请求。",
                 )
 
                 else -> ClipboardModeSupport(
                     canStart = true,
                     readyMessage = context.getString(R.string.runtime_mode_shizuku_ready),
-                    implementationSummary = "当前阶段：Shizuku 服务已运行且云剪同步已授权；同步服务会正常启动，并把系统剪贴板 AppOps 状态纳入诊断。独立剪贴板主通道仍在评估中，后台复制不稳时仍建议优先使用无障碍增强模式。",
+                    implementationSummary = "Shizuku 服务已运行且云剪同步已授权；同步服务会正常启动，并把系统剪贴板 AppOps 状态纳入诊断。后台复制不稳时仍建议优先使用无障碍增强模式。",
                 )
             }
         }
@@ -64,7 +64,7 @@ object ClipboardModeSupportHelper {
             ClipboardModeSupport(
                 canStart = true,
                 readyMessage = "前台服务模式已就绪。",
-                implementationSummary = "当前阶段：前台服务模式是一期开箱可用的主通道，文本同步、自动续连、图片/文件确认接收都按这条链路稳定运行。",
+                implementationSummary = "前台服务模式开箱可用，适合前台使用、自动续连、文本同步和图片/文件确认接收。",
             )
         }
     }

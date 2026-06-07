@@ -150,6 +150,9 @@
 - 已继续补测无托盘面板版 `-shell-send` 一次性发送链路，该链路等价覆盖 Windows 右键菜单“复制到剪贴板服务器”的核心动作：使用临时服务端、临时桌面配置和临时测试文件验证 `.txt` 与 `.png` 均可通过旧 `/upload` 上传，并同步产生 `payloadNotice`
 - 本轮 `.png` 验证中服务端 recent payload 正确记录为 `kind=image`、`sourceDeviceId=codex-shell-png-device`，旧 `content/latest` 也能返回最新图片文件信息；验证后已停止临时服务端，并清理临时 exe、临时配置、临时上传目录、临时下载目录和测试文件
 - 已继续补测无托盘面板版 `-shell-download-dir` 一次性下载链路，该链路等价覆盖 Windows 右键菜单“从剪贴板服务器粘贴/下载到此处”的核心动作：先通过临时服务端上传测试 PNG，再下载到临时目录，文件名和大小均一致；本轮未写入系统剪贴板，验证后已清理全部临时进程与文件
+- 已收口 Android 运行页和权限页的发布版文案：移除“当前阶段 / 后续 / 暂不开放启动 / 实现阶段”等开发态表达，Shizuku 已授权时改为明确展示“可启动同步 + AppOps 诊断辅助”，避免与当前实现不一致
+- 已确认 Android 状态展示仍将 trusted 映射为“已连接”；代码中的“已信任”仅保留为旧状态输入兼容，不会作为当前用户可见状态文案展示
+- 本轮重新验证通过：`android-sync-client` 下 `.\gradlew.bat assembleDebug` 成功；验证后已执行 `gradlew clean`、停止 Gradle daemon，并清理 `android-sync-client/build` 与 `android-sync-client/app/build`
 
 ## 当前判断还在继续推进的部分
 
