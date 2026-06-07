@@ -153,6 +153,9 @@
 - 已收口 Android 运行页和权限页的发布版文案：移除“当前阶段 / 后续 / 暂不开放启动 / 实现阶段”等开发态表达，Shizuku 已授权时改为明确展示“可启动同步 + AppOps 诊断辅助”，避免与当前实现不一致
 - 已确认 Android 状态展示仍将 trusted 映射为“已连接”；代码中的“已信任”仅保留为旧状态输入兼容，不会作为当前用户可见状态文案展示
 - 本轮重新验证通过：`android-sync-client` 下 `.\gradlew.bat assembleDebug` 成功；验证后已执行 `gradlew clean`、停止 Gradle daemon，并清理 `android-sync-client/build` 与 `android-sync-client/app/build`
+- 已在 Android 16 真机 `760435a8` 上做只读权限巡检：App 已安装并运行，通知权限、悬浮窗、Shizuku API 授权、前台服务、剪贴板 AppOps、Shizuku root 服务均处于可用状态，且存在云剪同步前台通知
+- 本轮真机巡检发现系统真正启用的无障碍服务列表里没有云剪同步，仅有一木记账和 GKD；当前 App 配置仍选择 `accessibility` 模式，因此后台补传不会按无障碍增强生效，代码侧会按 `Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES` 识别为未开启并阻止该模式启动
+- 本轮只读读取了 App 私有配置，确认 `clipboard_mode=accessibility`、`last_desired_running_state=running`、`server_base=http://192.168.31.236:9501`；未修改手机配置、未卸载、未清理 App 数据，也未删除手机端任何非调试数据或文件
 
 ## 当前判断还在继续推进的部分
 
