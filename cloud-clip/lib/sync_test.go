@@ -3,9 +3,14 @@ package lib
 import (
 	"fmt"
 	"log"
+	"net/http"
+	"net/http/httptest"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
+
+	"github.com/gorilla/websocket"
 )
 
 func TestSyncHubRecentMessagesUseConfiguredLimit(t *testing.T) {
@@ -328,6 +333,38 @@ func TestSyncHubCleanupRemovesExpiredStateByPolicy(t *testing.T) {
 	}
 }
 
+func TestSyncHubBroadcastSkipsSourceUntrustedAndOtherRooms(t *testing.T) {
+	hub := newTestSyncHub(t, 60)
+
+	upsertTrustedTestDevice(t, hub, "default", "source-device", true)
+	upsertTrustedTestDevice(t, hub, "default", "trusted-target", true)
+	upsertTrustedTestDevice(t, hub, "default", "pending-target", false)
+	upsertTrustedTestDevice(t, hub, "other", "other-room-target", true)
+
+	wsURL, accepted := startTestWebSocketServer(t, 4)
+	sourceClient, sourceServer := dialTestSyncWebSocket(t, wsURL, accepted)
+	trustedClient, trustedServer := dialTestSyncWebSocket(t, wsURL, accepted)
+	pendingClient, pendingServer := dialTestSyncWebSocket(t, wsURL, accepted)
+	otherRoomClient, otherRoomServer := dialTestSyncWebSocket(t, wsURL, accepted)
+
+	markTestDeviceOnline(t, hub, sourceServer, "default", "source-device")
+	markTestDeviceOnline(t, hub, trustedServer, "default", "trusted-target")
+	markTestDeviceOnline(t, hub, pendingServer, "default", "pending-target")
+	markTestDeviceOnline(t, hub, otherRoomServer, "other", "other-room-target")
+
+	hub.Broadcast("default", "source-device", true, syncOutgoingEnvelope{
+		Event: "clipboardSync",
+		Data: map[string]string{
+			"text": "broadcast text",
+		},
+	})
+
+	expectNoWebSocketEvent(t, sourceClient, "source device")
+	expectNoWebSocketEvent(t, pendingClient, "pending device")
+	expectNoWebSocketEvent(t, otherRoomClient, "other room device")
+	expectWebSocketEvent(t, trustedClient, "clipboardSync")
+}
+
 func newTestSyncHub(t *testing.T, messageLimit int) *SyncHub {
 	t.Helper()
 	statePath := filepath.Join(t.TempDir(), "sync-state.json")
@@ -346,4 +383,86 @@ func (w testingWriter) Write(p []byte) (int, error) {
 	w.t.Helper()
 	w.t.Log(string(p))
 	return len(p), nil
+}
+
+func upsertTrustedTestDevice(t *testing.T, hub *SyncHub, room string, deviceID string, trusted bool) {
+	t.Helper()
+	_, err := hub.UpsertDevice(SyncDevice{
+		DeviceID:   deviceID,
+		Name:       deviceID,
+		Room:       room,
+		Platform:   "test",
+		ClientType: "test",
+		Trusted:    trusted,
+		Status:     map[bool]string{true: "trusted", false: "pending"}[trusted],
+	})
+	if err != nil {
+		t.Fatalf("UpsertDevice(%s) returned error: %v", deviceID, err)
+	}
+}
+
+func startTestWebSocketServer(t *testing.T, acceptBuffer int) (string, <-chan *websocket.Conn) {
+	t.Helper()
+	upgrader := websocket.Upgrader{}
+	accepted := make(chan *websocket.Conn, acceptBuffer)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		conn, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			t.Errorf("Upgrade returned error: %v", err)
+			return
+		}
+		accepted <- conn
+	}))
+	t.Cleanup(server.Close)
+	return "ws" + strings.TrimPrefix(server.URL, "http"), accepted
+}
+
+func dialTestSyncWebSocket(t *testing.T, wsURL string, accepted <-chan *websocket.Conn) (*websocket.Conn, *websocket.Conn) {
+	t.Helper()
+	clientConn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	if err != nil {
+		t.Fatalf("Dial returned error: %v", err)
+	}
+	t.Cleanup(func() { _ = clientConn.Close() })
+
+	select {
+	case serverConn := <-accepted:
+		t.Cleanup(func() { _ = serverConn.Close() })
+		return clientConn, serverConn
+	case <-time.After(time.Second):
+		t.Fatalf("server did not accept websocket connection")
+		return nil, nil
+	}
+}
+
+func markTestDeviceOnline(t *testing.T, hub *SyncHub, conn *websocket.Conn, room string, deviceID string) {
+	t.Helper()
+	if err := hub.MarkDeviceOnline(conn, room, deviceID, "test-token"); err != nil {
+		t.Fatalf("MarkDeviceOnline(%s) returned error: %v", deviceID, err)
+	}
+}
+
+func expectWebSocketEvent(t *testing.T, conn *websocket.Conn, event string) {
+	t.Helper()
+	_ = conn.SetReadDeadline(time.Now().Add(time.Second))
+	var got syncOutgoingEnvelope
+	if err := conn.ReadJSON(&got); err != nil {
+		t.Fatalf("ReadJSON returned error: %v", err)
+	}
+	if got.Event != event {
+		t.Fatalf("received event %q, want %q", got.Event, event)
+	}
+}
+
+func expectNoWebSocketEvent(t *testing.T, conn *websocket.Conn, label string) {
+	t.Helper()
+	_ = conn.SetReadDeadline(time.Now().Add(100 * time.Millisecond))
+	var got syncOutgoingEnvelope
+	err := conn.ReadJSON(&got)
+	if err == nil {
+		t.Fatalf("%s received unexpected event: %#v", label, got)
+	}
+	if !websocket.IsCloseError(err) && !strings.Contains(strings.ToLower(err.Error()), "timeout") {
+		t.Fatalf("%s read failed with non-timeout error: %v", label, err)
+	}
 }

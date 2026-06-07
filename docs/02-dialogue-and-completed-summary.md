@@ -166,6 +166,8 @@
 - 本轮重新验证通过：`android-sync-client` 下 `.\gradlew.bat testDebugUnitTest` 成功；验证后已执行 `gradlew clean`、停止 Gradle daemon，并清理 `android-sync-client/build` 与 `android-sync-client/app/build`
 - 已补强 Go 服务端同步状态单元测试，覆盖 `payloadNotice` 默认 `payloadId` / `room` / `kind` / `createdAt` 补齐、重复 `payloadId` 幂等，以及消息、payload、pending 设备、trusted 设备按清理策略过期移除，降低后续服务端缓存和状态清理逻辑回归风险
 - 本轮重新验证通过：`cloud-clip` 下 `go test ./lib` 成功；验证后已执行 `go clean -testcache` 清理 Go 测试缓存，测试只使用 `t.TempDir()` 临时状态文件，未触碰服务端真实配置、历史或上传数据
+- 已补强 Go 服务端同步广播单元测试，使用真实 `gorilla/websocket` 临时连接覆盖 `Broadcast` 对来源设备、未 trusted 设备、其它房间设备的跳过逻辑，并确认同房间 trusted 目标可收到 `clipboardSync`，把此前真机联调关注的防回环规则固化为可回归测试
+- 本轮重新验证通过：`cloud-clip` 下 `go test ./lib` 成功；验证后已执行 `go clean -testcache` 清理 Go 测试缓存，临时 WebSocket 服务由测试生命周期自动关闭，未启动真实服务端或写入真实运行态数据
 
 ## 当前判断还在继续推进的部分
 
