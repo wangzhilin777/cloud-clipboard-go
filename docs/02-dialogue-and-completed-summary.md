@@ -160,6 +160,8 @@
 - 本轮重新验证通过：`android-sync-client` 下 `.\gradlew.bat assembleDebug` 成功；验证后已执行 `gradlew clean`、停止 Gradle daemon，并清理 `android-sync-client/build` 与 `android-sync-client/app/build`
 - 已进一步只读确认 Android 真机当前没有活跃的 `SyncService` ServiceRecord，但系统通知列表仍存在云剪同步前台通知；据此补充 `SyncService.onDestroy()` 显式移除前台通知，避免启动被阻止或服务销毁后留下误导性常驻通知
 - 本轮重新验证通过：`android-sync-client` 下 `.\gradlew.bat assembleDebug` 成功；为避免触发真机重新授权，本轮未覆盖安装手机，仅做本地编译验证；验证后已执行 `gradlew clean`、停止 Gradle daemon，并清理 `android-sync-client/build` 与 `android-sync-client/app/build`
+- 已为桌面端 `desktopcmd.RunShellAction` 补充自动化测试，覆盖 `-shell-send` 发送文件并广播 `payloadNotice`、`-shell-download-dir` 下载服务端最新文件到指定目录；测试使用 `httptest` 临时服务和 `t.TempDir()`，不会触碰真实右键菜单、系统剪贴板或用户文件
+- 本轮重新验证通过：`desktop-client-go` 下 `go test ./internal/desktopcmd ./internal/transfer ./internal/config ./internal/syncclient ./internal/app` 成功；验证后已执行 `go clean -testcache` 清理测试缓存
 
 ## 当前判断还在继续推进的部分
 
