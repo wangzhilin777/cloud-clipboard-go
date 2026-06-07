@@ -168,6 +168,8 @@
 - 本轮重新验证通过：`cloud-clip` 下 `go test ./lib` 成功；验证后已执行 `go clean -testcache` 清理 Go 测试缓存，测试只使用 `t.TempDir()` 临时状态文件，未触碰服务端真实配置、历史或上传数据
 - 已补强 Go 服务端同步广播单元测试，使用真实 `gorilla/websocket` 临时连接覆盖 `Broadcast` 对来源设备、未 trusted 设备、其它房间设备的跳过逻辑，并确认同房间 trusted 目标可收到 `clipboardSync`，把此前真机联调关注的防回环规则固化为可回归测试
 - 本轮重新验证通过：`cloud-clip` 下 `go test ./lib` 成功；验证后已执行 `go clean -testcache` 清理 Go 测试缓存，临时 WebSocket 服务由测试生命周期自动关闭，未启动真实服务端或写入真实运行态数据
+- 本轮继续验证桌面端 Go 客户端核心包：`desktop-client-go` 下 `go test ./internal/desktopcmd ./internal/transfer ./internal/config ./internal/syncclient ./internal/app` 成功；验证后已执行 `go clean -testcache` 清理测试缓存，未触碰真实右键菜单、系统剪贴板或用户文件
+- 本轮继续对 Android 16 真机 `760435a8` 做只读权限巡检：设备在线，系统无障碍启用列表仍不包含云剪同步；Shizuku 包 `moe.shizuku.privileged.api` 已安装且 Watchdog 前台服务运行中，App 的 `moe.shizuku.manager.permission.API_V23` 显示 `granted=true`；本轮未修改手机配置、未卸载、未覆盖安装、未删除任何手机端数据或文件
 
 ## 当前判断还在继续推进的部分
 
