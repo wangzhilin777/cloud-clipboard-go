@@ -349,6 +349,8 @@ func normalizeHotkey(value string) string {
 	parts := strings.Split(value, "+")
 	canonical := make([]string, 0, len(parts))
 	seen := map[string]bool{}
+	hasModifier := false
+	hasKey := false
 	for _, part := range parts {
 		token := strings.TrimSpace(part)
 		if token == "" {
@@ -360,25 +362,33 @@ func normalizeHotkey(value string) string {
 			if !seen["Ctrl"] {
 				canonical = append(canonical, "Ctrl")
 				seen["Ctrl"] = true
+				hasModifier = true
 			}
 		case "ALT", "OPTION":
 			if !seen["Alt"] {
 				canonical = append(canonical, "Alt")
 				seen["Alt"] = true
+				hasModifier = true
 			}
 		case "SHIFT":
 			if !seen["Shift"] {
 				canonical = append(canonical, "Shift")
 				seen["Shift"] = true
+				hasModifier = true
 			}
 		case "WIN", "CMD", "META":
 			if !seen["Win"] {
 				canonical = append(canonical, "Win")
 				seen["Win"] = true
+				hasModifier = true
 			}
 		default:
 			canonical = append(canonical, upper)
+			hasKey = true
 		}
+	}
+	if !hasModifier || !hasKey {
+		return ""
 	}
 	return strings.Join(canonical, "+")
 }

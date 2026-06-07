@@ -175,6 +175,8 @@
 - 本轮重新验证通过：`android-sync-client` 下 `.\gradlew.bat testDebugUnitTest` 成功；验证后已执行 `gradlew clean`、停止 Gradle daemon，并清理 `android-sync-client/build` 与 `android-sync-client/app/build`
 - 已优化桌面端通知模式兜底：`noticeMode` 为空或拼错时现在回退到推荐的右下角 `tip`，不再回退到系统通知 `popup`，避免错误配置导致系统通知堆积；显式配置 `popup / tip / log / off` 仍按用户选择生效
 - 本轮重新验证通过：`desktop-client-go` 下 `go test ./internal/config ./internal/app ./internal/desktopcmd` 成功；验证后已执行 `go clean -testcache` 清理 Go 测试缓存，测试只使用临时配置目录，未触碰真实右键菜单、系统剪贴板或用户文件
+- 已优化桌面端快捷键配置归一化：只有修饰键没有主键、或只有主键没有修饰键时会自动清空，避免面板显示已配置但实际热键注册层拒绝生效；常见组合仍会规范显示为 `Ctrl+Alt+C` 这类格式
+- 本轮重新验证通过：`desktop-client-go` 下 `go test ./internal/config ./internal/hotkey ./internal/app` 成功；验证后已执行 `go clean -testcache` 清理 Go 测试缓存，未注册真实全局热键，未触碰系统剪贴板或用户文件
 
 ## 当前判断还在继续推进的部分
 

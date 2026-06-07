@@ -128,3 +128,26 @@ func TestNormalizeNoticeModeDefaultsToTipButKeepsExplicitPopup(t *testing.T) {
 		})
 	}
 }
+
+func TestNormalizeHotkeyRequiresModifierAndMainKey(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{name: "common", input: " ctrl + alt + c ", want: "Ctrl+Alt+C"},
+		{name: "deduplicate modifiers", input: "ctrl+control+shift+v", want: "Ctrl+Shift+V"},
+		{name: "function key", input: "win+f12", want: "Win+F12"},
+		{name: "modifier only", input: "Ctrl+Alt", want: ""},
+		{name: "key only", input: "V", want: ""},
+		{name: "blank", input: " ", want: ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := normalizeHotkey(tt.input); got != tt.want {
+				t.Fatalf("normalizeHotkey(%q) = %q, want %q", tt.input, got, tt.want)
+			}
+		})
+	}
+}
