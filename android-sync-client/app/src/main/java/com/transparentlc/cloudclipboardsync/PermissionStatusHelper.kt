@@ -2,7 +2,6 @@ package com.transparentlc.cloudclipboardsync
 
 import android.content.ComponentName
 import android.content.Context
-import android.content.pm.PackageManager
 import android.os.Build
 import android.os.PowerManager
 import android.provider.Settings
@@ -14,16 +13,27 @@ data class PermissionStatus(
     val accessibilityEnabled: Boolean,
     val batteryOptimizationIgnored: Boolean,
     val shizukuInstalled: Boolean,
+    val shizukuRunning: Boolean,
+    val shizukuPermissionGranted: Boolean,
+    val shizukuUid: Int?,
+    val shizukuDetail: String,
 )
 
 object PermissionStatusHelper {
-    fun read(context: Context): PermissionStatus = PermissionStatus(
-        notificationsEnabled = NotificationManagerCompat.from(context).areNotificationsEnabled(),
-        overlayEnabled = Settings.canDrawOverlays(context),
-        accessibilityEnabled = isAccessibilityEnabled(context),
-        batteryOptimizationIgnored = isIgnoringBatteryOptimizations(context),
-        shizukuInstalled = isPackageInstalled(context, "moe.shizuku.privileged.api"),
-    )
+    fun read(context: Context): PermissionStatus {
+        val shizukuState = ShizukuPermissionHelper.read(context)
+        return PermissionStatus(
+            notificationsEnabled = NotificationManagerCompat.from(context).areNotificationsEnabled(),
+            overlayEnabled = Settings.canDrawOverlays(context),
+            accessibilityEnabled = isAccessibilityEnabled(context),
+            batteryOptimizationIgnored = isIgnoringBatteryOptimizations(context),
+            shizukuInstalled = shizukuState.installed,
+            shizukuRunning = shizukuState.running,
+            shizukuPermissionGranted = shizukuState.granted,
+            shizukuUid = shizukuState.uid,
+            shizukuDetail = shizukuState.detail,
+        )
+    }
 
     private fun isAccessibilityEnabled(context: Context): Boolean {
         val enabledServices = Settings.Secure.getString(
@@ -40,15 +50,4 @@ object PermissionStatusHelper {
         return manager.isIgnoringBatteryOptimizations(context.packageName)
     }
 
-    private fun isPackageInstalled(context: Context, packageName: String): Boolean = try {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            context.packageManager.getPackageInfo(packageName, PackageManager.PackageInfoFlags.of(0))
-        } else {
-            @Suppress("DEPRECATION")
-            context.packageManager.getPackageInfo(packageName, 0)
-        }
-        true
-    } catch (_: Exception) {
-        false
-    }
 }

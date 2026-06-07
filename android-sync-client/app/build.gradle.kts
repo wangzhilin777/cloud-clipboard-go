@@ -44,5 +44,7 @@ dependencies {
     implementation("androidx.activity:activity-ktx:1.9.1")
     implementation("androidx.webkit:webkit:1.11.0")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    implementation("dev.rikka.shizuku:api:13.1.5")
+    implementation("dev.rikka.shizuku:provider:13.1.5")
     testImplementation("junit:junit:4.13.2")
 }

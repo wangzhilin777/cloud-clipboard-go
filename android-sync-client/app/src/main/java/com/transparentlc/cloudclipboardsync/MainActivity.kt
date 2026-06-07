@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.ActivityNotFoundException
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -29,6 +30,7 @@ import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.transparentlc.cloudclipboardsync.sync.PayloadCacheStore
 import com.transparentlc.cloudclipboardsync.sync.SettingsStore
 import com.transparentlc.cloudclipboardsync.sync.SyncService
+import rikka.shizuku.Shizuku
 
 private data class StatusChecklist(
     val blockers: List<String>,
@@ -98,6 +100,18 @@ class MainActivity : AppCompatActivity() {
     private val notificationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { }
+
+    private val shizukuPermissionListener = Shizuku.OnRequestPermissionResultListener { requestCode, grantResult ->
+        if (requestCode != ShizukuPermissionHelper.REQUEST_CODE) return@OnRequestPermissionResultListener
+        val granted = grantResult == PackageManager.PERMISSION_GRANTED
+        Toast.makeText(
+            this,
+            if (granted) R.string.runtime_mode_action_shizuku_granted_toast else R.string.runtime_mode_action_shizuku_denied_toast,
+            Toast.LENGTH_LONG,
+        ).show()
+        refreshRuntimeHints()
+        refreshPermissionSummary()
+    }
 
     private val statusReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -187,6 +201,7 @@ class MainActivity : AppCompatActivity() {
         bindHomeHeader()
         bindConfig()
         bindReceiveSection()
+        runCatching { Shizuku.addRequestPermissionResultListener(shizukuPermissionListener) }
         maybeResumeSyncOnLaunch()
         findViewById<Button>(R.id.saveButton).setOnClickListener {
             val config = saveConfig()
@@ -310,10 +325,23 @@ class MainActivity : AppCompatActivity() {
             handleClipboardTroubleshootAction()
         }
         clipboardModeGroup.setOnCheckedChangeListener { _, _ ->
+            if (!suppressAutoSave) {
+                saveConfig()
+            }
             refreshRuntimeHints()
         }
-        autoConnectSwitch.setOnCheckedChangeListener { _, _ -> refreshRuntimeHints() }
-        startOnBootSwitch.setOnCheckedChangeListener { _, _ -> refreshRuntimeHints() }
+        autoConnectSwitch.setOnCheckedChangeListener { _, _ ->
+            if (!suppressAutoSave) {
+                saveConfig()
+            }
+            refreshRuntimeHints()
+        }
+        startOnBootSwitch.setOnCheckedChangeListener { _, _ ->
+            if (!suppressAutoSave) {
+                saveConfig()
+            }
+            refreshRuntimeHints()
+        }
         floatingConfirmSwitch.setOnCheckedChangeListener { _, _ ->
             if (!suppressAutoSave) saveReceiveSettings()
         }
@@ -359,6 +387,11 @@ class MainActivity : AppCompatActivity() {
         super.onStop()
         unregisterReceiver(statusReceiver)
         unregisterReceiver(payloadUpdateReceiver)
+    }
+
+    override fun onDestroy() {
+        runCatching { Shizuku.removeRequestPermissionResultListener(shizukuPermissionListener) }
+        super.onDestroy()
     }
 
     private fun bindHomeHeader() {
@@ -707,10 +740,14 @@ class MainActivity : AppCompatActivity() {
             SettingsStore.CLIPBOARD_MODE_SHIZUKU -> {
                 if (!status.shizukuInstalled) {
                     openShizuku(false)
+                } else if (!status.shizukuRunning) {
+                    openShizuku(true)
+                } else if (!status.shizukuPermissionGranted) {
+                    requestShizukuPermission()
                 } else if (!status.notificationsEnabled) {
                     openNotificationSettings()
                 } else {
-                    openShizuku(true)
+                    Toast.makeText(this, R.string.runtime_mode_action_shizuku_ready_toast, Toast.LENGTH_LONG).show()
                 }
             }
 
@@ -769,7 +806,11 @@ class MainActivity : AppCompatActivity() {
             }
 
             RuntimeModeAction.OPEN_SHIZUKU -> {
-                openShizuku(PermissionStatusHelper.read(this).shizukuInstalled)
+                val status = PermissionStatusHelper.read(this)
+                when {
+                    status.shizukuRunning && !status.shizukuPermissionGranted -> requestShizukuPermission()
+                    else -> openShizuku(status.shizukuInstalled)
+                }
             }
 
             RuntimeModeAction.NONE -> Unit
@@ -885,6 +926,14 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun requestShizukuPermission() {
+        val requested = ShizukuPermissionHelper.requestPermission()
+        if (!requested) {
+            Toast.makeText(this, R.string.runtime_mode_action_shizuku_not_running_toast, Toast.LENGTH_LONG).show()
+            openShizuku(PermissionStatusHelper.read(this).shizukuInstalled)
+        }
+    }
+
     private fun runtimeModeActionLabel(
         config: SettingsStore.Config,
         status: PermissionStatus,
@@ -899,10 +948,14 @@ class MainActivity : AppCompatActivity() {
         SettingsStore.CLIPBOARD_MODE_SHIZUKU -> getString(
             if (!status.shizukuInstalled) {
                 R.string.runtime_mode_action_shizuku_install
+            } else if (!status.shizukuRunning) {
+                R.string.runtime_mode_action_shizuku
+            } else if (!status.shizukuPermissionGranted) {
+                R.string.runtime_mode_action_shizuku_authorize
             } else if (!status.notificationsEnabled) {
                 R.string.open_notification_settings_button
             } else {
-                R.string.runtime_mode_action_shizuku
+                R.string.runtime_mode_action_shizuku_ready
             },
         )
 
@@ -932,11 +985,22 @@ class MainActivity : AppCompatActivity() {
             }
 
             SettingsStore.CLIPBOARD_MODE_SHIZUKU -> {
-                if (status.shizukuInstalled) {
-                    readyItems += "已检测到 Shizuku 环境"
-                    pendingItems += "独立增强链路仍在接入，当前阶段暂不开放启动"
-                } else {
+                when {
+                    !status.shizukuInstalled -> {
                     pendingItems += "需要先安装或拉起 Shizuku"
+                    }
+                    !status.shizukuRunning -> {
+                        readyItems += "已安装 Shizuku"
+                        pendingItems += "需要先启动 Shizuku 服务"
+                    }
+                    !status.shizukuPermissionGranted -> {
+                        readyItems += "Shizuku 服务已运行"
+                        pendingItems += "需要授权云剪同步访问 Shizuku"
+                    }
+                    else -> {
+                        readyItems += "Shizuku 已授权${status.shizukuUid?.let { "（UID $it）" }.orEmpty()}"
+                        pendingItems += "独立剪贴板增强链路仍在接入，当前阶段暂不开放启动"
+                    }
                 }
             }
 
@@ -986,6 +1050,13 @@ class MainActivity : AppCompatActivity() {
         if (enabled) R.string.permission_state_enabled else R.string.permission_state_disabled,
     )
 
+    private fun shizukuStateLabel(status: PermissionStatus): String = when {
+        !status.shizukuInstalled -> "未安装"
+        !status.shizukuRunning -> "已安装，未运行"
+        !status.shizukuPermissionGranted -> "服务运行，未授权"
+        else -> "已授权${status.shizukuUid?.let { "（UID $it）" }.orEmpty()}"
+    }
+
     private fun bindStatusBadge(
         view: TextView,
         ready: Boolean,
@@ -1022,8 +1093,10 @@ class MainActivity : AppCompatActivity() {
 
         SettingsStore.CLIPBOARD_MODE_SHIZUKU -> {
             when {
-                !status.shizukuInstalled -> "当前模式：Shizuku\n启动状态：当前版本暂不开放启动\n原因：${validation.message}\n系统限制：${clipboardRestrictionSummary()}\n说明：后续接入真实增强链路后，再开放给受系统限制明显的设备使用。"
-                else -> "当前模式：Shizuku\n启动状态：当前版本暂不开放启动\n原因：${validation.message}\n系统限制：${clipboardRestrictionSummary()}\n说明：当前已探测到 Shizuku 环境，但独立增强链路仍在接入中。"
+                !status.shizukuInstalled -> "当前模式：Shizuku\n启动状态：暂时被拦截\n原因：${validation.message}\n系统限制：${clipboardRestrictionSummary()}\n说明：先安装 Shizuku，再用 root 或 adb 启动服务。"
+                !status.shizukuRunning -> "当前模式：Shizuku\n启动状态：暂时被拦截\n原因：${validation.message}\n系统限制：${clipboardRestrictionSummary()}\n说明：当前已安装 Shizuku，但服务还没运行；root 启动后回到这里刷新状态。"
+                !status.shizukuPermissionGranted -> "当前模式：Shizuku\n启动状态：暂时被拦截\n原因：${validation.message}\n系统限制：${clipboardRestrictionSummary()}\n说明：Shizuku 服务已运行，点快捷处理按钮授权云剪同步。"
+                else -> "当前模式：Shizuku\n启动状态：当前版本暂不开放启动\n原因：${validation.message}\n系统限制：${clipboardRestrictionSummary()}\n说明：Shizuku 已授权${status.shizukuUid?.let { "（UID $it）" }.orEmpty()}，但独立剪贴板增强链路仍在接入中。"
             }
         }
 
@@ -1076,15 +1149,18 @@ class MainActivity : AppCompatActivity() {
         validation: RuntimeModeValidation,
     ): String {
         val readiness = when {
+            config.clipboardMode == SettingsStore.CLIPBOARD_MODE_SHIZUKU && status.shizukuPermissionGranted -> "后台复制就绪度：已授权，增强链路未开放"
+            config.clipboardMode == SettingsStore.CLIPBOARD_MODE_SHIZUKU -> "后台复制就绪度：等待 Shizuku 授权"
             !validation.ready -> "后台复制就绪度：当前被拦截"
             config.clipboardMode == SettingsStore.CLIPBOARD_MODE_ACCESSIBILITY && status.accessibilityEnabled -> "后台复制就绪度：较稳"
             config.clipboardMode == SettingsStore.CLIPBOARD_MODE_FOREGROUND && Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE -> "后台复制就绪度：受限"
             config.clipboardMode == SettingsStore.CLIPBOARD_MODE_FOREGROUND && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q -> "后台复制就绪度：一般"
-            config.clipboardMode == SettingsStore.CLIPBOARD_MODE_SHIZUKU -> "后台复制就绪度：当前版本未开放"
             else -> "后台复制就绪度：可用"
         }
 
         val reason = when {
+            config.clipboardMode == SettingsStore.CLIPBOARD_MODE_SHIZUKU ->
+                "原因：${status.shizukuDetail}；独立增强链路仍在接入中，当前阶段还不能作为后台复制主通道。"
             !validation.ready -> "原因：${validation.message}"
             config.clipboardMode == SettingsStore.CLIPBOARD_MODE_ACCESSIBILITY && status.accessibilityEnabled ->
                 "原因：无障碍增强已开启，系统剪贴板回调之外还会做界面事件补检查。"
@@ -1092,8 +1168,6 @@ class MainActivity : AppCompatActivity() {
                 "原因：Android 14 及以上对后台读取系统剪贴板限制更严，前台服务模式更适合你正在看着 App 的场景。"
             config.clipboardMode == SettingsStore.CLIPBOARD_MODE_FOREGROUND && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q ->
                 "原因：Android 10 及以上已经明显收紧后台剪贴板读取，单靠前台服务时后台复制回传可能不稳定。"
-            config.clipboardMode == SettingsStore.CLIPBOARD_MODE_SHIZUKU ->
-                "原因：Shizuku 独立增强链路仍在接入中，当前阶段还不能作为后台复制主通道。"
             else ->
                 "原因：当前系统限制相对少，现有前台服务链路通常可以覆盖日常复制场景。"
         }
@@ -1106,6 +1180,10 @@ class MainActivity : AppCompatActivity() {
         }
 
         val nextStep = when {
+            config.clipboardMode == SettingsStore.CLIPBOARD_MODE_SHIZUKU && status.shizukuPermissionGranted ->
+                "下一步：Shizuku 授权链路已经通过；在独立增强主通道接完前，日常后台复制仍建议切回无障碍增强模式。"
+            config.clipboardMode == SettingsStore.CLIPBOARD_MODE_SHIZUKU ->
+                "下一步：先完成 Shizuku 服务启动和授权验证；如果要继续日常同步，当前仍建议使用无障碍增强模式。"
             !validation.ready -> "下一步：先点上面的快捷处理按钮补齐当前模式所需授权。"
             config.clipboardMode == SettingsStore.CLIPBOARD_MODE_FOREGROUND && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q ->
                 "下一步：先做一次前台复制和一次后台复制；如果后台经常没回传，优先切到无障碍增强模式。"
@@ -1147,7 +1225,7 @@ class MainActivity : AppCompatActivity() {
             }
 
             SettingsStore.CLIPBOARD_MODE_SHIZUKU ->
-                "当前监听策略：Shizuku 入口已经展示，但独立增强链路还没接完，本阶段仍建议先用前台服务或无障碍模式。"
+                "当前监听策略：${status.shizukuDetail}；独立增强链路还没接完，本阶段仍建议先用无障碍增强模式。"
 
             else -> when {
                 status.accessibilityEnabled ->
@@ -1158,6 +1236,10 @@ class MainActivity : AppCompatActivity() {
         }
 
         val nextStepLine = when {
+            config.clipboardMode == SettingsStore.CLIPBOARD_MODE_SHIZUKU && status.shizukuPermissionGranted ->
+                "下一步建议：Shizuku 授权已经通过；独立增强链路接入前，后台复制主通道仍建议使用无障碍增强。"
+            config.clipboardMode == SettingsStore.CLIPBOARD_MODE_SHIZUKU ->
+                "下一步建议：先完成 Shizuku 服务启动和授权验证；日常同步仍建议使用无障碍增强。"
             !validation.ready -> "下一步建议：先按上面的模式引导补齐授权，再重新启动同步。"
             config.clipboardMode == SettingsStore.CLIPBOARD_MODE_FOREGROUND && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q ->
                 "下一步建议：如果后台复制还是经常没有回传，优先切到无障碍增强模式。"
@@ -1185,7 +1267,7 @@ class MainActivity : AppCompatActivity() {
             stateLabel(status.overlayEnabled),
             stateLabel(status.accessibilityEnabled),
             stateLabel(status.batteryOptimizationIgnored),
-            stateLabel(status.shizukuInstalled),
+            shizukuStateLabel(status),
         )
         val blockers = if (checklist.blockers.isEmpty()) {
             getString(R.string.permission_blockers_none)
@@ -1239,7 +1321,12 @@ class MainActivity : AppCompatActivity() {
             }
 
             SettingsStore.CLIPBOARD_MODE_SHIZUKU -> {
-                blockers += "Shizuku 模式的独立增强链路仍在接入中，当前版本请先改用前台服务或无障碍模式。"
+                blockers += when {
+                    !status.shizukuInstalled -> "当前选择 Shizuku 模式，但设备还没有安装 Shizuku。"
+                    !status.shizukuRunning -> "当前选择 Shizuku 模式，但 Shizuku 服务还没运行。"
+                    !status.shizukuPermissionGranted -> "当前选择 Shizuku 模式，但云剪同步还没有获得 Shizuku 授权。"
+                    else -> "Shizuku 已授权，但独立剪贴板增强链路仍在接入中，当前版本请先改用无障碍模式。"
+                }
             }
         }
 
@@ -1264,6 +1351,10 @@ class MainActivity : AppCompatActivity() {
         }
         if (!status.shizukuInstalled) {
             suggestions += "Shizuku 更适合系统限制明显的设备，需要时再安装并授权即可。"
+        } else if (!status.shizukuRunning) {
+            suggestions += "已安装 Shizuku；如需验证授权，请先用 root 或 adb 启动 Shizuku 服务。"
+        } else if (!status.shizukuPermissionGranted) {
+            suggestions += "Shizuku 服务已运行；如需验证授权，请在运行页切到 Shizuku 后点快捷处理授权。"
         }
 
         return StatusChecklist(blockers = blockers, suggestions = suggestions)

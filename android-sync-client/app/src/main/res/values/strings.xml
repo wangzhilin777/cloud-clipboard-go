@@ -109,6 +109,8 @@
     <string name="runtime_clipboard_debug_placeholder">启动同步后，这里会显示当前剪贴板回传来源、最近一次后台补传结果，以及下一步建议。</string>
     <string name="runtime_mode_action_accessibility">打开无障碍设置</string>
     <string name="runtime_mode_action_shizuku">打开 Shizuku</string>
+    <string name="runtime_mode_action_shizuku_authorize">授权 Shizuku</string>
+    <string name="runtime_mode_action_shizuku_ready">查看 Shizuku 状态</string>
     <string name="runtime_mode_action_shizuku_install">查看 Shizuku</string>
     <string name="runtime_mode_action_battery">打开电池优化设置</string>
     <string name="runtime_mode_action_foreground_ready">查看前台模式建议</string>
@@ -116,8 +118,14 @@
     <string name="runtime_mode_action_foreground_ready_toast">前台服务模式当前无需额外授权；如需更稳的后台复制，再切到无障碍或 Shizuku。</string>
     <string name="runtime_mode_action_accessibility_ready_toast">无障碍增强模式当前基础授权已就绪；如果后台复制仍不稳，优先再检查电池优化和厂商后台保活设置。</string>
     <string name="runtime_mode_action_shizuku_missing_toast">当前设备还没有可打开的 Shizuku 入口，请先安装或检查系统应用页。</string>
+    <string name="runtime_mode_action_shizuku_not_running_toast">Shizuku 服务还没有运行，请先在 Shizuku 中用 root 或 adb 启动服务。</string>
+    <string name="runtime_mode_action_shizuku_granted_toast">Shizuku 授权成功</string>
+    <string name="runtime_mode_action_shizuku_denied_toast">Shizuku 授权未通过</string>
+    <string name="runtime_mode_action_shizuku_ready_toast">Shizuku 已授权；剪贴板增强链路仍在接入中，当前建议继续使用无障碍增强模式。</string>
     <string name="runtime_mode_accessibility_blocked">当前选的是无障碍增强模式，但系统还没开启无障碍服务，请先补开后再启动同步。</string>
     <string name="runtime_mode_shizuku_blocked">当前选的是 Shizuku 模式，但设备还没有可用的 Shizuku 环境，请先安装或授权后再启动同步。</string>
+    <string name="runtime_mode_shizuku_not_running">当前选的是 Shizuku 模式，但 Shizuku 服务还没运行，请先用 root 或 adb 启动 Shizuku 服务。</string>
+    <string name="runtime_mode_shizuku_permission_required">当前选的是 Shizuku 模式，但云剪同步还没有获得 Shizuku 授权，请先授权后再继续。</string>
     <string name="runtime_mode_shizuku_unavailable">当前版本的 Shizuku 模式仍在接入中，暂不开放启动；请先改用前台服务或无障碍模式。</string>
     <string name="permission_state_enabled">已开启</string>
     <string name="permission_state_disabled">未开启</string>
