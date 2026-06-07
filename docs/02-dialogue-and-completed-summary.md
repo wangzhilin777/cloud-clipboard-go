@@ -149,6 +149,7 @@
 - 本轮重新验证通过：`desktop-client-go` 下 `go test ./internal/app ./internal/syncclient ./internal/transfer ./internal/desktopcmd`、`go build ./cmd/cloud-clipboard-desktop`、`go build ./cmd/cloud-clipboard-panel`，以及 `cloud-clip` 下 `go test ./lib` 均成功；验证后已清理命令目录构建 exe、临时服务端、临时桌面端、临时配置、临时测试文件和 `C:\Temp` 自测目录
 - 已继续补测无托盘面板版 `-shell-send` 一次性发送链路，该链路等价覆盖 Windows 右键菜单“复制到剪贴板服务器”的核心动作：使用临时服务端、临时桌面配置和临时测试文件验证 `.txt` 与 `.png` 均可通过旧 `/upload` 上传，并同步产生 `payloadNotice`
 - 本轮 `.png` 验证中服务端 recent payload 正确记录为 `kind=image`、`sourceDeviceId=codex-shell-png-device`，旧 `content/latest` 也能返回最新图片文件信息；验证后已停止临时服务端，并清理临时 exe、临时配置、临时上传目录、临时下载目录和测试文件
+- 已继续补测无托盘面板版 `-shell-download-dir` 一次性下载链路，该链路等价覆盖 Windows 右键菜单“从剪贴板服务器粘贴/下载到此处”的核心动作：先通过临时服务端上传测试 PNG，再下载到临时目录，文件名和大小均一致；本轮未写入系统剪贴板，验证后已清理全部临时进程与文件
 
 ## 当前判断还在继续推进的部分
 
