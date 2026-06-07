@@ -69,10 +69,14 @@ func (a *App) Run(ctx context.Context) error {
 	} else if removed > 0 {
 		a.logger.Printf("启动时已清理过期下载缓存: %d 项", removed)
 	}
-	a.hotkeys = hotkey.Start(ctx, a.logger, a.currentConfig(), a)
-	clipwatch.Start(ctx, a.logger, a)
-	if exePath, err := os.Executable(); err == nil {
-		a.shellMenu = shellmenu.Start(ctx, a.logger, a.currentConfig(), exePath, a.configPath)
+	if desktopOSIntegrationsDisabled() {
+		a.logger.Printf("已跳过桌面 OS 集成：热键、剪贴板监听和右键菜单")
+	} else {
+		a.hotkeys = hotkey.Start(ctx, a.logger, a.currentConfig(), a)
+		clipwatch.Start(ctx, a.logger, a)
+		if exePath, err := os.Executable(); err == nil {
+			a.shellMenu = shellmenu.Start(ctx, a.logger, a.currentConfig(), exePath, a.configPath)
+		}
 	}
 
 	panelServer := panel.New(a.cfg.PanelAddress, a)
@@ -129,6 +133,16 @@ func (a *App) Run(ctx context.Context) error {
 			}
 			return err
 		}
+	}
+}
+
+func desktopOSIntegrationsDisabled() bool {
+	value := strings.TrimSpace(os.Getenv("CLOUD_CLIPBOARD_DESKTOP_DISABLE_OS_INTEGRATIONS"))
+	switch strings.ToLower(value) {
+	case "1", "true", "yes", "on":
+		return true
+	default:
+		return false
 	}
 }
 
@@ -617,4 +631,3 @@ func (a *App) cleanupExpiredDownloadDir() (int, error) {
 func clipboardFilesSignature(paths []string) string {
 	return strings.Join(paths, "\n")
 }
-

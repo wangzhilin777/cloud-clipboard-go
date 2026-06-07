@@ -134,12 +134,17 @@
 - 已修正 Android 运行页配置交互：切换剪贴板读取模式、自动续连和开机恢复时会即时保存并刷新提示，避免选择 Shizuku 后仍显示旧的无障碍模式说明
 - 已将 Shizuku 授权后的运行提示改为“已授权，增强链路未开放”，明确当前阶段仍建议日常后台复制使用无障碍增强模式，不把尚未接完的 Shizuku 独立剪贴板主通道伪装成可用能力
 - 已在真机上完成本轮回归：安装新包后切到 Shizuku 模式触发授权，授权成功后再切回无障碍增强模式并手动启动同步；服务端显示 `android-live-device` 在线 trusted；再次通过 Chrome 临时测试页复制 `codex-shizuku-regression-copy-*`，服务端 recent 成功收到来源为 Android 的文本；本轮产生的 `codex-*` 测试文本已全部从 recent 删除，未删除手机端任何非调试数据或文件
+- 已为桌面端 Go 客户端补充自动化自测隔离开关：设置 `CLOUD_CLIPBOARD_DESKTOP_DISABLE_OS_INTEGRATIONS=1` 时会跳过全局热键、剪贴板监听和 Windows 右键菜单管理，便于后续 headless/CI/临时配置自测时不触碰用户真实系统级配置；普通运行不受影响
+- 已补充桌面端隔离开关单元测试，确认只有显式开启环境变量时才跳过 OS 集成
+- 已尝试使用临时服务端配置、临时桌面端配置和临时存储目录进行 Windows 桌面端进程级自测；服务端临时构建与启动、`internal/config` 固定测试二进制均通过，但本机对新构建的桌面端 exe 在进程创建阶段返回 `拒绝访问`，因此本轮未伪装成已完成完整 headless 面板联调
+- 本轮重新验证通过：`cloud-clip` 下 `go test ./lib`、`desktop-client-go` 下 `go test ./internal/app ./internal/syncclient ./internal/transfer`、`client` 下 `npm run build` 均成功；`client` 构建仍有既有 bundle 体积与 Vuetify / Sass 弃用警告，但构建产物生成成功
+- 本轮收尾已清理临时服务端、临时桌面端 exe、临时配置目录、临时测试文件和 `client/dist`，未删除手机端、Windows 端或服务端任何非调试数据
 
 ## 当前判断还在继续推进的部分
 
 - Android 真机后台复制和受限权限场景体验，后续重点转向更多真实 App 场景覆盖，以及 Shizuku 独立剪贴板增强主通道可行性评估
 - Android 10 / 13 / 14+ 高版本系统限制下的提示文案与模式引导仍可继续细化，但当前基础提示链路已补齐
-- 桌面端 Go 客户端进一步收口
+- 桌面端 Go 客户端进一步收口；完整 exe 级联调需要在本地安全策略不拦截新构建 exe 的环境继续测试
 - 二期交互与配置增强
 
 ## 与 `docs/01` 对齐后的当前判断
