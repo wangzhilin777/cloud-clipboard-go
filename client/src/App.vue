@@ -1272,6 +1272,9 @@ export default {
                 await this.$http.delete('revoke/all', {
                     params: { room: this.$root.room },
                 });
+                if (this.syncClearMessages) {
+                    await this.syncClearMessages();
+                }
                 // No need to delete individual files if revoke/all works correctly
                 // for (const file of files) {
                 //     await this.$http.delete(`file/${file.cache}`);

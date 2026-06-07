@@ -154,6 +154,72 @@ func (s *ClipboardServer) handleSyncBootstrap(w http.ResponseWriter, r *http.Req
 	})
 }
 
+func (s *ClipboardServer) handleSyncMessages(w http.ResponseWriter, r *http.Request) {
+	room := normalizeRoomName(r.URL.Query().Get("room"))
+	if !s.validateSyncRoomAccess(w, r, room) {
+		return
+	}
+	if r.Method != http.MethodDelete {
+		http.Error(w, "仅允许 DELETE 请求", http.StatusMethodNotAllowed)
+		return
+	}
+	removed, err := s.syncHub.ClearMessages(room)
+	if err != nil {
+		s.writeSyncError(w, http.StatusInternalServerError, "清空同步历史失败")
+		return
+	}
+	s.syncHub.Broadcast(room, "", false, syncOutgoingEnvelope{
+		Event: "syncMessagesCleared",
+		Data: map[string]interface{}{
+			"room":    room,
+			"removed": removed,
+		},
+	})
+	s.syncHub.WriteJSON(w, http.StatusOK, map[string]interface{}{
+		"status":  "同步历史已清空",
+		"removed": removed,
+	})
+}
+
+func (s *ClipboardServer) handleSyncMessage(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodDelete && r.Method != http.MethodOptions {
+		http.Error(w, "仅允许 DELETE 请求", http.StatusMethodNotAllowed)
+		return
+	}
+
+	room := normalizeRoomName(r.URL.Query().Get("room"))
+	if !s.validateSyncRoomAccess(w, r, room) {
+		return
+	}
+	if r.Method == http.MethodOptions {
+		return
+	}
+
+	prefix := s.config.Server.Prefix + "/api/sync/message/"
+	messageID := strings.TrimSpace(strings.TrimPrefix(r.URL.Path, prefix))
+	if messageID == "" || strings.Contains(messageID, "/") {
+		s.writeSyncError(w, http.StatusBadRequest, "缺少 messageId")
+		return
+	}
+	removed, err := s.syncHub.RemoveMessage(room, messageID)
+	if err != nil {
+		s.writeSyncError(w, http.StatusInternalServerError, "删除同步消息失败")
+		return
+	}
+	if !removed {
+		s.writeSyncError(w, http.StatusNotFound, "同步消息不存在")
+		return
+	}
+	s.syncHub.Broadcast(room, "", false, syncOutgoingEnvelope{
+		Event: "syncMessageDeleted",
+		Data: map[string]interface{}{
+			"room":      room,
+			"messageId": messageID,
+		},
+	})
+	s.syncHub.WriteJSON(w, http.StatusOK, map[string]interface{}{"status": "同步消息已删除"})
+}
+
 type syncPairRequestBody struct {
 	Room       string                 `json:"room"`
 	DeviceID   string                 `json:"deviceId"`

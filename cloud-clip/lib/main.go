@@ -337,6 +337,8 @@ func (s *ClipboardServer) setupRoutes() {
 	mux.HandleFunc(prefix+"/api/sync/devices", s.handleSyncDevices)
 	mux.HandleFunc(prefix+"/api/sync/status", s.handleSyncStatus)
 	mux.HandleFunc(prefix+"/api/sync/bootstrap", s.handleSyncBootstrap)
+	mux.HandleFunc(prefix+"/api/sync/messages", s.handleSyncMessages)
+	mux.HandleFunc(prefix+"/api/sync/message/", s.handleSyncMessage)
 	mux.HandleFunc(prefix+"/api/sync/pair/request", s.handleSyncPairRequest)
 	mux.HandleFunc(prefix+"/api/sync/pair/approve", s.handleSyncPairApprove)
 	mux.HandleFunc(prefix+"/api/sync/device/", s.handleSyncDeviceTrust)

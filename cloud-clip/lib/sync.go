@@ -578,6 +578,47 @@ func (h *SyncHub) AddMessage(payload SyncMessageRecord) (SyncMessageRecord, erro
 	return record, h.persistLocked()
 }
 
+func (h *SyncHub) RemoveMessage(room string, messageID string) (bool, error) {
+	messageID = strings.TrimSpace(messageID)
+	if messageID == "" {
+		return false, nil
+	}
+
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	normalizedRoom := normalizeSyncRoom(room)
+	for index, message := range h.state.Messages {
+		if message.Room != normalizedRoom || message.MessageID != messageID {
+			continue
+		}
+		h.state.Messages = append(h.state.Messages[:index], h.state.Messages[index+1:]...)
+		return true, h.persistLocked()
+	}
+	return false, nil
+}
+
+func (h *SyncHub) ClearMessages(room string) (int, error) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	normalizedRoom := normalizeSyncRoom(room)
+	removed := 0
+	filtered := h.state.Messages[:0]
+	for _, message := range h.state.Messages {
+		if message.Room == normalizedRoom {
+			removed++
+			continue
+		}
+		filtered = append(filtered, message)
+	}
+	h.state.Messages = filtered
+	if removed == 0 {
+		return 0, nil
+	}
+	return removed, h.persistLocked()
+}
+
 func (h *SyncHub) trimMessagesForRoomLocked(room string) {
 	if h.messageLimit <= 0 {
 		h.state.Messages = []SyncMessageRecord{}

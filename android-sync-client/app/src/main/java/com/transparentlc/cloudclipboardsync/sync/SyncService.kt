@@ -63,7 +63,9 @@ class SyncService : Service() {
 
     private val clipboardPollRunnable = object : Runnable {
         override fun run() {
-            publishLocalClipboardIfNeeded("poll")
+            if (config.clipboardMode != SettingsStore.CLIPBOARD_MODE_ACCESSIBILITY) {
+                publishLocalClipboardIfNeeded("poll")
+            }
             handler.postDelayed(this, clipboardPollIntervalMs)
         }
     }
@@ -317,9 +319,6 @@ class SyncService : Service() {
         val reason = intent.getStringExtra(EXTRA_ACCESSIBILITY_REASON).orEmpty()
         if (!trusted) {
             broadcastStatus(currentStatus(), "无障碍补检查已触发，但设备还未获批准")
-            return
-        }
-        if (publishLocalClipboardIfNeeded("accessibility")) {
             return
         }
         val snapshot = ClipboardAccessAccessibilityService.consumeRecentSnapshot(sourcePackage)

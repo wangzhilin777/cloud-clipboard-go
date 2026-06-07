@@ -80,6 +80,69 @@ func TestSyncHubDetectsRecentDuplicateTextFromSameSource(t *testing.T) {
 	}
 }
 
+func TestSyncHubRemoveAndClearMessagesByRoom(t *testing.T) {
+	hub := newTestSyncHub(t, 60)
+
+	_, err := hub.AddMessage(SyncMessageRecord{
+		MessageID:      "default-a",
+		SourceDeviceID: "device-a",
+		Room:           "default",
+		Text:           "default text a",
+	})
+	if err != nil {
+		t.Fatalf("AddMessage default-a returned error: %v", err)
+	}
+	_, err = hub.AddMessage(SyncMessageRecord{
+		MessageID:      "default-b",
+		SourceDeviceID: "device-a",
+		Room:           "default",
+		Text:           "default text b",
+	})
+	if err != nil {
+		t.Fatalf("AddMessage default-b returned error: %v", err)
+	}
+	_, err = hub.AddMessage(SyncMessageRecord{
+		MessageID:      "other-a",
+		SourceDeviceID: "device-b",
+		Room:           "other",
+		Text:           "other text",
+	})
+	if err != nil {
+		t.Fatalf("AddMessage other-a returned error: %v", err)
+	}
+
+	removed, err := hub.RemoveMessage("default", "default-a")
+	if err != nil {
+		t.Fatalf("RemoveMessage returned error: %v", err)
+	}
+	if !removed {
+		t.Fatalf("RemoveMessage did not remove existing message")
+	}
+	if removed, err := hub.RemoveMessage("default", "other-a"); err != nil || removed {
+		t.Fatalf("RemoveMessage should not remove another room message, removed=%v err=%v", removed, err)
+	}
+
+	defaultMessages := hub.GetRecentMessages("default")
+	if len(defaultMessages) != 1 || defaultMessages[0].MessageID != "default-b" {
+		t.Fatalf("default messages after remove = %#v, want only default-b", defaultMessages)
+	}
+
+	removedCount, err := hub.ClearMessages("default")
+	if err != nil {
+		t.Fatalf("ClearMessages returned error: %v", err)
+	}
+	if removedCount != 1 {
+		t.Fatalf("ClearMessages removed %d messages, want 1", removedCount)
+	}
+	if len(hub.GetRecentMessages("default")) != 0 {
+		t.Fatalf("default messages should be empty after ClearMessages")
+	}
+	otherMessages := hub.GetRecentMessages("other")
+	if len(otherMessages) != 1 || otherMessages[0].MessageID != "other-a" {
+		t.Fatalf("other room messages = %#v, want only other-a", otherMessages)
+	}
+}
+
 func TestSyncHubRecentPayloadsUseConfiguredLimit(t *testing.T) {
 	hub := newTestSyncHub(t, 60)
 

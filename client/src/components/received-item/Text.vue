@@ -207,6 +207,18 @@ export default {
             this.copyToClipboard(this.contentUrl, 'copySuccess');
         },
         deleteItem() {
+            if (this.meta.syncOnly && this.meta.syncMessageId && this.$root.syncDeleteMessage) {
+                this.$root.syncDeleteMessage(this.meta.syncMessageId).then(() => {
+                    this.$toast(this.$t('deleteSuccessText'));
+                }).catch(error => {
+                    if (error.response && error.response.data.message) {
+                        this.$toast(this.$t('deleteFailedMessageMsg', { msg: error.response.data.message }));
+                    } else {
+                        this.$toast(this.$t('deleteFailedMessage'));
+                    }
+                });
+                return;
+            }
             this.$http.delete(`revoke/${this.meta.id}`, {
                 params: new URLSearchParams([['room', this.$root.room]]),
             }).then(() => {

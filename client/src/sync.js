@@ -176,6 +176,31 @@ export default {
             if (includeStatus) tasks.push(this.syncLoadStatus());
             await Promise.all(tasks);
         },
+        syncRemoveTimelineMessage(messageId) {
+            if (!Array.isArray(this.$root.received)) return;
+            const next = this.$root.received.filter(item => item.syncMessageId !== messageId);
+            this.$root.received.splice(0, this.$root.received.length, ...next);
+        },
+        syncClearTimelineMessages() {
+            if (!Array.isArray(this.$root.received)) return;
+            const next = this.$root.received.filter(item => !item.syncOnly);
+            this.$root.received.splice(0, this.$root.received.length, ...next);
+        },
+        async syncDeleteMessage(messageId) {
+            if (!messageId) return;
+            await this.$http.delete(buildSyncApiPath(`message/${encodeURIComponent(messageId)}`), {
+                params: { room: this.room || '' },
+            });
+            this.syncRemoveTimelineMessage(messageId);
+            await this.syncRefreshAll({ includeDevices: false });
+        },
+        async syncClearMessages() {
+            await this.$http.delete(buildSyncApiPath('messages'), {
+                params: { room: this.room || '' },
+            });
+            this.syncClearTimelineMessages();
+            await this.syncRefreshAll({ includeDevices: false });
+        },
         async syncConnect() {
             if (this.sync.connecting || this.sync.websocket) return;
 
@@ -255,6 +280,14 @@ export default {
                                 break;
                             case 'deviceState':
                                 await this.syncRefreshAll();
+                                break;
+                            case 'syncMessageDeleted':
+                                this.syncRemoveTimelineMessage(payload.data?.messageId || '');
+                                await this.syncRefreshAll({ includeDevices: false });
+                                break;
+                            case 'syncMessagesCleared':
+                                this.syncClearTimelineMessages();
+                                await this.syncRefreshAll({ includeDevices: false });
                                 break;
                             case 'forbidden':
                                 this.sync.status = 'forbidden';

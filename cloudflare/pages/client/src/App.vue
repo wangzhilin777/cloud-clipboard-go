@@ -1256,6 +1256,9 @@ export default {
                 await this.$http.delete('revoke/all', {
                     params: { room: this.$root.room },
                 });
+                if (this.syncClearMessages) {
+                    await this.syncClearMessages();
+                }
             } catch (error) {
                 this.clipboardClearedMessageVisible = false;
                 if (error.response && error.response.data.msg) {

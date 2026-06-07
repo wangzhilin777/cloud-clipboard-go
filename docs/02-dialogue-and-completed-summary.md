@@ -126,6 +126,8 @@
 - 已补回最小 Android SDK 到本机 `D:\Program Files\Android\Sdk`，仅安装命令行工具、platform 34、build-tools 和 platform-tools，不安装模拟器或 AVD，不触碰 VMware 虚拟化环境
 - 已将新 Android debug 包覆盖安装到真机 `760435a8`，并在启动同步后观察约 35 秒，服务端 `lastMessageAt` 与 `recentMessageCount` 未继续增长，确认此前 `http://127.0.0.1:9501/#/` 重复刷屏已停止；历史中的旧重复记录为修复前已写入内容
 - 本轮重新验证通过：`cloud-clip` 下 `go test ./lib`、`desktop-client-go` 下 `go test ./internal/syncclient ./internal/config`、`client` 下 `npm run build`、`android-sync-client` 下 `.\gradlew.bat assembleDebug` 均成功；验证后已停止 Gradle daemon，并清理 Android 构建目录、主站 `client/dist`、Cloudflare Pages 临时依赖与构建目录
+- 已处理同步 recent 满 100 条后网页删除失败的问题：服务端新增同步文本单条删除与按房间清空接口，主站和 Cloudflare Pages 前端的同步文本删除按钮会走新同步接口，顶部清空会同时清旧 `/push` 历史和新同步 recent；本地默认房间的 100 条误回传同步历史已清空
+- 已优化 Android 无障碍模式后台监听策略：无障碍模式不再通过轮询高频读取系统剪贴板，避免 Android 16 / 澎湃系统后台拒绝剪贴板访问日志刷屏；无障碍 pulse 改为直接走可见文本快照兜底
 
 ## 当前判断还在继续推进的部分
 
