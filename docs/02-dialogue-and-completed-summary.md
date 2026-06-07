@@ -164,6 +164,8 @@
 - 本轮重新验证通过：`desktop-client-go` 下 `go test ./internal/desktopcmd ./internal/transfer ./internal/config ./internal/syncclient ./internal/app` 成功；验证后已执行 `go clean -testcache` 清理测试缓存
 - 已补强 Android 同步地址拼接单元测试，覆盖 HTTPS 服务端自动转 `wss://`、`/api` 前缀去重、已有 query 与 fragment 保留、空查询值跳过和中文房间名编码，降低后续 Cloudflare / 反代路径再次回归的风险
 - 本轮重新验证通过：`android-sync-client` 下 `.\gradlew.bat testDebugUnitTest` 成功；验证后已执行 `gradlew clean`、停止 Gradle daemon，并清理 `android-sync-client/build` 与 `android-sync-client/app/build`
+- 已补强 Go 服务端同步状态单元测试，覆盖 `payloadNotice` 默认 `payloadId` / `room` / `kind` / `createdAt` 补齐、重复 `payloadId` 幂等，以及消息、payload、pending 设备、trusted 设备按清理策略过期移除，降低后续服务端缓存和状态清理逻辑回归风险
+- 本轮重新验证通过：`cloud-clip` 下 `go test ./lib` 成功；验证后已执行 `go clean -testcache` 清理 Go 测试缓存，测试只使用 `t.TempDir()` 临时状态文件，未触碰服务端真实配置、历史或上传数据
 
 ## 当前判断还在继续推进的部分
 

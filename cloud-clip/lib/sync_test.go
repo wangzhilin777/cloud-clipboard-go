@@ -189,6 +189,145 @@ func TestSyncHubRecentPayloadsUseConfiguredLimit(t *testing.T) {
 	}
 }
 
+func TestSyncHubPayloadNoticeDefaultsAndIdempotency(t *testing.T) {
+	hub := newTestSyncHub(t, 60)
+
+	created, err := hub.AddPayloadNotice(SyncPayloadNotice{
+		SourceDeviceID: "device-a",
+		Title:          "image.png",
+		Mime:           "image/png",
+		Size:           1234,
+	})
+	if err != nil {
+		t.Fatalf("AddPayloadNotice returned error: %v", err)
+	}
+	if created.PayloadID == "" {
+		t.Fatalf("AddPayloadNotice did not generate PayloadID")
+	}
+	if created.Room != "default" {
+		t.Fatalf("AddPayloadNotice room = %q, want default", created.Room)
+	}
+	if created.Kind != "file" {
+		t.Fatalf("AddPayloadNotice kind = %q, want file", created.Kind)
+	}
+	if created.CreatedAt == 0 {
+		t.Fatalf("AddPayloadNotice did not set CreatedAt")
+	}
+
+	duplicate, err := hub.AddPayloadNotice(SyncPayloadNotice{
+		PayloadID:      created.PayloadID,
+		SourceDeviceID: "device-b",
+		Room:           "other",
+		Kind:           "image",
+		Title:          "changed.png",
+		CreatedAt:      created.CreatedAt + 1000,
+	})
+	if err != nil {
+		t.Fatalf("AddPayloadNotice duplicate returned error: %v", err)
+	}
+	if duplicate != created {
+		t.Fatalf("duplicate payload = %#v, want original %#v", duplicate, created)
+	}
+	if len(hub.GetRecentPayloads("default")) != 1 {
+		t.Fatalf("default room should still contain only the original payload")
+	}
+	if len(hub.GetRecentPayloads("other")) != 0 {
+		t.Fatalf("duplicate payload should not be inserted into another room")
+	}
+}
+
+func TestSyncHubCleanupRemovesExpiredStateByPolicy(t *testing.T) {
+	hub := newTestSyncHub(t, 60)
+	now := time.Date(2026, 6, 8, 12, 0, 0, 0, time.UTC)
+	nowMillis := now.UnixMilli()
+
+	_, err := hub.AddMessage(SyncMessageRecord{
+		MessageID:      "old-message",
+		SourceDeviceID: "device-a",
+		Room:           "default",
+		Text:           "old",
+		CreatedAt:      nowMillis - 10_000,
+	})
+	if err != nil {
+		t.Fatalf("AddMessage old returned error: %v", err)
+	}
+	_, err = hub.AddMessage(SyncMessageRecord{
+		MessageID:      "fresh-message",
+		SourceDeviceID: "device-a",
+		Room:           "default",
+		Text:           "fresh",
+		CreatedAt:      nowMillis - 1_000,
+	})
+	if err != nil {
+		t.Fatalf("AddMessage fresh returned error: %v", err)
+	}
+	_, err = hub.AddPayloadNotice(SyncPayloadNotice{
+		PayloadID:      "old-payload",
+		SourceDeviceID: "device-a",
+		Room:           "default",
+		Kind:           "file",
+		Title:          "old.txt",
+		CreatedAt:      nowMillis - 10_000,
+	})
+	if err != nil {
+		t.Fatalf("AddPayloadNotice old returned error: %v", err)
+	}
+	_, err = hub.AddPayloadNotice(SyncPayloadNotice{
+		PayloadID:      "fresh-payload",
+		SourceDeviceID: "device-a",
+		Room:           "default",
+		Kind:           "file",
+		Title:          "fresh.txt",
+		CreatedAt:      nowMillis - 1_000,
+	})
+	if err != nil {
+		t.Fatalf("AddPayloadNotice fresh returned error: %v", err)
+	}
+
+	hub.mu.Lock()
+	hub.state.Devices = append(hub.state.Devices,
+		SyncDevice{DeviceID: "old-pending", Name: "old pending", Room: "default", Platform: "android", ClientType: "native", Trusted: false, Status: "pending", CreatedAt: nowMillis - 10_000, LastSeenAt: nowMillis - 10_000, Meta: map[string]interface{}{}},
+		SyncDevice{DeviceID: "fresh-pending", Name: "fresh pending", Room: "default", Platform: "android", ClientType: "native", Trusted: false, Status: "pending", CreatedAt: nowMillis - 1_000, LastSeenAt: nowMillis - 1_000, Meta: map[string]interface{}{}},
+		SyncDevice{DeviceID: "old-trusted", Name: "old trusted", Room: "default", Platform: "desktop", ClientType: "native", Trusted: true, Status: "trusted", CreatedAt: nowMillis - 20_000, LastSeenAt: nowMillis - 20_000, Meta: map[string]interface{}{}},
+		SyncDevice{DeviceID: "fresh-trusted", Name: "fresh trusted", Room: "default", Platform: "desktop", ClientType: "native", Trusted: true, Status: "trusted", CreatedAt: nowMillis - 1_000, LastSeenAt: nowMillis - 1_000, Meta: map[string]interface{}{}},
+	)
+	hub.mu.Unlock()
+
+	result, err := hub.Cleanup(SyncCleanupPolicy{
+		MessageExpireMillis:       5_000,
+		PayloadExpireMillis:       5_000,
+		PendingDeviceExpireMillis: 5_000,
+		TrustedDeviceExpireMillis: 15_000,
+	}, now)
+	if err != nil {
+		t.Fatalf("Cleanup returned error: %v", err)
+	}
+	if result.RemovedMessages != 1 || result.RemovedPayloads != 1 || result.RemovedDevices != 2 {
+		t.Fatalf("Cleanup result = %#v, want 1 message, 1 payload, 2 devices", result)
+	}
+
+	if hub.HasMessage("old-message") {
+		t.Fatalf("old message should be removed")
+	}
+	if !hub.HasMessage("fresh-message") {
+		t.Fatalf("fresh message should remain")
+	}
+	if len(hub.GetRecentPayloads("default")) != 1 || hub.GetRecentPayloads("default")[0].PayloadID != "fresh-payload" {
+		t.Fatalf("payloads after cleanup = %#v, want only fresh-payload", hub.GetRecentPayloads("default"))
+	}
+
+	devices := hub.ListDevices("default")
+	if len(devices) != 2 {
+		t.Fatalf("devices after cleanup = %#v, want 2 fresh devices", devices)
+	}
+	for _, device := range devices {
+		deviceID, _ := device["deviceId"].(string)
+		if deviceID == "old-pending" || deviceID == "old-trusted" {
+			t.Fatalf("expired device %q should be removed", deviceID)
+		}
+	}
+}
+
 func newTestSyncHub(t *testing.T, messageLimit int) *SyncHub {
 	t.Helper()
 	statePath := filepath.Join(t.TempDir(), "sync-state.json")
