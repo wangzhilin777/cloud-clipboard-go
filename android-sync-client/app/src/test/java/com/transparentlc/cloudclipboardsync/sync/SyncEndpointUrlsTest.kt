@@ -59,4 +59,26 @@ class SyncEndpointUrlsTest {
 
         assertEquals("ws://127.0.0.1:9501/api/sync/ws?room=default&deviceId=android-1", got)
     }
+
+    @Test
+    fun webSocketUrlUsesWssForHttpsBase() {
+        val got = SyncEndpointUrls.webSocketUrl(
+            serverBase = "https://clip.example.com/api",
+            path = "api/sync/ws",
+            query = mapOf("room" to "secure"),
+        )
+
+        assertEquals("wss://clip.example.com/api/sync/ws?room=secure", got)
+    }
+
+    @Test
+    fun httpUrlAppendsQueryBeforeFragmentAndSkipsBlankValues() {
+        val got = SyncEndpointUrls.httpUrl(
+            serverBase = "https://example.com/api",
+            path = "api/sync/status?deviceId=android-1#panel",
+            query = mapOf("room" to "默认", "empty" to "  ", "" to "ignored"),
+        )
+
+        assertEquals("https://example.com/api/sync/status?deviceId=android-1&room=%E9%BB%98%E8%AE%A4#panel", got)
+    }
 }

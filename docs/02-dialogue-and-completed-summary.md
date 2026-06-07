@@ -162,6 +162,8 @@
 - 本轮重新验证通过：`android-sync-client` 下 `.\gradlew.bat assembleDebug` 成功；为避免触发真机重新授权，本轮未覆盖安装手机，仅做本地编译验证；验证后已执行 `gradlew clean`、停止 Gradle daemon，并清理 `android-sync-client/build` 与 `android-sync-client/app/build`
 - 已为桌面端 `desktopcmd.RunShellAction` 补充自动化测试，覆盖 `-shell-send` 发送文件并广播 `payloadNotice`、`-shell-download-dir` 下载服务端最新文件到指定目录；测试使用 `httptest` 临时服务和 `t.TempDir()`，不会触碰真实右键菜单、系统剪贴板或用户文件
 - 本轮重新验证通过：`desktop-client-go` 下 `go test ./internal/desktopcmd ./internal/transfer ./internal/config ./internal/syncclient ./internal/app` 成功；验证后已执行 `go clean -testcache` 清理测试缓存
+- 已补强 Android 同步地址拼接单元测试，覆盖 HTTPS 服务端自动转 `wss://`、`/api` 前缀去重、已有 query 与 fragment 保留、空查询值跳过和中文房间名编码，降低后续 Cloudflare / 反代路径再次回归的风险
+- 本轮重新验证通过：`android-sync-client` 下 `.\gradlew.bat testDebugUnitTest` 成功；验证后已执行 `gradlew clean`、停止 Gradle daemon，并清理 `android-sync-client/build` 与 `android-sync-client/app/build`
 
 ## 当前判断还在继续推进的部分
 
