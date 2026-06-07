@@ -181,6 +181,7 @@
 - 本轮重新验证通过：`desktop-client-go` 下 `go test ./internal/panel ./internal/config ./internal/app` 成功；验证后已执行 `go clean -testcache` 清理 Go 测试缓存，未启动真实面板服务或注册真实热键
 - 已完成桌面端无托盘面板隔离 smoke：临时编译 `cloud-clipboard-panel` 到系统临时目录，使用临时配置、临时下载目录、随机本地端口和 `CLOUD_CLIPBOARD_DESKTOP_DISABLE_OS_INTEGRATIONS=1` 启动，验证 `/api/status` 正常返回、首页内已包含新的快捷键录入提示文案；验证后已停止临时进程并删除临时 exe、配置和下载目录
 - 本轮补充 Android 构建验证：`android-sync-client` 下 `.\gradlew.bat assembleDebug` 成功，确认当前无障碍判断测试与权限代码改动可完整编译出 debug 包；本轮仅构建不安装，真机 `760435a8` 保持在线但未被修改；验证后已执行 `gradlew clean`、停止 Gradle daemon，并清理 `android-sync-client/build` 与 `android-sync-client/app/build`
+- 已继续收口 README 发布版表述：根 README / 英文 README / Android 同步客户端 README 去掉“当前阶段目标”“暂不作为发送主入口”“Currently Android-only”等偏开发态表达，改为“提供以下能力”“以接收为主 / Receive-focused”等面向用户的描述，并补充 Android 文件通知可由网页端或桌面端触发
 
 ## 当前判断还在继续推进的部分
 

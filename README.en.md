@@ -89,8 +89,8 @@ Usage steps and expected behavior: [Sync Usage and Effects Guide](./docs/03-sync
 | Plain-text auto sync | Supported | Supported | Supported | All three clients can publish local text changes and write remote text into the local clipboard |
 | Device pairing approval | Manager | Client | Client | New devices enter pending first and can sync only after web-side approval |
 | Room/global password | Supported | Supported | Supported | Clients pass room access validation before device approval |
-| File/image notice sending | Supported | Supported | Not the primary sender | Web and desktop can upload files and send `payloadNotice` |
-| File/image confirm receiving | No auto receive | No auto receive | Supported | Non-text automatic receive is currently Android-only and downloads only after user confirmation |
+| File/image notice sending | Supported | Supported | Receive-focused | Web and desktop can upload files and send `payloadNotice` |
+| File/image confirm receiving | No auto receive | No auto receive | Supported | Android handles non-text automatic receive and downloads only after user confirmation |
 | Cache cleanup | Legacy file expiration | Download cache cleanup | Receive cache cleanup | Desktop and Android both provide local cache lifecycle handling |
 
 ### Client Entrypoints
