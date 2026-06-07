@@ -49,48 +49,85 @@ class ClipboardAccessAccessibilityService : AccessibilityService() {
             normalized.contains("copied") -> "copy-ui:$summary"
             normalized.contains("copy") -> "copy-ui:$summary"
             event.eventType == AccessibilityEvent.TYPE_NOTIFICATION_STATE_CHANGED && summary.isNotBlank() -> "notify:$summary"
-            event.eventType == AccessibilityEvent.TYPE_VIEW_CLICKED -> "click:${event.className ?: "-"}"
-            event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED -> "window:${event.className ?: "-"}"
-            event.eventType == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED -> "content:${event.className ?: "-"}"
+            event.eventType == AccessibilityEvent.TYPE_VIEW_TEXT_SELECTION_CHANGED && summary.isNotBlank() -> "selection:${event.className ?: "-"}"
             else -> null
         }
     }
 
     private fun cacheVisibleTextSnapshot(packageName: String, pulseReason: String, now: Long) {
         if (now - lastSnapshotAt < 250L) return
-        if (!pulseReason.startsWith("copy-ui:") && !pulseReason.startsWith("notify:")) return
+        if (!pulseReason.startsWith("copy-ui:") && !pulseReason.startsWith("notify:") && !pulseReason.startsWith("selection:")) return
         val root = rootInActiveWindow ?: return
         val rootPackageName = root.packageName?.toString().orEmpty()
         if (rootPackageName == this.packageName) return
-        val texts = linkedSetOf<String>()
-        collectVisibleTexts(root, texts, 0)
-        val candidate = texts
-            .asSequence()
-            .map { it.trim() }
-            .filter { it.isNotBlank() }
-            .filterNot { it.length == 1 && it[0] == '×' }
-            .joinToString("\n")
-            .trim()
-            .take(4000)
+        val candidates = mutableListOf<TextCandidate>()
+        collectVisibleTextCandidates(root, candidates, 0)
+        val candidate = buildSnapshotText(candidates)
         if (candidate.isBlank()) return
         lastSnapshotAt = now
         updateSnapshot(rootPackageName.ifBlank { packageName }, pulseReason, candidate, now)
     }
 
-    private fun collectVisibleTexts(node: AccessibilityNodeInfo, texts: MutableSet<String>, depth: Int) {
-        if (depth > 8 || texts.size >= 24) return
+    private fun collectVisibleTextCandidates(node: AccessibilityNodeInfo, candidates: MutableList<TextCandidate>, depth: Int) {
+        if (depth > 8 || candidates.size >= 48) return
         val text = node.text?.toString()?.trim().orEmpty()
         if (text.isNotBlank()) {
-            texts += text
+            val selected = selectedText(node, text)
+            if (selected.isNotBlank()) {
+                candidates += TextCandidate(selected, 0, depth)
+            } else {
+                val className = node.className?.toString().orEmpty()
+                val priority = when {
+                    node.isFocused && (node.isEditable || className.contains("EditText")) -> 1
+                    node.isEditable || className.contains("EditText") -> 2
+                    text.length >= 6 -> 3
+                    else -> 5
+                }
+                candidates += TextCandidate(text, priority, depth)
+            }
         }
         val description = node.contentDescription?.toString()?.trim().orEmpty()
         if (description.isNotBlank()) {
-            texts += description
+            candidates += TextCandidate(description, 4, depth)
         }
         for (index in 0 until node.childCount) {
             val child = node.getChild(index) ?: continue
-            collectVisibleTexts(child, texts, depth + 1)
+            collectVisibleTextCandidates(child, candidates, depth + 1)
         }
+    }
+
+    private fun selectedText(node: AccessibilityNodeInfo, text: String): String {
+        val start = node.textSelectionStart
+        val end = node.textSelectionEnd
+        if (start < 0 || end < 0 || start == end) return ""
+        val from = minOf(start, end).coerceIn(0, text.length)
+        val to = maxOf(start, end).coerceIn(0, text.length)
+        if (from >= to) return ""
+        return text.substring(from, to).trim()
+    }
+
+    private fun buildSnapshotText(candidates: List<TextCandidate>): String {
+        val normalized = candidates
+            .asSequence()
+            .map { it.copy(text = it.text.trim()) }
+            .filter { it.text.isNotBlank() }
+            .filterNot { it.text.length == 1 && it.text[0] == '×' }
+            .distinctBy { it.text }
+            .sortedWith(compareBy<TextCandidate> { it.priority }.thenBy { it.depth }.thenBy { it.text.length })
+            .toList()
+        if (normalized.isEmpty()) return ""
+        val best = normalized.first()
+        if (best.priority <= 2) {
+            return best.text.take(4000)
+        }
+        return normalized
+            .asSequence()
+            .filter { it.priority <= 4 }
+            .map { it.text }
+            .take(8)
+            .joinToString("\n")
+            .trim()
+            .take(4000)
     }
 
     companion object {
@@ -129,4 +166,10 @@ data class SnapshotPayload(
     val packageName: String,
     val reason: String,
     val capturedAt: Long,
+)
+
+private data class TextCandidate(
+    val text: String,
+    val priority: Int,
+    val depth: Int,
 )

@@ -276,19 +276,22 @@ class SyncService : Service() {
         val clip = runCatching { clipboardManager.primaryClip }.getOrNull()
         if (clip == null) {
             updateClipboardDiagnostic(source, "系统当前没有可读取的剪贴板内容")
-            if (source == "accessibility") {
+            if (shouldUseAccessibilitySnapshotFallback(source)) {
                 return publishAccessibilitySnapshotFallback(source, "clipboard-null")
             }
             return false
         }
         if (clip.itemCount <= 0) {
             updateClipboardDiagnostic(source, "系统剪贴板为空，暂时没有可发送文本")
+            if (shouldUseAccessibilitySnapshotFallback(source)) {
+                return publishAccessibilitySnapshotFallback(source, "clipboard-empty")
+            }
             return false
         }
         val text = clip.getItemAt(0).coerceToText(this)?.toString().orEmpty().trim()
         if (text.isBlank()) {
             updateClipboardDiagnostic(source, "本次剪贴板不是可发送的纯文本，已跳过")
-            if (source == "accessibility") {
+            if (shouldUseAccessibilitySnapshotFallback(source)) {
                 return publishAccessibilitySnapshotFallback(source, "clipboard-blank")
             }
             return false
@@ -312,6 +315,11 @@ class SyncService : Service() {
             return false
         }
         return publishTextToServer(text, now, "已推送本地文本到服务端", source)
+    }
+
+    private fun shouldUseAccessibilitySnapshotFallback(source: String): Boolean {
+        if (config.clipboardMode != SettingsStore.CLIPBOARD_MODE_ACCESSIBILITY) return false
+        return source == "accessibility" || source == "listener"
     }
 
     private fun handleAccessibilityPulse(intent: Intent) {

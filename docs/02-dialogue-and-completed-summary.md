@@ -128,10 +128,12 @@
 - 本轮重新验证通过：`cloud-clip` 下 `go test ./lib`、`desktop-client-go` 下 `go test ./internal/syncclient ./internal/config`、`client` 下 `npm run build`、`android-sync-client` 下 `.\gradlew.bat assembleDebug` 均成功；验证后已停止 Gradle daemon，并清理 Android 构建目录、主站 `client/dist`、Cloudflare Pages 临时依赖与构建目录
 - 已处理同步 recent 满 100 条后网页删除失败的问题：服务端新增同步文本单条删除与按房间清空接口，主站和 Cloudflare Pages 前端的同步文本删除按钮会走新同步接口，顶部清空会同时清旧 `/push` 历史和新同步 recent；本地默认房间的 100 条误回传同步历史已清空
 - 已优化 Android 无障碍模式后台监听策略：无障碍模式不再通过轮询高频读取系统剪贴板，避免 Android 16 / 澎湃系统后台拒绝剪贴板访问日志刷屏；无障碍 pulse 改为直接走可见文本快照兜底
+- 已在 Android 16 真机 `760435a8` 上继续验证后台复制：通过 Chrome 临时测试页复制 `codex-android-copy-test-*` 文本，App 退到后台后服务端 recent 成功收到 1 条来源为 `android-live-device` 的文本记录，继续观察 12 秒未重复刷屏；logcat 仍能看到系统对后台剪贴板读取的拒绝，这是 Android 16 受限行为，但本轮已通过无障碍快照兜底完成上传
+- 已修复 Android 无障碍快照兜底触发范围：新增文本选择事件监听，减少普通点击、窗口变化、内容变化造成的泛 pulse；快照优先取选中文本、聚焦输入框和可编辑文本，避免把整页可见文字误当剪贴板内容；剪贴板 listener 后台读取失败时也会消费无障碍快照兜底，而不是直接放弃
 
 ## 当前判断还在继续推进的部分
 
-- Android 真机后台复制和受限权限场景体验
+- Android 真机后台复制和受限权限场景体验，后续重点转向更多真实 App 场景覆盖
 - Android 10 / 13 / 14+ 高版本系统限制下的提示文案与模式引导仍可继续细化，但当前基础提示链路已补齐
 - 桌面端 Go 客户端进一步收口
 - 二期交互与配置增强
