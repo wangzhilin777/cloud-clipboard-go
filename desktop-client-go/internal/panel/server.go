@@ -45,6 +45,7 @@ type StateSnapshot struct {
 	Trusted                    bool     `json:"trusted"`
 	Status                     string   `json:"status"`
 	LastError                  string   `json:"lastError,omitempty"`
+	LastErrorAt                int64    `json:"lastErrorAt,omitempty"`
 	LastRemoteTextAt           int64    `json:"lastRemoteTextAt,omitempty"`
 	LastPayloadTitle           string   `json:"lastPayloadTitle,omitempty"`
 	LastPayloadKind            string   `json:"lastPayloadKind,omitempty"`

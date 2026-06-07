@@ -710,7 +710,7 @@
       statusText.className = `value ${statusClass(status)}`;
       payloadText.textContent = formatPayloadSummary(state);
       remoteTextText.textContent = formatRemoteTextSummary(state);
-      errorText.textContent = state.lastError || '-';
+      errorText.textContent = formatLastErrorSummary(state);
       actionText.textContent = formatLastActionSummary(state);
       pendingClipboardText.textContent = formatPendingClipboard(state);
       cacheCleanupText.textContent = formatCacheCleanup(state);
@@ -836,6 +836,14 @@
       const at = Number(state.lastActionAt || 0);
       const timeText = at ? new Date(at).toLocaleString() : '时间未知';
       return `${label} / ${detail} / ${timeText}`;
+    }
+
+    function formatLastErrorSummary(state) {
+      const detail = String(state.lastError || '').trim();
+      if (!detail) return '-';
+      const at = Number(state.lastErrorAt || 0);
+      const timeText = at ? new Date(at).toLocaleString() : '时间未知';
+      return `${detail} / ${timeText}`;
     }
 
     function formatConnectionDiagnosis(cfg, state) {

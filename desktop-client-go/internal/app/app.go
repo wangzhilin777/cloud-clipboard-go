@@ -248,6 +248,7 @@ func (a *App) OnError(err error) {
 	_ = a.state.Update(func(snapshot *StateSnapshot) {
 		snapshot.Status = "error"
 		snapshot.LastError = err.Error()
+		snapshot.LastErrorAt = time.Now().UnixMilli()
 	})
 }
 
@@ -259,6 +260,7 @@ func (a *App) OnRetrying(attempt int, maxAttempts int, delay time.Duration, err 
 	_ = a.state.Update(func(snapshot *StateSnapshot) {
 		snapshot.Status = "retrying"
 		snapshot.LastError = message
+		snapshot.LastErrorAt = time.Now().UnixMilli()
 	})
 	a.logger.Printf("同步失败，%d/%d 次后将在 %s 后重试", attempt, maxAttempts, delay.String())
 }
@@ -272,6 +274,7 @@ func (a *App) OnReconnectStopped(lastErr error) {
 	_ = a.state.Update(func(snapshot *StateSnapshot) {
 		snapshot.Status = "stopped"
 		snapshot.LastError = message
+		snapshot.LastErrorAt = time.Now().UnixMilli()
 	})
 }
 
