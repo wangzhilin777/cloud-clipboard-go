@@ -39,11 +39,13 @@ class SyncService : Service() {
     private var lastRemoteText = ""
     private var lastRemoteAt = 0L
     private var lastRemoteMessageId = ""
+    private var suppressedRemoteEchoText = ""
     private var lastPublishedText = ""
     private var lastPublishedAt = 0L
     private var lastObservedLocalText = ""
     private var serviceStarted = false
     private var reconnectAttempt = 0
+    private val recentPublishedTexts = mutableMapOf<String, Long>()
     private val downloadingPayloads = mutableSetOf<String>()
     private var lastClipboardRoute = "idle"
     private var lastClipboardDetail = "等待开始"
@@ -95,6 +97,7 @@ class SyncService : Service() {
             ACTION_ACCESSIBILITY_PULSE -> handleAccessibilityPulse(intent)
         }
         if (!serviceStarted) {
+            lastObservedLocalText = readCurrentClipboardText()
             startForeground(NOTIFICATION_ID, buildNotification(getString(R.string.status_connecting)))
             connect()
             handler.post(refreshRunnable)
@@ -234,6 +237,7 @@ class SyncService : Service() {
         val messages = json.optJSONArray("recentMessages") ?: return
         for (index in messages.length() - 1 downTo 0) {
             val item = messages.optJSONObject(index) ?: continue
+            if (item.optString("sourceDeviceId").trim() == config.deviceId) continue
             val text = item.optString("text").trim()
             if (text.isBlank()) continue
             applyRemoteText(item.optString("messageId"), text, resultText)
@@ -250,6 +254,7 @@ class SyncService : Service() {
         }
         lastRemoteText = text
         lastRemoteAt = System.currentTimeMillis()
+        suppressedRemoteEchoText = text
         lastObservedLocalText = text
         updateClipboardDiagnostic("remote-apply", resultText)
         clipboardManager.setPrimaryClip(ClipData.newPlainText("cloud-clipboard", text))
@@ -286,16 +291,20 @@ class SyncService : Service() {
             }
             return false
         }
-        if (text == lastObservedLocalText && source == "poll") {
-            updateClipboardDiagnostic(source, "轮询检测到的文本与上次一致，已忽略重复内容")
+        val now = System.currentTimeMillis()
+        if (shouldSuppressRemoteEcho(text)) {
+            updateClipboardDiagnostic(source, "当前剪贴板仍是远端写入内容，已阻止回环发送")
+            return false
+        }
+        if (text == lastObservedLocalText) {
+            updateClipboardDiagnostic(source, "检测到的文本与上次一致，已忽略重复内容")
+            return false
+        }
+        if (isRecentlyPublishedText(text, now)) {
+            updateClipboardDiagnostic(source, "短时间内已发送过相同文本，已跳过")
             return false
         }
         lastObservedLocalText = text
-        val now = System.currentTimeMillis()
-        if (text == lastRemoteText && now - lastRemoteAt < 5_000) {
-            updateClipboardDiagnostic(source, "本地内容刚由远端写回，已忽略回环文本")
-            return false
-        }
         if (text == lastPublishedText && now - lastPublishedAt < 2_000) {
             updateClipboardDiagnostic(source, "短时间内检测到重复发布，已跳过")
             return false
@@ -314,7 +323,29 @@ class SyncService : Service() {
             return
         }
         val snapshot = ClipboardAccessAccessibilityService.consumeRecentSnapshot(sourcePackage)
-        if (snapshot != null && publishTextToServer(snapshot.text.trim(), System.currentTimeMillis(), buildString {
+        val snapshotText = snapshot?.text?.trim().orEmpty()
+        val now = System.currentTimeMillis()
+        if (snapshotText.isNotBlank() && shouldSuppressRemoteEcho(snapshotText)) {
+            updateClipboardDiagnostic("accessibility-snapshot", "无障碍快照命中远端写入内容，已阻止回环发送")
+            broadcastStatus(currentStatus(), "无障碍补检查已忽略回环文本")
+            return
+        }
+        if (snapshot?.packageName == packageName) {
+            updateClipboardDiagnostic("accessibility-snapshot", "无障碍快照来自本应用界面，已跳过")
+            broadcastStatus(currentStatus(), "无障碍补检查已跳过本应用界面文本")
+            return
+        }
+        if (snapshotText.isNotBlank() && isRecentlyPublishedText(snapshotText, now)) {
+            updateClipboardDiagnostic("accessibility-snapshot", "无障碍快照短时间内已发送过相同文本，已跳过")
+            broadcastStatus(currentStatus(), "无障碍补检查已跳过重复快照")
+            return
+        }
+        if (snapshotText.isNotBlank() && snapshotText == lastPublishedText && now - lastPublishedAt < DUPLICATE_PUBLISH_SUPPRESS_MS) {
+            updateClipboardDiagnostic("accessibility-snapshot", "无障碍快照短时间内检测到重复内容，已跳过")
+            broadcastStatus(currentStatus(), "无障碍补检查已跳过重复内容")
+            return
+        }
+        if (snapshot != null && snapshotText.isNotBlank() && publishTextToServer(snapshotText, now, buildString {
                 append("已通过无障碍快照补传文本")
                 if (snapshot.packageName.isNotBlank()) {
                     append(" · 来源 ")
@@ -345,11 +376,13 @@ class SyncService : Service() {
         val snapshot = ClipboardAccessAccessibilityService.consumeRecentSnapshot(sourcePackage = "") ?: return false
         val text = snapshot.text.trim()
         if (text.isBlank()) return false
-        if (text == lastObservedLocalText && source == "poll") return false
-        lastObservedLocalText = text
+        if (shouldSuppressRemoteEcho(text)) return false
         val now = System.currentTimeMillis()
-        if (text == lastRemoteText && now - lastRemoteAt < 5_000) return false
-        if (text == lastPublishedText && now - lastPublishedAt < 2_000) return false
+        if (text == lastObservedLocalText) return false
+        if (snapshot.packageName == packageName) return false
+        if (isRecentlyPublishedText(text, now)) return false
+        lastObservedLocalText = text
+        if (text == lastPublishedText && now - lastPublishedAt < DUPLICATE_PUBLISH_SUPPRESS_MS) return false
         val result = buildString {
             append("已通过无障碍快照补传文本")
             if (snapshot.packageName.isNotBlank()) {
@@ -365,10 +398,49 @@ class SyncService : Service() {
     private fun publishTextToServer(text: String, publishedAt: Long, resultText: String, route: String): Boolean {
         lastPublishedText = text
         lastPublishedAt = publishedAt
+        rememberPublishedText(text, publishedAt)
         updateClipboardDiagnostic(route, resultText)
         client?.publishText(text)
         broadcastStatus(getString(R.string.status_trusted), resultText)
         return true
+    }
+
+    private fun readCurrentClipboardText(): String {
+        val clip = runCatching { clipboardManager.primaryClip }.getOrNull() ?: return ""
+        if (clip.itemCount <= 0) return ""
+        return clip.getItemAt(0).coerceToText(this)?.toString().orEmpty().trim()
+    }
+
+    private fun isRecentlyPublishedText(text: String, now: Long): Boolean {
+        val normalized = text.trim()
+        if (normalized.isBlank()) return false
+        pruneRecentPublishedTexts(now)
+        val publishedAt = recentPublishedTexts[normalized] ?: return false
+        return now - publishedAt < DUPLICATE_PUBLISH_SUPPRESS_MS
+    }
+
+    private fun rememberPublishedText(text: String, publishedAt: Long) {
+        val normalized = text.trim()
+        if (normalized.isBlank()) return
+        recentPublishedTexts[normalized] = publishedAt
+        pruneRecentPublishedTexts(publishedAt)
+    }
+
+    private fun pruneRecentPublishedTexts(now: Long) {
+        val iterator = recentPublishedTexts.iterator()
+        while (iterator.hasNext()) {
+            val entry = iterator.next()
+            if (now - entry.value > DUPLICATE_PUBLISH_SUPPRESS_MS * 2) {
+                iterator.remove()
+            }
+        }
+    }
+
+    private fun shouldSuppressRemoteEcho(text: String): Boolean {
+        if (text.isBlank() || suppressedRemoteEchoText.isBlank()) return false
+        if (text == suppressedRemoteEchoText) return true
+        suppressedRemoteEchoText = ""
+        return false
     }
 
     private fun updateClipboardDiagnostic(route: String, detail: String) {
@@ -579,6 +651,7 @@ class SyncService : Service() {
         private const val RECEIVE_CHANNEL_ID = "cloud_clipboard_receive"
         private const val NOTIFICATION_ID = 1001
         private const val RECONNECT_ALERT_NOTIFICATION_ID = 1002
+        private const val DUPLICATE_PUBLISH_SUPPRESS_MS = 30_000L
         @Volatile
         private var isRunning = false
 

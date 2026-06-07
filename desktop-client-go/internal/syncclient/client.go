@@ -64,8 +64,9 @@ type helloAckPayload struct {
 }
 
 type clipboardSyncPayload struct {
-	MessageID string `json:"messageId"`
-	Text      string `json:"text"`
+	MessageID      string `json:"messageId"`
+	SourceDeviceID string `json:"sourceDeviceId"`
+	Text           string `json:"text"`
 }
 
 type deviceStatePayload struct {
@@ -388,6 +389,10 @@ func (c *Client) handleMessage(data []byte) error {
 		}
 		payload.Text = strings.TrimSpace(payload.Text)
 		if payload.Text == "" {
+			return nil
+		}
+		if strings.TrimSpace(payload.SourceDeviceID) == c.cfg.DeviceID {
+			c.logger.Printf("已忽略来源为本机的远端文本")
 			return nil
 		}
 		c.lastRemoteText = payload.Text

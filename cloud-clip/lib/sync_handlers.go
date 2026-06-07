@@ -577,6 +577,16 @@ func (s *ClipboardServer) handleSyncWebSocket(w http.ResponseWriter, r *http.Req
 					})
 					continue
 				}
+				if s.syncHub.HasRecentTextFromSource(session.Room, session.DeviceID, payload.Text, 30*time.Second) {
+					_ = conn.WriteJSON(syncOutgoingEnvelope{
+						Event: "clipboardAck",
+						Data: map[string]interface{}{
+							"messageId": payload.MessageID,
+							"status":    "duplicate",
+						},
+					})
+					continue
+				}
 				record, err := s.syncHub.AddMessage(SyncMessageRecord{
 					MessageID:      payload.MessageID,
 					SourceDeviceID: session.DeviceID,

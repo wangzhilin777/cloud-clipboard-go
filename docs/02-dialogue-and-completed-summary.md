@@ -120,6 +120,12 @@
 - 已将桌面端控制面板概览页的“待确认剪贴板文件”补成带检测时间的摘要，便于同时判断文件是什么、什么时候检测到以及剩余确认时间
 - 已将桌面端控制面板概览页的“最近缓存清理”调整为时间优先摘要，便于更快看出上一次缓存清理发生在什么时候、清了多少项
 - 已将桌面端控制面板概览页的“最近远端文件通知”摘要类型文案改成中文展示，避免直接暴露 `image`、`file`、`files` 这类协议字段
+- 已在 Android 16 真机上定位并修复 Android 同步客户端重复回传问题：根因是无障碍补检查会反复发布同一剪贴板文本，并且快照兜底可能误采本 App 当前界面文本；现已改为启动时以当前剪贴板作为基线、同文本短时间去重、远端写入内容在本地变化前不回传、recent 恢复跳过本机来源、无障碍快照跳过本 App 界面
+- 已同步补强网页端、Cloudflare Pages 前端和桌面端 Go 客户端的来源设备自检：收到 `clipboardSync` 时如果 `sourceDeviceId` 等于本机则直接忽略，网页端远端写入剪贴板后也会标记为已发送文本，避免后续轮询自激回传
+- 已在 Go 服务端补充短时间重复文本兜底：同房间、同来源设备、同文本 30 秒内再次发布会返回 duplicate，不再写入 recent 历史；该兜底只防止异常客户端刷屏，不替代客户端防回环
+- 已补回最小 Android SDK 到本机 `D:\Program Files\Android\Sdk`，仅安装命令行工具、platform 34、build-tools 和 platform-tools，不安装模拟器或 AVD，不触碰 VMware 虚拟化环境
+- 已将新 Android debug 包覆盖安装到真机 `760435a8`，并在启动同步后观察约 35 秒，服务端 `lastMessageAt` 与 `recentMessageCount` 未继续增长，确认此前 `http://127.0.0.1:9501/#/` 重复刷屏已停止；历史中的旧重复记录为修复前已写入内容
+- 本轮重新验证通过：`cloud-clip` 下 `go test ./lib`、`desktop-client-go` 下 `go test ./internal/syncclient ./internal/config`、`client` 下 `npm run build`、`android-sync-client` 下 `.\gradlew.bat assembleDebug` 均成功；验证后已停止 Gradle daemon，并清理 Android 构建目录、主站 `client/dist`、Cloudflare Pages 临时依赖与构建目录
 
 ## 当前判断还在继续推进的部分
 

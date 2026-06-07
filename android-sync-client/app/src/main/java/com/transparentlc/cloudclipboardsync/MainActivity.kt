@@ -101,13 +101,26 @@ class MainActivity : AppCompatActivity() {
 
     private val statusReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
-            statusText.text = intent?.getStringExtra(SyncService.EXTRA_STATUS) ?: getString(R.string.status_idle)
+            statusText.text = normalizeStatusText(
+                intent?.getStringExtra(SyncService.EXTRA_STATUS) ?: getString(R.string.status_idle),
+            )
             lastSyncText.text = intent?.getStringExtra(SyncService.EXTRA_LAST_RESULT) ?: getString(R.string.last_result_idle)
             latestClipboardRoute = intent?.getStringExtra(SyncService.EXTRA_CLIPBOARD_ROUTE) ?: latestClipboardRoute
             latestClipboardDetail = intent?.getStringExtra(SyncService.EXTRA_CLIPBOARD_DETAIL) ?: latestClipboardDetail
             refreshRuntimeHints()
             updateHomeHeaderSummary()
         }
+    }
+
+    private fun normalizeStatusText(status: String): String = when (status.trim().lowercase()) {
+        "trusted", "已信任" -> getString(R.string.status_trusted)
+        "connected" -> getString(R.string.status_connected)
+        "pending" -> getString(R.string.status_pending)
+        "forbidden" -> getString(R.string.status_forbidden)
+        "disconnected" -> getString(R.string.status_disconnected)
+        "connecting" -> getString(R.string.status_connecting)
+        "idle" -> getString(R.string.status_idle)
+        else -> status
     }
 
     private val payloadUpdateReceiver = object : BroadcastReceiver() {

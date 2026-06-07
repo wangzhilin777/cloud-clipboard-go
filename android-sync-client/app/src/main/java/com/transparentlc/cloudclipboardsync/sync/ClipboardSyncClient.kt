@@ -70,6 +70,7 @@ class ClipboardSyncClient(
                     }
                     "clipboardSync" -> {
                         val data = event.getJSONObject("data")
+                        if (data.optString("sourceDeviceId").trim() == config.deviceId) return
                         callbacks.onRemoteText(data.optString("messageId"), data.getString("text"))
                     }
                     "payloadNotice" -> {
@@ -118,6 +119,7 @@ class ClipboardSyncClient(
         if (messages == null) return
         for (index in messages.length() - 1 downTo 0) {
             val item = messages.optJSONObject(index) ?: continue
+            if (item.optString("sourceDeviceId").trim() == config.deviceId) continue
             val text = item.optString("text").trim()
             if (text.isBlank()) continue
             callbacks.onRemoteText(item.optString("messageId"), text)

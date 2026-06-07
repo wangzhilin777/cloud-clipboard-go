@@ -58,7 +58,10 @@ class ClipboardAccessAccessibilityService : AccessibilityService() {
 
     private fun cacheVisibleTextSnapshot(packageName: String, pulseReason: String, now: Long) {
         if (now - lastSnapshotAt < 250L) return
+        if (!pulseReason.startsWith("copy-ui:") && !pulseReason.startsWith("notify:")) return
         val root = rootInActiveWindow ?: return
+        val rootPackageName = root.packageName?.toString().orEmpty()
+        if (rootPackageName == this.packageName) return
         val texts = linkedSetOf<String>()
         collectVisibleTexts(root, texts, 0)
         val candidate = texts
@@ -71,7 +74,7 @@ class ClipboardAccessAccessibilityService : AccessibilityService() {
             .take(4000)
         if (candidate.isBlank()) return
         lastSnapshotAt = now
-        updateSnapshot(packageName, pulseReason, candidate, now)
+        updateSnapshot(rootPackageName.ifBlank { packageName }, pulseReason, candidate, now)
     }
 
     private fun collectVisibleTexts(node: AccessibilityNodeInfo, texts: MutableSet<String>, depth: Int) {

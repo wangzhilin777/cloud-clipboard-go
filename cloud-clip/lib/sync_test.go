@@ -5,6 +5,7 @@ import (
 	"log"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 func TestSyncHubRecentMessagesUseConfiguredLimit(t *testing.T) {
@@ -48,6 +49,34 @@ func TestSyncHubRecentMessagesUseConfiguredLimit(t *testing.T) {
 	other := hub.GetRecentMessages("other")
 	if len(other) != 1 || other[0].MessageID != "other-room-message" {
 		t.Fatalf("other room messages = %#v, want only other-room-message", other)
+	}
+}
+
+func TestSyncHubDetectsRecentDuplicateTextFromSameSource(t *testing.T) {
+	hub := newTestSyncHub(t, 60)
+
+	_, err := hub.AddMessage(SyncMessageRecord{
+		MessageID:      "message-a",
+		SourceDeviceID: "device-a",
+		Room:           "default",
+		Text:           "same text",
+		CreatedAt:      time.Now().UnixMilli(),
+	})
+	if err != nil {
+		t.Fatalf("AddMessage returned error: %v", err)
+	}
+
+	if !hub.HasRecentTextFromSource("default", "device-a", "same text", 30*time.Second) {
+		t.Fatalf("HasRecentTextFromSource did not detect same-room same-source text")
+	}
+	if hub.HasRecentTextFromSource("default", "device-b", "same text", 30*time.Second) {
+		t.Fatalf("HasRecentTextFromSource should not match another source device")
+	}
+	if hub.HasRecentTextFromSource("other", "device-a", "same text", 30*time.Second) {
+		t.Fatalf("HasRecentTextFromSource should not match another room")
+	}
+	if hub.HasRecentTextFromSource("default", "device-a", "different text", 30*time.Second) {
+		t.Fatalf("HasRecentTextFromSource should not match different text")
 	}
 }
 

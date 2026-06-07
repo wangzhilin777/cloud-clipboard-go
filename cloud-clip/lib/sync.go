@@ -535,6 +535,34 @@ func (h *SyncHub) HasMessage(messageID string) bool {
 	return false
 }
 
+func (h *SyncHub) HasRecentTextFromSource(room string, sourceDeviceID string, text string, window time.Duration) bool {
+	sourceDeviceID = strings.TrimSpace(sourceDeviceID)
+	text = strings.TrimSpace(text)
+	if sourceDeviceID == "" || text == "" || window <= 0 {
+		return false
+	}
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+
+	normalizedRoom := normalizeSyncRoom(room)
+	now := time.Now().UnixMilli()
+	windowMillis := window.Milliseconds()
+	for i := len(h.state.Messages) - 1; i >= 0; i-- {
+		message := h.state.Messages[i]
+		if message.Room != normalizedRoom || message.SourceDeviceID != sourceDeviceID {
+			continue
+		}
+		if strings.TrimSpace(message.Text) != text {
+			continue
+		}
+		if message.CreatedAt == 0 || now-message.CreatedAt <= windowMillis {
+			return true
+		}
+		return false
+	}
+	return false
+}
+
 func (h *SyncHub) AddMessage(payload SyncMessageRecord) (SyncMessageRecord, error) {
 	h.mu.Lock()
 	defer h.mu.Unlock()

@@ -235,6 +235,7 @@ export default {
                                 break;
                             case 'clipboardSync':
                                 if (!this.sync.enableReceive) return;
+                                if (payload.data?.sourceDeviceId === this.sync.deviceId) return;
                                 this.syncMergeRecentMessages([{
                                     messageId: payload.data?.messageId,
                                     sourceDeviceId: payload.data?.sourceDeviceId,
@@ -350,6 +351,7 @@ export default {
         async syncApplyRemoteClipboard(text) {
             this.sync.lastAppliedText = text;
             this.sync.lastAppliedAt = Date.now();
+            this.sync.lastSentText = text;
             this.sync.pendingRemoteText = text;
             this.sync.pendingRemoteTextAt = Date.now();
             this.syncLog('收到远端文本同步');
