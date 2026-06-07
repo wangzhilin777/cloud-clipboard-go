@@ -94,7 +94,7 @@
     <string name="clear_cache_button">立即清空本地缓存</string>
     <string name="permission_section_label">权限与系统配置检查</string>
     <string name="permission_summary_placeholder">正在读取当前权限状态…</string>
-    <string name="permission_summary_format">通知：%1$s\n悬浮窗：%2$s\n无障碍：%3$s\n忽略电池优化：%4$s\nShizuku：%5$s</string>
+    <string name="permission_summary_format">通知：%1$s\n悬浮窗：%2$s\n无障碍：%3$s\n忽略电池优化：%4$s\nShizuku：%5$s\n剪贴板读取 AppOps：%6$s\n剪贴板写入 AppOps：%7$s</string>
     <string name="permission_blockers_none">无</string>
     <string name="permission_suggestions_none">无</string>
     <string name="permission_guide_placeholder">推荐先开通知和忽略电池优化；需要更稳定的后台文本同步时，再开启无障碍或 Shizuku。</string>
@@ -121,12 +121,13 @@
     <string name="runtime_mode_action_shizuku_not_running_toast">Shizuku 服务还没有运行，请先在 Shizuku 中用 root 或 adb 启动服务。</string>
     <string name="runtime_mode_action_shizuku_granted_toast">Shizuku 授权成功</string>
     <string name="runtime_mode_action_shizuku_denied_toast">Shizuku 授权未通过</string>
-    <string name="runtime_mode_action_shizuku_ready_toast">Shizuku 已授权；剪贴板增强链路仍在接入中，当前建议继续使用无障碍增强模式。</string>
+    <string name="runtime_mode_action_shizuku_ready_toast">Shizuku 已授权；当前会作为系统授权与 AppOps 诊断辅助，后台复制仍按系统实际限制表现。</string>
     <string name="runtime_mode_accessibility_blocked">当前选的是无障碍增强模式，但系统还没开启无障碍服务，请先补开后再启动同步。</string>
     <string name="runtime_mode_shizuku_blocked">当前选的是 Shizuku 模式，但设备还没有可用的 Shizuku 环境，请先安装或授权后再启动同步。</string>
     <string name="runtime_mode_shizuku_not_running">当前选的是 Shizuku 模式，但 Shizuku 服务还没运行，请先用 root 或 adb 启动 Shizuku 服务。</string>
     <string name="runtime_mode_shizuku_permission_required">当前选的是 Shizuku 模式，但云剪同步还没有获得 Shizuku 授权，请先授权后再继续。</string>
-    <string name="runtime_mode_shizuku_unavailable">当前版本的 Shizuku 模式仍在接入中，暂不开放启动；请先改用前台服务或无障碍模式。</string>
+    <string name="runtime_mode_shizuku_ready">Shizuku 辅助模式已就绪。</string>
+    <string name="runtime_mode_shizuku_unavailable">当前版本的 Shizuku 独立剪贴板主通道仍在评估中；已授权时会作为系统授权与 AppOps 诊断辅助。</string>
     <string name="permission_state_enabled">已开启</string>
     <string name="permission_state_disabled">未开启</string>
     <string name="open_notification_settings_button">通知设置</string>

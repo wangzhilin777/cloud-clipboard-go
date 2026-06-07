@@ -1096,7 +1096,7 @@ class MainActivity : AppCompatActivity() {
                 !status.shizukuInstalled -> "当前模式：Shizuku\n启动状态：暂时被拦截\n原因：${validation.message}\n系统限制：${clipboardRestrictionSummary()}\n说明：先安装 Shizuku，再用 root 或 adb 启动服务。"
                 !status.shizukuRunning -> "当前模式：Shizuku\n启动状态：暂时被拦截\n原因：${validation.message}\n系统限制：${clipboardRestrictionSummary()}\n说明：当前已安装 Shizuku，但服务还没运行；root 启动后回到这里刷新状态。"
                 !status.shizukuPermissionGranted -> "当前模式：Shizuku\n启动状态：暂时被拦截\n原因：${validation.message}\n系统限制：${clipboardRestrictionSummary()}\n说明：Shizuku 服务已运行，点快捷处理按钮授权云剪同步。"
-                else -> "当前模式：Shizuku\n启动状态：当前版本暂不开放启动\n原因：${validation.message}\n系统限制：${clipboardRestrictionSummary()}\n说明：Shizuku 已授权${status.shizukuUid?.let { "（UID $it）" }.orEmpty()}，但独立剪贴板增强链路仍在接入中。"
+                else -> "当前模式：Shizuku\n启动状态：可直接启动同步\n系统限制：${clipboardRestrictionSummary()}\nAppOps：读取 ${status.clipboardReadAppOp} / 写入 ${status.clipboardWriteAppOp}\n说明：Shizuku 已授权${status.shizukuUid?.let { "（UID $it）" }.orEmpty()}；当前会作为系统授权和剪贴板 AppOps 诊断辅助，服务仍按系统允许的剪贴板回调与轮询链路工作。"
             }
         }
 
@@ -1149,7 +1149,7 @@ class MainActivity : AppCompatActivity() {
         validation: RuntimeModeValidation,
     ): String {
         val readiness = when {
-            config.clipboardMode == SettingsStore.CLIPBOARD_MODE_SHIZUKU && status.shizukuPermissionGranted -> "后台复制就绪度：已授权，增强链路未开放"
+            config.clipboardMode == SettingsStore.CLIPBOARD_MODE_SHIZUKU && status.shizukuPermissionGranted -> "后台复制就绪度：已授权，可启动辅助模式"
             config.clipboardMode == SettingsStore.CLIPBOARD_MODE_SHIZUKU -> "后台复制就绪度：等待 Shizuku 授权"
             !validation.ready -> "后台复制就绪度：当前被拦截"
             config.clipboardMode == SettingsStore.CLIPBOARD_MODE_ACCESSIBILITY && status.accessibilityEnabled -> "后台复制就绪度：较稳"
@@ -1160,7 +1160,7 @@ class MainActivity : AppCompatActivity() {
 
         val reason = when {
             config.clipboardMode == SettingsStore.CLIPBOARD_MODE_SHIZUKU ->
-                "原因：${status.shizukuDetail}；独立增强链路仍在接入中，当前阶段还不能作为后台复制主通道。"
+                "原因：${status.shizukuDetail}；剪贴板 AppOps 为读取 ${status.clipboardReadAppOp} / 写入 ${status.clipboardWriteAppOp}。当前 Shizuku 作为系统授权与诊断辅助，后台复制仍按系统实际限制表现。"
             !validation.ready -> "原因：${validation.message}"
             config.clipboardMode == SettingsStore.CLIPBOARD_MODE_ACCESSIBILITY && status.accessibilityEnabled ->
                 "原因：无障碍增强已开启，系统剪贴板回调之外还会做界面事件补检查。"
@@ -1181,7 +1181,7 @@ class MainActivity : AppCompatActivity() {
 
         val nextStep = when {
             config.clipboardMode == SettingsStore.CLIPBOARD_MODE_SHIZUKU && status.shizukuPermissionGranted ->
-                "下一步：Shizuku 授权链路已经通过；在独立增强主通道接完前，日常后台复制仍建议切回无障碍增强模式。"
+                "下一步：可以直接启动同步并做一次前台/后台复制对照；如果后台复制仍不稳，再切到无障碍增强模式兜底。"
             config.clipboardMode == SettingsStore.CLIPBOARD_MODE_SHIZUKU ->
                 "下一步：先完成 Shizuku 服务启动和授权验证；如果要继续日常同步，当前仍建议使用无障碍增强模式。"
             !validation.ready -> "下一步：先点上面的快捷处理按钮补齐当前模式所需授权。"
@@ -1225,7 +1225,7 @@ class MainActivity : AppCompatActivity() {
             }
 
             SettingsStore.CLIPBOARD_MODE_SHIZUKU ->
-                "当前监听策略：${status.shizukuDetail}；独立增强链路还没接完，本阶段仍建议先用无障碍增强模式。"
+                "当前监听策略：${status.shizukuDetail}；剪贴板 AppOps 为读取 ${status.clipboardReadAppOp} / 写入 ${status.clipboardWriteAppOp}，同步服务会继续使用系统剪贴板回调与轮询，并把 Shizuku 状态作为诊断辅助。"
 
             else -> when {
                 status.accessibilityEnabled ->
@@ -1237,7 +1237,7 @@ class MainActivity : AppCompatActivity() {
 
         val nextStepLine = when {
             config.clipboardMode == SettingsStore.CLIPBOARD_MODE_SHIZUKU && status.shizukuPermissionGranted ->
-                "下一步建议：Shizuku 授权已经通过；独立增强链路接入前，后台复制主通道仍建议使用无障碍增强。"
+                "下一步建议：Shizuku 授权已经通过，可以启动同步并观察最近结果；如果后台复制仍被系统限制，再切到无障碍增强。"
             config.clipboardMode == SettingsStore.CLIPBOARD_MODE_SHIZUKU ->
                 "下一步建议：先完成 Shizuku 服务启动和授权验证；日常同步仍建议使用无障碍增强。"
             !validation.ready -> "下一步建议：先按上面的模式引导补齐授权，再重新启动同步。"
@@ -1268,6 +1268,8 @@ class MainActivity : AppCompatActivity() {
             stateLabel(status.accessibilityEnabled),
             stateLabel(status.batteryOptimizationIgnored),
             shizukuStateLabel(status),
+            status.clipboardReadAppOp,
+            status.clipboardWriteAppOp,
         )
         val blockers = if (checklist.blockers.isEmpty()) {
             getString(R.string.permission_blockers_none)
@@ -1321,11 +1323,11 @@ class MainActivity : AppCompatActivity() {
             }
 
             SettingsStore.CLIPBOARD_MODE_SHIZUKU -> {
-                blockers += when {
-                    !status.shizukuInstalled -> "当前选择 Shizuku 模式，但设备还没有安装 Shizuku。"
-                    !status.shizukuRunning -> "当前选择 Shizuku 模式，但 Shizuku 服务还没运行。"
-                    !status.shizukuPermissionGranted -> "当前选择 Shizuku 模式，但云剪同步还没有获得 Shizuku 授权。"
-                    else -> "Shizuku 已授权，但独立剪贴板增强链路仍在接入中，当前版本请先改用无障碍模式。"
+                when {
+                    !status.shizukuInstalled -> blockers += "当前选择 Shizuku 模式，但设备还没有安装 Shizuku。"
+                    !status.shizukuRunning -> blockers += "当前选择 Shizuku 模式，但 Shizuku 服务还没运行。"
+                    !status.shizukuPermissionGranted -> blockers += "当前选择 Shizuku 模式，但云剪同步还没有获得 Shizuku 授权。"
+                    else -> suggestions += "Shizuku 已授权；当前作为系统授权与剪贴板 AppOps 诊断辅助，如后台复制仍不稳可切到无障碍增强。"
                 }
             }
         }

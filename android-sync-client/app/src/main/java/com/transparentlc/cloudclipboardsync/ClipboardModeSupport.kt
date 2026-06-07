@@ -53,10 +53,9 @@ object ClipboardModeSupportHelper {
                 )
 
                 else -> ClipboardModeSupport(
-                    canStart = false,
-                    readyMessage = "",
-                    blockedMessage = context.getString(R.string.runtime_mode_shizuku_unavailable),
-                    implementationSummary = "当前阶段：Shizuku 服务已运行且云剪同步已授权，但独立剪贴板增强链路还在接入中；本阶段请继续优先使用无障碍增强模式。",
+                    canStart = true,
+                    readyMessage = context.getString(R.string.runtime_mode_shizuku_ready),
+                    implementationSummary = "当前阶段：Shizuku 服务已运行且云剪同步已授权；同步服务会正常启动，并把系统剪贴板 AppOps 状态纳入诊断。独立剪贴板主通道仍在评估中，后台复制不稳时仍建议优先使用无障碍增强模式。",
                 )
             }
         }

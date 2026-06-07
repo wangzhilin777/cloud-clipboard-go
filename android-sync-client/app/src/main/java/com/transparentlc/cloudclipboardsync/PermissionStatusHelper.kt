@@ -2,8 +2,10 @@ package com.transparentlc.cloudclipboardsync
 
 import android.content.ComponentName
 import android.content.Context
+import android.app.AppOpsManager
 import android.os.Build
 import android.os.PowerManager
+import android.os.Process
 import android.provider.Settings
 import androidx.core.app.NotificationManagerCompat
 
@@ -17,9 +19,14 @@ data class PermissionStatus(
     val shizukuPermissionGranted: Boolean,
     val shizukuUid: Int?,
     val shizukuDetail: String,
+    val clipboardReadAppOp: String,
+    val clipboardWriteAppOp: String,
 )
 
 object PermissionStatusHelper {
+    private const val OPSTR_READ_CLIPBOARD = "android:read_clipboard"
+    private const val OPSTR_WRITE_CLIPBOARD = "android:write_clipboard"
+
     fun read(context: Context): PermissionStatus {
         val shizukuState = ShizukuPermissionHelper.read(context)
         return PermissionStatus(
@@ -32,6 +39,8 @@ object PermissionStatusHelper {
             shizukuPermissionGranted = shizukuState.granted,
             shizukuUid = shizukuState.uid,
             shizukuDetail = shizukuState.detail,
+            clipboardReadAppOp = clipboardAppOpMode(context, OPSTR_READ_CLIPBOARD),
+            clipboardWriteAppOp = clipboardAppOpMode(context, OPSTR_WRITE_CLIPBOARD),
         )
     }
 
@@ -48,6 +57,20 @@ object PermissionStatusHelper {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return true
         val manager = context.getSystemService(Context.POWER_SERVICE) as PowerManager
         return manager.isIgnoringBatteryOptimizations(context.packageName)
+    }
+
+    private fun clipboardAppOpMode(context: Context, op: String): String {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return "allow"
+        val manager = context.getSystemService(Context.APP_OPS_SERVICE) as AppOpsManager
+        val mode = manager.unsafeCheckOpNoThrow(op, Process.myUid(), context.packageName)
+        return when (mode) {
+            AppOpsManager.MODE_ALLOWED -> "allow"
+            AppOpsManager.MODE_FOREGROUND -> "foreground"
+            AppOpsManager.MODE_IGNORED -> "ignore"
+            AppOpsManager.MODE_ERRORED -> "errored"
+            AppOpsManager.MODE_DEFAULT -> "default"
+            else -> mode.toString()
+        }
     }
 
 }

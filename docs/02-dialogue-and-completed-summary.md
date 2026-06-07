@@ -139,10 +139,13 @@
 - 已尝试使用临时服务端配置、临时桌面端配置和临时存储目录进行 Windows 桌面端进程级自测；服务端临时构建与启动、`internal/config` 固定测试二进制均通过，但本机对新构建的桌面端 exe 在进程创建阶段返回 `拒绝访问`，因此本轮未伪装成已完成完整 headless 面板联调
 - 本轮重新验证通过：`cloud-clip` 下 `go test ./lib`、`desktop-client-go` 下 `go test ./internal/app ./internal/syncclient ./internal/transfer`、`client` 下 `npm run build` 均成功；`client` 构建仍有既有 bundle 体积与 Vuetify / Sass 弃用警告，但构建产物生成成功
 - 本轮收尾已清理临时服务端、临时桌面端 exe、临时配置目录、临时测试文件和 `client/dist`，未删除手机端、Windows 端或服务端任何非调试数据
+- 已将 Android Shizuku 模式从“授权后仍不开放启动”调整为“授权后可作为系统授权与剪贴板 AppOps 诊断辅助模式启动”：启动前置校验不再拦截已授权 Shizuku，运行页会展示剪贴板读取 / 写入 AppOps，权限页也会把 AppOps 纳入摘要和建议
+- 已同步更新 Android 同步客户端 README 与 `docs/03-sync-usage-and-effects.md`，明确 Shizuku 辅助模式不承诺绕过系统后台剪贴板限制，后台复制稳定性仍以系统实际限制、无障碍、电池优化和厂商后台保活为准
+- 已在 Android 16 真机 `760435a8` 上覆盖安装 debug 包并验证：临时把 App 私有配置中的 `clipboard_mode` 改为 `shizuku` 后启动 App，`SyncService` 能以 `isForeground=true` 前台服务运行，说明已授权 Shizuku 不再被启动前置校验拦截；验证后已恢复原配置为 `accessibility`，并清理 `/data/local/tmp` 调试文件、本地临时配置目录、Android 构建目录和 Gradle daemon，未删除手机端任何非调试数据或文件
 
 ## 当前判断还在继续推进的部分
 
-- Android 真机后台复制和受限权限场景体验，后续重点转向更多真实 App 场景覆盖，以及 Shizuku 独立剪贴板增强主通道可行性评估
+- Android 真机后台复制和受限权限场景体验，后续重点转向更多真实 App 场景覆盖，以及 Shizuku 独立剪贴板增强主通道可行性评估；当前 Shizuku 已先收口为可启动的诊断辅助模式
 - Android 10 / 13 / 14+ 高版本系统限制下的提示文案与模式引导仍可继续细化，但当前基础提示链路已补齐
 - 桌面端 Go 客户端进一步收口；完整 exe 级联调需要在本地安全策略不拦截新构建 exe 的环境继续测试
 - 二期交互与配置增强
