@@ -122,8 +122,18 @@ class SyncService : Service() {
         handler.removeCallbacksAndMessages(null)
         clipboardManager.removePrimaryClipChangedListener(clipboardListener)
         client?.disconnect()
+        removeForegroundNotification()
         isRunning = false
         super.onDestroy()
+    }
+
+    private fun removeForegroundNotification() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            stopForeground(STOP_FOREGROUND_REMOVE)
+        } else {
+            @Suppress("DEPRECATION")
+            stopForeground(true)
+        }
     }
 
     override fun onBind(intent: Intent?): IBinder? = null

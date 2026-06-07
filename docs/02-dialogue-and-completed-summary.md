@@ -158,6 +158,8 @@
 - 本轮只读读取了 App 私有配置，确认 `clipboard_mode=accessibility`、`last_desired_running_state=running`、`server_base=http://192.168.31.236:9501`；未修改手机配置、未卸载、未清理 App 数据，也未删除手机端任何非调试数据或文件
 - 已基于真机巡检结果优化 Android 无障碍增强模式阻塞提示：明确要求在系统无障碍服务列表里启用“云剪同步”，并说明仅系统授权或 AppOps 允许不等于无障碍服务已经生效
 - 本轮重新验证通过：`android-sync-client` 下 `.\gradlew.bat assembleDebug` 成功；验证后已执行 `gradlew clean`、停止 Gradle daemon，并清理 `android-sync-client/build` 与 `android-sync-client/app/build`
+- 已进一步只读确认 Android 真机当前没有活跃的 `SyncService` ServiceRecord，但系统通知列表仍存在云剪同步前台通知；据此补充 `SyncService.onDestroy()` 显式移除前台通知，避免启动被阻止或服务销毁后留下误导性常驻通知
+- 本轮重新验证通过：`android-sync-client` 下 `.\gradlew.bat assembleDebug` 成功；为避免触发真机重新授权，本轮未覆盖安装手机，仅做本地编译验证；验证后已执行 `gradlew clean`、停止 Gradle daemon，并清理 `android-sync-client/build` 与 `android-sync-client/app/build`
 
 ## 当前判断还在继续推进的部分
 
