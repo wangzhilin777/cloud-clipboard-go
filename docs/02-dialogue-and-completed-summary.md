@@ -177,6 +177,8 @@
 - 本轮重新验证通过：`desktop-client-go` 下 `go test ./internal/config ./internal/app ./internal/desktopcmd` 成功；验证后已执行 `go clean -testcache` 清理 Go 测试缓存，测试只使用临时配置目录，未触碰真实右键菜单、系统剪贴板或用户文件
 - 已优化桌面端快捷键配置归一化：只有修饰键没有主键、或只有主键没有修饰键时会自动清空，避免面板显示已配置但实际热键注册层拒绝生效；常见组合仍会规范显示为 `Ctrl+Alt+C` 这类格式
 - 本轮重新验证通过：`desktop-client-go` 下 `go test ./internal/config ./internal/hotkey ./internal/app` 成功；验证后已执行 `go clean -testcache` 清理 Go 测试缓存，未注册真实全局热键，未触碰系统剪贴板或用户文件
+- 已优化桌面端控制面板快捷键录入提示：录入弹窗只按修饰键时会提示继续按主键，只按主键时会提示需要同时按 `Ctrl / Alt / Shift / Win`，避免静默忽略造成用户以为录入卡住
+- 本轮重新验证通过：`desktop-client-go` 下 `go test ./internal/panel ./internal/config ./internal/app` 成功；验证后已执行 `go clean -testcache` 清理 Go 测试缓存，未启动真实面板服务或注册真实热键
 
 ## 当前判断还在继续推进的部分
 

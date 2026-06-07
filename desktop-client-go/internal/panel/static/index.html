@@ -1293,6 +1293,16 @@
       }
       const key = normalizeCapturedKey(event);
       const hasModifier = event.ctrlKey || event.altKey || event.shiftKey || event.metaKey;
+      if (hasModifier && !key) {
+        event.preventDefault();
+        hotkeyCapturePreview.textContent = '继续按一个主键，例如 C、V、F8';
+        return;
+      }
+      if (!hasModifier && key) {
+        event.preventDefault();
+        hotkeyCapturePreview.textContent = '需要同时按 Ctrl / Alt / Shift / Win 加主键';
+        return;
+      }
       if (!hasModifier || !key) return;
       event.preventDefault();
       const value = normalizeHotkeyDisplay({
