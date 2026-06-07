@@ -5,6 +5,7 @@
 ## 当前能力
 
 - 托盘常驻启动，左键打开控制面板，右键菜单可执行常用动作
+- 额外提供无托盘面板入口 `cloud-clipboard-panel`，适合不需要托盘或系统策略拦截托盘组件时使用
 - 连接 Go 服务端 `/sync/server` 与 `/sync/ws`
 - 使用 `roomPassword + 网页端设备批准` 双层校验
 - 纯文本剪贴板自动同步，收到远端文本后自动写回系统剪贴板
@@ -49,6 +50,15 @@ go run ./cmd/cloud-clipboard-desktop
 cd E:\Workspace\VSCode\cloud-clipboard\desktop-client-go
 go run ./cmd/cloud-clipboard-desktop -headless
 ```
+
+如果当前系统策略拦截托盘组件，可直接运行无托盘面板版：
+
+```powershell
+cd E:\Workspace\VSCode\cloud-clipboard\desktop-client-go
+go run ./cmd/cloud-clipboard-panel
+```
+
+`cloud-clipboard-panel` 不加载托盘组件，但仍会启动本地控制面板、同步连接、文件发送、最新文本 / 文件拉取、右键一次性动作等核心能力。
 
 ## 控制面板
 
@@ -102,7 +112,7 @@ go run ./cmd/cloud-clipboard-desktop -headless
 
 ## 右键动作
 
-可执行文件支持以下一次性参数，供 Windows 右键菜单调用：
+托盘版和无托盘面板版都支持以下一次性参数，供 Windows 右键菜单调用：
 
 ```powershell
 -shell-send <file-path>

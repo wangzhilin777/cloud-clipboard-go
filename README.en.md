@@ -68,7 +68,7 @@ This branch keeps the original web clipboard and file transfer flow, and adds th
 - **Dual access gate**: Sync clients must pass the room/global password first, then wait for web-side device approval before becoming connected.
 - **Web device management**: The device page supports sync device lists, pending / trusted states, device approval, status summaries, and auto-refreshing diagnostics.
 - **Three-end text sync**: Web, desktop, and Android sync clients support plain-text clipboard synchronization with duplicate and loop prevention.
-- **Desktop Go client**: `desktop-client-go/` replaces the earlier AHK path and provides tray mode, local control panel, hotkeys, shell menu, Tip notifications, file notice sending, latest text/file pull, and download cache cleanup.
+- **Desktop Go client**: `desktop-client-go/` replaces the earlier AHK path and provides tray mode, trayless panel mode, local control panel, hotkeys, shell menu, Tip notifications, file notice sending, latest text/file pull, and download cache cleanup.
 - **Desktop UX guidance**: The control panel overview shows next-step guidance, connection diagnostics, cache directory, recent cleanup, platform capabilities, recent remote text sync, recent remote file notices, and the latest status refresh. Automatic reconnect stops after the configured limit and prompts manual inspection.
 - **Android sync client**: `android-sync-client/` supports text sync, floating confirm for incoming images/files, confirm-before-download into private cache, and receive-page preview/open/share/save-as/mark-processed actions.
 - **Android high-version guidance**: The runtime page provides clipboard readiness, background diagnostics, and a dynamic troubleshooting button for notification, accessibility, battery optimization, and vendor keepalive settings.
@@ -96,7 +96,7 @@ Usage steps and expected behavior: [Sync Usage and Effects Guide](./docs/03-sync
 ### Client Entrypoints
 
 - Web: open the server page and use the device / sync device management area to enable and approve sync devices.
-- Desktop: use [`desktop-client-go/`](./desktop-client-go) for tray mode, control panel, hotkeys, shell menu, Tip notifications, and file notice sending.
+- Desktop: use [`desktop-client-go/`](./desktop-client-go) for tray mode, trayless panel mode, control panel, hotkeys, shell menu, Tip notifications, and file notice sending.
 - Android sync client: use [`android-sync-client/`](./android-sync-client) for text sync, floating confirmation for images/files, background clipboard diagnostics, and permission guidance.
 
 ### Android Sync Client Notes
@@ -382,7 +382,7 @@ Current capabilities:
 
 - Local control panel grouped by `Overview / Connection / Actions / Advanced`.
 - Overview cards for next-step guidance, connection diagnostics, cache directory, recent cleanup, and platform capabilities.
-- Windows tray, global hotkeys, shell context menu, file notice sending, latest text/file pull, and download cache cleanup.
+- Windows tray, trayless panel mode, global hotkeys, shell context menu, file notice sending, latest text/file pull, and download cache cleanup.
 - Notification modes: corner Tip, system notification, log-only, or off. Tip supports theme, size, and remembered position.
 - Automatic reconnect attempts stop after the configured limit and then guide the user to check the service manually.
 
