@@ -170,6 +170,9 @@
 - 本轮重新验证通过：`cloud-clip` 下 `go test ./lib` 成功；验证后已执行 `go clean -testcache` 清理 Go 测试缓存，临时 WebSocket 服务由测试生命周期自动关闭，未启动真实服务端或写入真实运行态数据
 - 本轮继续验证桌面端 Go 客户端核心包：`desktop-client-go` 下 `go test ./internal/desktopcmd ./internal/transfer ./internal/config ./internal/syncclient ./internal/app` 成功；验证后已执行 `go clean -testcache` 清理测试缓存，未触碰真实右键菜单、系统剪贴板或用户文件
 - 本轮继续对 Android 16 真机 `760435a8` 做只读权限巡检：设备在线，系统无障碍启用列表仍不包含云剪同步；Shizuku 包 `moe.shizuku.privileged.api` 已安装且 Watchdog 前台服务运行中，App 的 `moe.shizuku.manager.permission.API_V23` 显示 `granted=true`；本轮未修改手机配置、未卸载、未覆盖安装、未删除任何手机端数据或文件
+- 已补强 Android 无障碍服务启用判断单元测试：将 `Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES` 的冒号分隔匹配逻辑拆成可测纯函数，覆盖精确命中、大小写和空格兼容、同包错误服务不误判、空列表和空目标不误判，避免 Shizuku / AppOps 已授权时误把无障碍增强也判断为已开启
+- 本轮只读探测 Android 16 真机 Shizuku 剪贴板主通道可行性：系统存在 `clipboard` Binder 服务，但 `cmd clipboard` 返回 `No shell command implementation`，`dumpsys clipboard` 未返回可用内容；因此本轮没有把 Shizuku 伪装成已完成的独立剪贴板主通道，仍保持为授权与 AppOps 诊断辅助
+- 本轮重新验证通过：`android-sync-client` 下 `.\gradlew.bat testDebugUnitTest` 成功；验证后已执行 `gradlew clean`、停止 Gradle daemon，并清理 `android-sync-client/build` 与 `android-sync-client/app/build`
 
 ## 当前判断还在继续推进的部分
 

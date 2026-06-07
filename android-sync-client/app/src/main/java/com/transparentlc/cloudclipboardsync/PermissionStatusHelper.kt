@@ -50,7 +50,16 @@ object PermissionStatusHelper {
             Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES,
         ).orEmpty()
         val target = ComponentName(context, ClipboardAccessAccessibilityService::class.java).flattenToString()
-        return enabledServices.split(':').any { it.equals(target, ignoreCase = true) }
+        return isAccessibilityServiceEnabledInSetting(enabledServices, target)
+    }
+
+    internal fun isAccessibilityServiceEnabledInSetting(enabledServices: String?, target: String): Boolean {
+        val normalizedTarget = target.trim()
+        if (normalizedTarget.isBlank()) return false
+        return enabledServices
+            .orEmpty()
+            .split(':')
+            .any { it.trim().equals(normalizedTarget, ignoreCase = true) }
     }
 
     private fun isIgnoringBatteryOptimizations(context: Context): Boolean {

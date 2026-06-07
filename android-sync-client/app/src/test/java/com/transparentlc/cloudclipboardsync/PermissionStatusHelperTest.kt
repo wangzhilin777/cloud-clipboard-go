@@ -1,0 +1,42 @@
+package com.transparentlc.cloudclipboardsync
+
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+class PermissionStatusHelperTest {
+    private val target = "com.transparentlc.cloudclipboardsync/com.transparentlc.cloudclipboardsync.ClipboardAccessAccessibilityService"
+
+    @Test
+    fun accessibilityServiceMatchesExactTargetInColonSeparatedSetting() {
+        val enabledServices = listOf(
+            "com.wangc.bill/com.google.android.accessibility.selecttospeak.SelectToSpeakService",
+            target,
+            "li.songe.gkd/com.google.android.accessibility.selecttospeak.SelectToSpeakService",
+        ).joinToString(":")
+
+        assertTrue(PermissionStatusHelper.isAccessibilityServiceEnabledInSetting(enabledServices, target))
+    }
+
+    @Test
+    fun accessibilityServiceMatchIgnoresCaseAndWhitespace() {
+        val enabledServices = "  ${target.uppercase()}  "
+
+        assertTrue(PermissionStatusHelper.isAccessibilityServiceEnabledInSetting(enabledServices, target))
+    }
+
+    @Test
+    fun accessibilityServiceDoesNotMatchOtherServices() {
+        val enabledServices = "com.transparentlc.cloudclipboardsync/com.transparentlc.cloudclipboardsync.OtherService:" +
+            "li.songe.gkd/com.google.android.accessibility.selecttospeak.SelectToSpeakService"
+
+        assertFalse(PermissionStatusHelper.isAccessibilityServiceEnabledInSetting(enabledServices, target))
+    }
+
+    @Test
+    fun accessibilityServiceDoesNotMatchBlankSettingOrTarget() {
+        assertFalse(PermissionStatusHelper.isAccessibilityServiceEnabledInSetting(null, target))
+        assertFalse(PermissionStatusHelper.isAccessibilityServiceEnabledInSetting("", target))
+        assertFalse(PermissionStatusHelper.isAccessibilityServiceEnabledInSetting(target, " "))
+    }
+}
