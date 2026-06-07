@@ -105,3 +105,26 @@ func TestLoadPrefersFriendlyDurationFields(t *testing.T) {
 		t.Fatalf("friendly duration fields were not persisted: %#v", persisted)
 	}
 }
+
+func TestNormalizeNoticeModeDefaultsToTipButKeepsExplicitPopup(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{name: "empty", input: "", want: "tip"},
+		{name: "unknown", input: "system", want: "tip"},
+		{name: "tip", input: "TIP", want: "tip"},
+		{name: "popup", input: "popup", want: "popup"},
+		{name: "log", input: "log", want: "log"},
+		{name: "off", input: "off", want: "off"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := normalizeNoticeMode(tt.input); got != tt.want {
+				t.Fatalf("normalizeNoticeMode(%q) = %q, want %q", tt.input, got, tt.want)
+			}
+		})
+	}
+}

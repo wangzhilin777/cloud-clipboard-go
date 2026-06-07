@@ -316,8 +316,10 @@ func normalizeNoticeMode(value string) string {
 		return "log"
 	case "tip":
 		return "tip"
-	default:
+	case "popup":
 		return "popup"
+	default:
+		return "tip"
 	}
 }
 
