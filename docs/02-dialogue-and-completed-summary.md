@@ -147,6 +147,8 @@
 - 已用临时服务端、临时桌面配置和临时下载目录完成无托盘面板版 Windows 联调：面板 API 可访问，设备批准后 trusted，手动文本发送成功，文件发送成功并产生 `payloadNotice`，热键录入会规范化为 `Ctrl+Alt+P` / `Ctrl+Alt+C` / `Ctrl+Shift+V`，并确认 `CLOUD_CLIPBOARD_DESKTOP_DISABLE_OS_INTEGRATIONS=1` 会跳过热键、剪贴板监听和右键菜单管理
 - 已同步更新根 README、英文 README、桌面端 README 与 `docs/03-sync-usage-and-effects.md`，补充无托盘面板版作为系统策略拦截托盘组件时的可用入口
 - 本轮重新验证通过：`desktop-client-go` 下 `go test ./internal/app ./internal/syncclient ./internal/transfer ./internal/desktopcmd`、`go build ./cmd/cloud-clipboard-desktop`、`go build ./cmd/cloud-clipboard-panel`，以及 `cloud-clip` 下 `go test ./lib` 均成功；验证后已清理命令目录构建 exe、临时服务端、临时桌面端、临时配置、临时测试文件和 `C:\Temp` 自测目录
+- 已继续补测无托盘面板版 `-shell-send` 一次性发送链路，该链路等价覆盖 Windows 右键菜单“复制到剪贴板服务器”的核心动作：使用临时服务端、临时桌面配置和临时测试文件验证 `.txt` 与 `.png` 均可通过旧 `/upload` 上传，并同步产生 `payloadNotice`
+- 本轮 `.png` 验证中服务端 recent payload 正确记录为 `kind=image`、`sourceDeviceId=codex-shell-png-device`，旧 `content/latest` 也能返回最新图片文件信息；验证后已停止临时服务端，并清理临时 exe、临时配置、临时上传目录、临时下载目录和测试文件
 
 ## 当前判断还在继续推进的部分
 
