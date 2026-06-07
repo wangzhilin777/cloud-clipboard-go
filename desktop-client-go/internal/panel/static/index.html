@@ -794,10 +794,12 @@
       if (!files.length) return '-';
       const now = Date.now();
       const expiresAt = Number(state.pendingClipboardExpiresAt || 0);
+      const detectedAt = Number(state.pendingClipboardDetectedAt || 0);
       const remaining = expiresAt > now ? Math.max(0, Math.ceil((expiresAt - now) / 1000)) : 0;
       const name = String(files[0] || '').split(/[\\\\/]/).pop();
       const extra = files.length > 1 ? ` 等 ${files.length} 项` : '';
-      return remaining > 0 ? `${name}${extra} / 剩余 ${remaining}s` : `${name}${extra} / 已过期`;
+      const timeText = detectedAt ? new Date(detectedAt).toLocaleString() : '时间未知';
+      return remaining > 0 ? `${name}${extra} / ${timeText} / 剩余 ${remaining}s` : `${name}${extra} / ${timeText} / 已过期`;
     }
 
     function formatCacheCleanup(state) {
