@@ -816,7 +816,11 @@
       const kind = String(state.lastPayloadKind || '').trim() || 'file';
       const at = Number(state.lastPayloadAt || 0);
       const timeText = at ? new Date(at).toLocaleString() : '时间未知';
-      return `${kind} / ${title} / ${timeText}`;
+      let kindText = '文件';
+      if (kind === 'image') kindText = '图片';
+      else if (kind === 'text') kindText = '文本';
+      else if (kind === 'files') kindText = '多文件';
+      return `${kindText} / ${title} / ${timeText}`;
     }
 
     function formatRemoteTextSummary(state) {
