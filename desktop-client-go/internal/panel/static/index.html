@@ -807,7 +807,7 @@
       const at = Number(state.lastCacheCleanupAt || 0);
       if (!at) return '-';
       const timeText = new Date(at).toLocaleString();
-      return `${removed} 项 / ${timeText}`;
+      return `${timeText} / 清理 ${removed} 项`;
     }
 
     function formatPayloadSummary(state) {
