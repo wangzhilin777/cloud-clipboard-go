@@ -246,14 +246,16 @@ func normalizeStatus(status string) string {
 }
 
 func buildTrayTooltip(status panel.StatusView) string {
-	text := "Cloud Clipboard / " + normalizeStatus(status.State.Status)
-	if status.State.Connected {
-		text = text + " / 已连接"
+	segments := []string{"Cloud Clipboard"}
+	statusLabel := normalizeStatus(status.State.Status)
+	segments = append(segments, statusLabel)
+	if status.State.Connected && !status.State.Trusted && statusLabel != "已连接" {
+		segments = append(segments, "链路已连")
 	}
 	if strings.TrimSpace(status.Config.DeviceName) != "" {
-		text = text + " / " + strings.TrimSpace(status.Config.DeviceName)
+		segments = append(segments, strings.TrimSpace(status.Config.DeviceName))
 	}
-	return text
+	return strings.Join(segments, " / ")
 }
 
 func previewText(text string) string {

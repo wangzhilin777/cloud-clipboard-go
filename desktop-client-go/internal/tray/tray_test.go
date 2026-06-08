@@ -90,7 +90,7 @@ func TestBuildTrayTooltip(t *testing.T) {
 		},
 	}
 
-	if got := buildTrayTooltip(status); got != "Cloud Clipboard / 已连接 / 已连接 / WingLin" {
+	if got := buildTrayTooltip(status); got != "Cloud Clipboard / 已连接 / WingLin" {
 		t.Fatalf("unexpected tray tooltip: %q", got)
 	}
 }
@@ -104,6 +104,22 @@ func TestBuildTrayTooltipWithoutDeviceName(t *testing.T) {
 
 	if got := buildTrayTooltip(status); got != "Cloud Clipboard / 待批准" {
 		t.Fatalf("unexpected tray tooltip without device: %q", got)
+	}
+}
+
+func TestBuildTrayTooltipShowsConnectedPendingState(t *testing.T) {
+	status := panel.StatusView{
+		Config: config.Config{
+			DeviceName: "WingLin",
+		},
+		State: panel.StateSnapshot{
+			Status:    "pending",
+			Connected: true,
+		},
+	}
+
+	if got := buildTrayTooltip(status); got != "Cloud Clipboard / 待批准 / 链路已连 / WingLin" {
+		t.Fatalf("unexpected tray tooltip for connected pending state: %q", got)
 	}
 }
 
