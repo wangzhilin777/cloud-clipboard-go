@@ -127,7 +127,7 @@
     <string name="runtime_mode_shizuku_not_running">当前选的是 Shizuku 模式，但 Shizuku 服务还没运行，请先用 root 或 adb 启动 Shizuku 服务。</string>
     <string name="runtime_mode_shizuku_permission_required">当前选的是 Shizuku 模式，但云剪同步还没有获得 Shizuku 授权，请先授权后再继续。</string>
     <string name="runtime_mode_shizuku_ready">Shizuku 辅助模式已就绪。</string>
-    <string name="runtime_mode_shizuku_unavailable">当前版本的 Shizuku 独立剪贴板主通道仍在评估中；已授权时会作为系统授权与 AppOps 诊断辅助。</string>
+    <string name="runtime_mode_shizuku_unavailable">Shizuku 会用于系统授权与 AppOps 诊断辅助；后台复制仍以系统实际限制为准。</string>
     <string name="permission_state_enabled">已开启</string>
     <string name="permission_state_disabled">未开启</string>
     <string name="open_notification_settings_button">通知设置</string>

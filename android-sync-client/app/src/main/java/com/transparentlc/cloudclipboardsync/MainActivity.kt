@@ -1144,7 +1144,7 @@ class MainActivity : AppCompatActivity() {
             return "自动续连：等待配置\n原因：还没有填写服务端地址，请先填 Windows 或服务器的局域网地址。"
         }
         if (isLoopbackServerBase(config.serverBase)) {
-            return "自动续连：暂不可用\n原因：当前服务地址还是 127.0.0.1/localhost，请改成 Windows 局域网 IP。"
+            return "自动续连：未启用\n原因：当前服务地址还是 127.0.0.1/localhost，请改成 Windows 局域网 IP。"
         }
         if (config.lastDesiredRunningState != SettingsStore.RUNNING_STATE_RUNNING) {
             return "自动续连：等待手动启动\n原因：上次是手动停止状态，重新打开 App 时不会自动恢复同步。"
@@ -1201,7 +1201,7 @@ class MainActivity : AppCompatActivity() {
             config.clipboardMode == SettingsStore.CLIPBOARD_MODE_SHIZUKU && status.shizukuPermissionGranted ->
                 "下一步：可以直接启动同步并做一次前台/后台复制对照；如果后台复制仍不稳，再切到无障碍增强模式兜底。"
             config.clipboardMode == SettingsStore.CLIPBOARD_MODE_SHIZUKU ->
-                "下一步：先完成 Shizuku 服务启动和授权验证；如果要继续日常同步，当前仍建议使用无障碍增强模式。"
+                "下一步：先启动 Shizuku 服务并完成授权；如果要继续日常同步，当前仍建议使用无障碍增强模式。"
             !validation.ready -> "下一步：先点上面的快捷处理按钮补齐当前模式所需授权。"
             config.clipboardMode == SettingsStore.CLIPBOARD_MODE_FOREGROUND && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q ->
                 "下一步：先做一次前台复制和一次后台复制；如果后台经常没回传，优先切到无障碍增强模式。"
@@ -1257,7 +1257,7 @@ class MainActivity : AppCompatActivity() {
             config.clipboardMode == SettingsStore.CLIPBOARD_MODE_SHIZUKU && status.shizukuPermissionGranted ->
                 "下一步建议：Shizuku 授权已经通过，可以启动同步并观察最近结果；如果后台复制仍被系统限制，再切到无障碍增强。"
             config.clipboardMode == SettingsStore.CLIPBOARD_MODE_SHIZUKU ->
-                "下一步建议：先完成 Shizuku 服务启动和授权验证；日常同步仍建议使用无障碍增强。"
+                "下一步建议：先启动 Shizuku 服务并完成授权；日常同步仍建议使用无障碍增强。"
             !validation.ready -> "下一步建议：先按上面的模式引导补齐授权，再重新启动同步。"
             config.clipboardMode == SettingsStore.CLIPBOARD_MODE_FOREGROUND && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q ->
                 "下一步建议：如果后台复制还是经常没有回传，优先切到无障碍增强模式。"
@@ -1372,9 +1372,9 @@ class MainActivity : AppCompatActivity() {
         if (!status.shizukuInstalled) {
             suggestions += "Shizuku 更适合系统限制明显的设备，需要时再安装并授权即可。"
         } else if (!status.shizukuRunning) {
-            suggestions += "已安装 Shizuku；如需验证授权，请先用 root 或 adb 启动 Shizuku 服务。"
+            suggestions += "已安装 Shizuku；如需使用 Shizuku 模式，请先用 root 或 adb 启动 Shizuku 服务。"
         } else if (!status.shizukuPermissionGranted) {
-            suggestions += "Shizuku 服务已运行；如需验证授权，请在运行页切到 Shizuku 后点快捷处理授权。"
+            suggestions += "Shizuku 服务已运行；如需使用 Shizuku 模式，请在运行页切到 Shizuku 后点快捷处理授权。"
         }
 
         return StatusChecklist(blockers = blockers, suggestions = suggestions)
