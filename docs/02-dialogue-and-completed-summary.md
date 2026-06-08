@@ -185,10 +185,12 @@
 - 已在关闭本机安全软件拦截后完成桌面端托盘版隔离 smoke：临时编译 `cloud-clipboard-desktop` 到系统临时目录，使用临时配置、临时下载目录、随机本地端口启动，未启用右键菜单、热键和剪贴板文件确认；验证 `/api/status` 可访问，托盘版进程可正常启动，日志中仅因测试配置故意指向 `127.0.0.1:9` 产生一次连接失败并按配置暂停自动重连；验证后已停止临时进程并删除临时 exe、配置和下载目录
 - 已继续完成桌面端托盘版临时服务端闭环验证：临时启动 Go 服务端与托盘版桌面端，使用房间密码连接同步房间，桌面端先进入 pending，调用 `/api/sync/pair/approve` 后变为 trusted，控制面板 `/api/status` 返回 `trusted=true`，再通过面板 `/api/send-text` 手动发送测试文本，服务端旧 `/content/latest` 可读到同一内容；验证配置关闭右键菜单、全局热键和剪贴板文件确认，未写入真实配置、真实服务端数据或用户文件，验证后已停止临时服务端和托盘进程并删除临时目录
 - 已继续完成桌面端托盘版文件发送闭环验证：临时服务端和托盘版桌面端进入 trusted 后，通过控制面板 `/api/send-file` 发送临时 `.txt` 文件，旧 `/content/latest` 返回同名最新文件，`/api/sync/status` 的 `recentPayloads` 中出现 `kind=file`、`title=codex-tray-file-e2e.txt`、`sourceDeviceId=codex-tray-file-e2e-device` 的通知记录；验证后已停止临时服务端和托盘进程，并清理临时上传目录、下载目录、测试 exe、配置与测试文件
+- 本轮继续对 Android 16 真机 `760435a8` 做只读权限巡检：设备在线，App 已安装，通知权限、Shizuku API 权限、剪贴板读写 AppOps 和电池白名单均可用，Shizuku Watchdog 前台服务正在运行；当前 `SyncService` 未运行，`Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES` 未列出云剪同步，但 `dumpsys activity services` 可见云剪同步无障碍服务连接记录，说明澎湃 OS 上可能存在“设置字符串与实际系统枚举不一致”的诊断场景；本轮未修改手机配置、未覆盖安装、未清理 App 数据、未删除任何手机端非调试数据或文件
+- 已优化 Android 无障碍启用状态判断：保留 `Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES` 精确匹配，同时增加 `AccessibilityManager.getEnabledAccessibilityServiceList()` 兜底枚举，减少厂商 ROM 上无障碍状态误判；并补充服务列表匹配单元测试，避免同包其它服务或 debug 包名误判为已启用
 
 ## 当前判断还在继续推进的部分
 
-- Android 真机后台复制和受限权限场景体验，后续重点转向更多真实 App 场景覆盖，以及 Shizuku 独立剪贴板增强主通道可行性评估；当前 Shizuku 已先收口为可启动的诊断辅助模式
+- Android 真机后台复制和受限权限场景体验，后续重点转向更多真实 App 场景覆盖，以及 Shizuku 独立剪贴板增强主通道可行性评估；当前 Shizuku 已先收口为可启动的诊断辅助模式，无障碍启用状态已增加 AccessibilityManager 兜底判断
 - Android 10 / 13 / 14+ 高版本系统限制下的提示文案与模式引导仍可继续细化，但当前基础提示链路已补齐
 - 桌面端 Go 客户端进一步收口；无托盘面板版已完成本机闭环，托盘版在关闭本机安全软件拦截后已完成启动、临时服务端连接、设备批准、面板 trusted 状态、手动文本发送、文件发送和 `payloadNotice` 闭环，后续可继续围绕真实用户配置、托盘菜单和右键系统集成做完整联调
 - 二期交互与配置增强

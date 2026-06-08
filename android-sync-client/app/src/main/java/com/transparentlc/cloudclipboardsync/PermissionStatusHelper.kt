@@ -1,12 +1,14 @@
 package com.transparentlc.cloudclipboardsync
 
+import android.accessibilityservice.AccessibilityServiceInfo
+import android.app.AppOpsManager
 import android.content.ComponentName
 import android.content.Context
-import android.app.AppOpsManager
 import android.os.Build
 import android.os.PowerManager
 import android.os.Process
 import android.provider.Settings
+import android.view.accessibility.AccessibilityManager
 import androidx.core.app.NotificationManagerCompat
 
 data class PermissionStatus(
@@ -50,7 +52,10 @@ object PermissionStatusHelper {
             Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES,
         ).orEmpty()
         val target = ComponentName(context, ClipboardAccessAccessibilityService::class.java).flattenToString()
-        return isAccessibilityServiceEnabledInSetting(enabledServices, target)
+        if (isAccessibilityServiceEnabledInSetting(enabledServices, target)) {
+            return true
+        }
+        return isAccessibilityServiceEnabledInManager(context, target)
     }
 
     internal fun isAccessibilityServiceEnabledInSetting(enabledServices: String?, target: String): Boolean {
@@ -60,6 +65,24 @@ object PermissionStatusHelper {
             .orEmpty()
             .split(':')
             .any { it.trim().equals(normalizedTarget, ignoreCase = true) }
+    }
+
+    private fun isAccessibilityServiceEnabledInManager(context: Context, target: String): Boolean {
+        val manager = context.getSystemService(Context.ACCESSIBILITY_SERVICE) as? AccessibilityManager ?: return false
+        val services = runCatching {
+            manager.getEnabledAccessibilityServiceList(AccessibilityServiceInfo.FEEDBACK_ALL_MASK)
+        }.getOrDefault(emptyList())
+        val flattenedServices = services.mapNotNull { info ->
+            val serviceInfo = info.resolveInfo?.serviceInfo ?: return@mapNotNull null
+            ComponentName(serviceInfo.packageName, serviceInfo.name).flattenToString()
+        }
+        return isAccessibilityServiceEnabledInServiceList(flattenedServices, target)
+    }
+
+    internal fun isAccessibilityServiceEnabledInServiceList(services: List<String>, target: String): Boolean {
+        val normalizedTarget = target.trim()
+        if (normalizedTarget.isBlank()) return false
+        return services.any { it.trim().equals(normalizedTarget, ignoreCase = true) }
     }
 
     private fun isIgnoringBatteryOptimizations(context: Context): Boolean {

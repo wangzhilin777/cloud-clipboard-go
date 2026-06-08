@@ -39,4 +39,24 @@ class PermissionStatusHelperTest {
         assertFalse(PermissionStatusHelper.isAccessibilityServiceEnabledInSetting("", target))
         assertFalse(PermissionStatusHelper.isAccessibilityServiceEnabledInSetting(target, " "))
     }
+
+    @Test
+    fun accessibilityServiceMatchesManagerServiceList() {
+        val services = listOf(
+            "com.example.other/com.example.other.OtherAccessibilityService",
+            target,
+        )
+
+        assertTrue(PermissionStatusHelper.isAccessibilityServiceEnabledInServiceList(services, target))
+    }
+
+    @Test
+    fun accessibilityServiceManagerListDoesNotMatchSimilarPackage() {
+        val services = listOf(
+            "com.transparentlc.cloudclipboardsync/com.transparentlc.cloudclipboardsync.OtherService",
+            "com.transparentlc.cloudclipboardsync.debug/com.transparentlc.cloudclipboardsync.ClipboardAccessAccessibilityService",
+        )
+
+        assertFalse(PermissionStatusHelper.isAccessibilityServiceEnabledInServiceList(services, target))
+    }
 }
