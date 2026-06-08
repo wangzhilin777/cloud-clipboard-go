@@ -208,6 +208,7 @@
 - 本轮重新审计 `docs/01-current-plan-summary.md`、主源码目录和最近提交记录，未发现新的明确 TODO、未完成实现或需要立即修改的用户可见缺口；源码扫描仅命中非 Windows 平台“当前平台暂不支持文件剪贴板写入”的能力提示，属于跨平台能力说明，不影响 Windows 主链路。已将 `77f8709 补记安卓与桌面隔离复查结果` 补入 `docs/01-current-plan-summary.md` 最近提交列表；本轮未运行手机写操作、未安装手机、未删除手机端任何非调试数据或文件
 - 用户补充 Android 真机联调规则：手机已有 root 环境，后续确有必要时可以覆盖安装安卓包；如果安装后无障碍授权丢失，可打开爱玩机工具箱，用搜索按钮搜索“无障碍”，进入“无障碍助手”自主恢复授权。后续不再把“不能安装手机”作为绝对限制，但仍需避免清理或删除手机端非调试数据和文件
 - 本轮继续审计工作区、计划摘要、最近提交和主要源码目录：当前工作区干净，源码未发现新的明确 TODO、待实现或用户可见缺口；英文 README 的边界说明中剩余 `not implemented` 开发态表述已改为稳定的能力范围说明；同时已将 `2139f1a 记录安卓无障碍授权恢复方式` 补入 `docs/01-current-plan-summary.md` 最近提交列表。本轮未运行手机写操作、未安装手机、未删除手机端任何非调试数据或文件
+- 本轮继续做轻量收口复查：工作区干净，主源码和用户文档未命中明确 TODO / 待实现 / 开发态边界残留；Android 16 真机 `760435a8` 只读状态显示云剪同步无障碍仍在启用列表，`shizuku_server` root 进程和 `moe.shizuku.privileged.api` App 进程仍在运行，剪贴板 AppOps 中 `READ_CLIPBOARD` 保持 allow / foreground 记录；`desktop-client-go` 下 `go test ./internal/config ./internal/app ./internal/desktopcmd ./internal/syncclient` 通过，验证后已执行 `go clean -testcache` 清理 Go 测试缓存。本轮未安装手机、未修改手机配置、未删除手机端任何非调试数据或文件；同时已将 `7874e22 收口英文说明并同步计划状态` 补入 `docs/01-current-plan-summary.md` 最近提交列表
 
 ## 当前判断还在继续推进的部分
 
