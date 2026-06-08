@@ -193,6 +193,7 @@
 - 已完成桌面端无托盘面板文案隔离 smoke：临时编译 `cloud-clipboard-panel`，使用临时配置、随机本地端口和 `CLOUD_CLIPBOARD_DESKTOP_DISABLE_OS_INTEGRATIONS=1` 启动，验证首页静态产物包含“面板 / 发送文本 / 拉取文本 / 拉取文件到剪贴板 / 下载文件 / 右下角提示 / 文件确认 / 提示位置”等新文案；验证后已停止临时进程并删除临时 exe、配置和下载目录
 - 本轮完成核心回归验证：`cloud-clip` 下 `go test ./lib` 通过；`desktop-client-go` 下 `go test ./internal/desktopcmd ./internal/transfer ./internal/config ./internal/syncclient ./internal/app ./internal/panel` 通过；`android-sync-client` 下 `.\gradlew.bat testDebugUnitTest` 通过。本轮未安装手机、未修改手机配置、未删除手机端任何非调试数据；验证后已清理 Go 测试缓存、执行 Android `gradlew clean`、停止 Gradle daemon，并删除 Android 构建目录
 - 已将 Android 同步客户端通知渠道名从英文 `Cloud Clipboard Sync` / `Cloud Clipboard Receive` 改为中文“云剪同步运行状态” / “云剪同步接收提醒”，减少系统通知设置里的英文残留；本轮曾发现当前 PATH 的 `apply_patch` 指向 WindowsApps 版 Codex 且被系统拒绝启动，已改用本地 OpenAI Codex bin 的补丁入口完成编辑，仓库未留下半截改动
+- 已继续补充 Android 同步客户端通知渠道说明：运行状态渠道说明为“显示同步连接、重连和前台运行状态”，接收提醒渠道说明为“显示图片/文件接收确认、下载完成和同步失败提醒”，方便用户在系统通知设置里区分不同开关影响；本轮重新验证 `android-sync-client` 下 `./gradlew.bat testDebugUnitTest` 通过，验证后已执行 `gradlew clean`、停止 Gradle daemon，并清理 Android 构建目录
 
 ## 当前判断还在继续推进的部分
 

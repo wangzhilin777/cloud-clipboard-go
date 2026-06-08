@@ -628,14 +628,18 @@ class SyncService : Service() {
                 CHANNEL_ID,
                 getString(R.string.notification_channel_sync),
                 NotificationManager.IMPORTANCE_LOW,
-            ),
+            ).apply {
+                description = getString(R.string.notification_channel_sync_desc)
+            },
         )
         manager.createNotificationChannel(
             NotificationChannel(
                 RECEIVE_CHANNEL_ID,
                 getString(R.string.notification_channel_receive),
                 NotificationManager.IMPORTANCE_DEFAULT,
-            ),
+            ).apply {
+                description = getString(R.string.notification_channel_receive_desc)
+            },
         )
     }
 
