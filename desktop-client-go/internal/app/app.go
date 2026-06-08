@@ -35,6 +35,7 @@ type App struct {
 	panel                            *panel.Server
 	hotkeys                          hotkey.Manager
 	shellMenu                        shellmenu.Manager
+	syncClient                       *syncclient.Client
 	reloadCh                         chan struct{}
 	suppressedClipboardFileSignature string
 	lastClipboardNoticeSignature     string
@@ -101,6 +102,7 @@ func (a *App) Run(ctx context.Context) error {
 
 	for {
 		client := syncclient.New(a.currentConfig(), a.logger, a)
+		a.setSyncClient(client)
 		sessionCtx, cancel := context.WithCancel(ctx)
 		errCh := make(chan error, 1)
 		go func() {
@@ -111,13 +113,16 @@ func (a *App) Run(ctx context.Context) error {
 		case <-ctx.Done():
 			cancel()
 			<-errCh
+			a.clearSyncClient(client)
 			return ctx.Err()
 		case <-a.reloadCh:
 			a.logger.Printf("检测到配置更新，正在重连同步客户端")
 			cancel()
 			<-errCh
+			a.clearSyncClient(client)
 		case err := <-errCh:
 			cancel()
+			a.clearSyncClient(client)
 			if ctx.Err() != nil {
 				return ctx.Err()
 			}
@@ -134,6 +139,34 @@ func (a *App) Run(ctx context.Context) error {
 			return err
 		}
 	}
+}
+
+func (a *App) setSyncClient(client *syncclient.Client) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.syncClient = client
+}
+
+func (a *App) clearSyncClient(client *syncclient.Client) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.syncClient == client {
+		a.syncClient = nil
+	}
+}
+
+func (a *App) currentSyncClient() *syncclient.Client {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.syncClient
+}
+
+func (a *App) publishTextToSync(text string) error {
+	client := a.currentSyncClient()
+	if client == nil {
+		return errors.New("同步连接未启动")
+	}
+	return client.PublishText(text)
 }
 
 func desktopOSIntegrationsDisabled() bool {
@@ -474,6 +507,9 @@ func (a *App) SendText(text string, fromClipboard bool) (string, error) {
 	result, err := sender.SendText(context.Background(), text)
 	if err != nil {
 		return "", err
+	}
+	if err := a.publishTextToSync(result.Text); err != nil {
+		return "", fmt.Errorf("文本已写入网页历史，但同步广播失败: %w", err)
 	}
 	label := "manual-text"
 	if fromClipboard {

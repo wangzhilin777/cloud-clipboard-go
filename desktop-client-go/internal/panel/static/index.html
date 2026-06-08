@@ -165,6 +165,10 @@
       margin-top: 12px;
       color: var(--muted);
     }
+    .message.error {
+      color: var(--bad);
+      font-weight: 600;
+    }
     .tab-panel {
       display: none;
     }
@@ -468,6 +472,7 @@
             <button class="secondary" id="sendClipboardTextButton" type="button">发送当前剪贴板文本</button>
             <button class="secondary" id="fetchLatestTextButton" type="button">拉取最新文本到剪贴板</button>
           </div>
+          <div class="message action-message" id="actionMessage">动作结果会显示在这里。</div>
         </div>
 
         <div>
@@ -656,6 +661,7 @@
     const connectionHintText = document.getElementById('connectionHintText');
     const updatedAtText = document.getElementById('updatedAtText');
     const message = document.getElementById('message');
+    const actionMessage = document.getElementById('actionMessage');
     const tabButtons = Array.from(document.querySelectorAll('[data-tab-button]'));
     const tabPanels = Array.from(document.querySelectorAll('[data-tab-panel]'));
     const hotkeyOpenButtons = Array.from(document.querySelectorAll('[data-hotkey-open]'));
@@ -1129,25 +1135,31 @@
       }
     }
 
+    function setActionMessage(text, isError = false) {
+      if (!actionMessage) return;
+      actionMessage.textContent = text;
+      actionMessage.classList.toggle('error', isError);
+    }
+
     async function sendFile() {
-      message.textContent = '正在打开文件选择框...';
+      setActionMessage('正在打开文件选择框...');
       try {
         const resp = await fetch('/api/send-file', { method: 'POST' });
         const text = await resp.text();
         if (!resp.ok) throw new Error(text || `HTTP ${resp.status}`);
         const data = JSON.parse(text || '{}');
         if (Array.isArray(data.files) && data.files.length) {
-          message.textContent = `发送成功：${data.files.join('，')}`;
+          setActionMessage(`发送成功：${data.files.join('，')}`);
         } else {
-          message.textContent = '已取消选择文件。';
+          setActionMessage('已取消选择文件。');
         }
       } catch (err) {
-        message.textContent = `发送失败：${err.message}`;
+        setActionMessage(`发送失败：${err.message}`, true);
       }
     }
 
     async function sendText(fromClipboard) {
-      message.textContent = fromClipboard ? '正在读取并发送剪贴板文本...' : '正在发送文本...';
+      setActionMessage(fromClipboard ? '正在读取并发送剪贴板文本...' : '正在发送文本...');
       try {
         const resp = await fetch('/api/send-text', {
           method: 'POST',
@@ -1163,48 +1175,48 @@
         if (!fromClipboard) {
           manualText.value = '';
         }
-        message.textContent = `文本发送成功：${data.text || ''}`;
+        setActionMessage(`文本发送成功：${data.text || ''}`);
       } catch (err) {
-        message.textContent = `文本发送失败：${err.message}`;
+        setActionMessage(`文本发送失败：${err.message}`, true);
       }
     }
 
     async function fetchLatestText() {
-      message.textContent = '正在拉取最新文本...';
+      setActionMessage('正在拉取最新文本...');
       try {
         const resp = await fetch('/api/fetch-latest-text', { method: 'POST' });
         const text = await resp.text();
         if (!resp.ok) throw new Error(text || `HTTP ${resp.status}`);
         const data = JSON.parse(text || '{}');
-        message.textContent = `已写入剪贴板：${data.text || ''}`;
+        setActionMessage(`已写入剪贴板：${data.text || ''}`);
       } catch (err) {
-        message.textContent = `拉取文本失败：${err.message}`;
+        setActionMessage(`拉取文本失败：${err.message}`, true);
       }
     }
 
     async function downloadLatestFile() {
-      message.textContent = '正在下载最新文件...';
+      setActionMessage('正在下载最新文件...');
       try {
         const resp = await fetch('/api/download-latest-file', { method: 'POST' });
         const text = await resp.text();
         if (!resp.ok) throw new Error(text || `HTTP ${resp.status}`);
         const data = JSON.parse(text || '{}');
-        message.textContent = `下载成功：${data.path || ''}`;
+        setActionMessage(`下载成功：${data.path || ''}`);
       } catch (err) {
-        message.textContent = `下载文件失败：${err.message}`;
+        setActionMessage(`下载文件失败：${err.message}`, true);
       }
     }
 
     async function fetchLatestFileToClipboard() {
-      message.textContent = '正在拉取最新文件到剪贴板...';
+      setActionMessage('正在拉取最新文件到剪贴板...');
       try {
         const resp = await fetch('/api/fetch-latest-file-to-clipboard', { method: 'POST' });
         const text = await resp.text();
         if (!resp.ok) throw new Error(text || `HTTP ${resp.status}`);
         const data = JSON.parse(text || '{}');
-        message.textContent = `已写入文件剪贴板：${data.path || ''}`;
+        setActionMessage(`已写入文件剪贴板：${data.path || ''}`);
       } catch (err) {
-        message.textContent = `拉取最新文件到剪贴板失败：${err.message}`;
+        setActionMessage(`拉取最新文件到剪贴板失败：${err.message}`, true);
       }
     }
 

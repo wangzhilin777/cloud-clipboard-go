@@ -436,7 +436,7 @@ func (c *Client) publishClipboard(text string) error {
 	if text == "" {
 		return nil
 	}
-	c.lastPublishedText = text
+	c.setLastPublishedText(text)
 	payload := outgoingEnvelope{
 		Event: "clipboardPublish",
 		Data: map[string]interface{}{
@@ -446,6 +446,20 @@ func (c *Client) publishClipboard(text string) error {
 		},
 	}
 	return c.writeJSON(payload)
+}
+
+// PublishText sends an explicit text action through the same realtime sync
+// channel used by clipboard monitoring, so panel and hotkey actions reach
+// Android/desktop clients immediately instead of only updating web history.
+func (c *Client) PublishText(text string) error {
+	text = strings.TrimSpace(text)
+	if text == "" {
+		return errors.New("要同步的文本不能为空")
+	}
+	if !c.isTrusted() {
+		return errors.New("同步连接未就绪或设备尚未批准")
+	}
+	return c.publishClipboard(text)
 }
 
 func (c *Client) writeJSON(v interface{}) error {
@@ -469,6 +483,12 @@ func (c *Client) setTrusted(trusted bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.trusted = trusted
+}
+
+func (c *Client) setLastPublishedText(text string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.lastPublishedText = text
 }
 
 func (c *Client) isTrusted() bool {
