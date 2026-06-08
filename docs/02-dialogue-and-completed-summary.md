@@ -233,6 +233,7 @@
 - 本轮继续推进桌面端托盘替换主线：由于公网拉取 `github.com/getlantern/systray` 仍超时，已把本地已有的 `getlantern/systray` 源码内置到 `desktop-client-go/third_party/getlantern-systray`，裁掉外部 `golog` 依赖并保留 Windows 左键事件回调；桌面端 `internal/tray` 已切到新接口，仍保留左键打开控制面板、右键菜单常用动作与悬停状态刷新。验证通过：`desktop-client-go` 下 `go mod tidy`、`go test ./internal/tray ./internal/app ./internal/panel`、`go build ./cmd/cloud-clipboard-desktop`、`go build ./cmd/cloud-clipboard-panel`，并额外使用临时配置启动托盘版 `cloud-clipboard-desktop.exe` 做 5 秒进程级 smoke，确认进程在观察窗口内保持存活；验证后已删除本轮构建产物 exe，并执行 `go clean -cache -testcache` 清理 Go 缓存。本轮未安装手机、未修改手机配置、未删除手机端任何非调试数据或文件，也未删除服务端非调试数据
 - 本轮继续只读复查 Android 真机 `760435a8` 的权限状态：`POST_NOTIFICATIONS` 与 `moe.shizuku.manager.permission.API_V23` 仍为 `granted=true`；本轮未覆盖安装、未改手机配置、未删除任何手机端非调试数据或文件
 - 本轮继续补齐新托盘实现的真实链路 smoke：重新临时编译 `cloud-clip`、`cloud-clipboard-desktop` 和 `cloud-clipboard-panel`，用临时上传目录、历史文件、下载目录和桌面端配置启动“临时服务端 + 新托盘版桌面端”；联调中验证本地面板首页可访问，`/api/status` 返回的平台为 `windows`、设备名为 `CodexTrayE2E`，并且托盘版进程与服务端进程在观察窗口内持续存活，设备状态进入 `pending`。验证后已停止临时服务端和托盘进程，删除临时目录、根目录生成的 `.exe` 构建产物，并执行 `go clean -cache -testcache` 清理 Go 缓存。本轮未安装手机、未修改手机配置、未删除手机端任何非调试数据或文件，也未删除服务端非调试数据
+- 本轮继续补强托盘实现的可测性：已将托盘 tooltip 组装逻辑抽成 `buildTrayTooltip`，并新增 `desktop-client-go/internal/tray/tray_test.go`，覆盖状态归一化、tooltip 文案和文本预览截断，避免后续继续迭代托盘实现时把中文状态摘要改坏。验证时本机默认 `GOCACHE` 出现文件缺失与拒绝访问，因此改为使用临时 `GOCACHE` 重新执行 `go test ./internal/tray ./internal/app ./internal/panel` 和 `go build ./cmd/cloud-clipboard-desktop`，确认代码链路正常；验证结束后已删除临时 `GOCACHE` 目录。本轮未安装手机、未修改手机配置、未删除手机端任何非调试数据或文件，也未删除服务端非调试数据
 
 ## 当前判断还在继续推进的部分
 

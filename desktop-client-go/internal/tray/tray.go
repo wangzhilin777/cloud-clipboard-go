@@ -77,14 +77,7 @@ func refreshTooltipLoop(ctx context.Context, backend Backend) {
 }
 
 func updateTrayTooltip(status panel.StatusView) {
-	text := "Cloud Clipboard / " + normalizeStatus(status.State.Status)
-	if status.State.Connected {
-		text = text + " / 已连接"
-	}
-	if strings.TrimSpace(status.Config.DeviceName) != "" {
-		text = text + " / " + strings.TrimSpace(status.Config.DeviceName)
-	}
-	systray.SetTooltip(text)
+	systray.SetTooltip(buildTrayTooltip(status))
 }
 
 func trayEventLoop(
@@ -204,6 +197,17 @@ func normalizeStatus(status string) string {
 	default:
 		return "空闲"
 	}
+}
+
+func buildTrayTooltip(status panel.StatusView) string {
+	text := "Cloud Clipboard / " + normalizeStatus(status.State.Status)
+	if status.State.Connected {
+		text = text + " / 已连接"
+	}
+	if strings.TrimSpace(status.Config.DeviceName) != "" {
+		text = text + " / " + strings.TrimSpace(status.Config.DeviceName)
+	}
+	return text
 }
 
 func previewText(text string) string {
