@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"syscall"
 
 	"github.com/jonnyan404/cloud-clipboard-go/desktop-client-go/internal/config"
 	"golang.org/x/sys/windows/registry"
@@ -95,6 +96,7 @@ func (m *manager) apply(cfg config.Config) {
 			m.logger.Printf("移除右键菜单失败: %v", err)
 			return
 		}
+		refreshExplorerShell()
 		m.setStatus(Status{
 			Supported: true,
 			Enabled:   false,
@@ -114,6 +116,7 @@ func (m *manager) apply(cfg config.Config) {
 		m.logger.Printf("注册右键菜单失败: %v", err)
 		return
 	}
+	refreshExplorerShell()
 	m.setStatus(Status{
 		Supported: true,
 		Enabled:   true,
@@ -245,4 +248,18 @@ func deleteKeyTree(root registry.Key, path string) error {
 		}
 	}
 	return registry.DeleteKey(root, path)
+}
+
+var (
+	shell32DLL         = syscall.NewLazyDLL("shell32.dll")
+	procSHChangeNotify = shell32DLL.NewProc("SHChangeNotify")
+)
+
+func refreshExplorerShell() {
+	if procSHChangeNotify.Find() != nil {
+		return
+	}
+	const shcneAssocChanged = 0x08000000
+	const shcnfIDList = 0x0000
+	procSHChangeNotify.Call(shcneAssocChanged, shcnfIDList, 0, 0)
 }

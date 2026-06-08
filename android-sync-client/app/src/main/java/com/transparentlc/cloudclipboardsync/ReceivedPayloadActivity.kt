@@ -265,13 +265,15 @@ class ReceivedPayloadActivity : AppCompatActivity() {
             return
         }
         currentPayloadId = targetEntry.payloadId
+        val localFile = targetEntry.localPath?.let(::File)
+        val fileReady = localFile?.exists() == true
         titleText.text = targetEntry.title
         metaText.text = buildMeta(targetEntry)
         collapsedSummaryText.text = getString(
             R.string.payload_collapsed_summary_format,
             describeKind(targetEntry.kind),
             buildStatus(targetEntry),
-            if (targetEntry.isDownloaded) getString(R.string.payload_status_cached) else getString(R.string.payload_status_not_downloaded),
+            if (fileReady) getString(R.string.payload_status_cached) else getString(R.string.payload_status_not_downloaded),
         )
         originText.text = getString(
             R.string.payload_origin_format,
@@ -287,10 +289,10 @@ class ReceivedPayloadActivity : AppCompatActivity() {
         indexText.text = getString(R.string.payload_index_format, currentIndex + 1, filtered.size.coerceAtLeast(1))
         actionHintText.text = buildActionHint(targetEntry)
         downloadButton.isEnabled = true
-        downloadButton.text = if (targetEntry.isDownloaded) getString(R.string.payload_redownload_button) else getString(R.string.payload_download_button)
-        openButton.isEnabled = targetEntry.isDownloaded
-        shareButton.isEnabled = targetEntry.isDownloaded
-        saveButton.isEnabled = targetEntry.isDownloaded
+        downloadButton.text = if (fileReady) getString(R.string.payload_redownload_button) else getString(R.string.payload_download_button)
+        openButton.isEnabled = fileReady
+        shareButton.isEnabled = fileReady
+        saveButton.isEnabled = fileReady
         val processed = targetEntry.processedAt != null
         markProcessedButton.isEnabled = !processed
         markProcessedButton.text = if (processed) {
@@ -301,9 +303,8 @@ class ReceivedPayloadActivity : AppCompatActivity() {
         previousButton.isEnabled = currentIndex > 0
         nextButton.isEnabled = currentIndex < filtered.lastIndex
 
-        val file = targetEntry.localPath?.let(::File)
-        if (targetEntry.isImage && file?.exists() == true) {
-            val bitmap = runCatching { BitmapFactory.decodeFile(file.absolutePath) }.getOrNull()
+        if (targetEntry.isImage && fileReady) {
+            val bitmap = runCatching { BitmapFactory.decodeFile(localFile?.absolutePath) }.getOrNull()
             if (bitmap != null) {
                 imagePreview.visibility = View.VISIBLE
                 imagePreview.setImageBitmap(bitmap)
@@ -333,7 +334,7 @@ class ReceivedPayloadActivity : AppCompatActivity() {
 
     private fun buildStatus(entry: PayloadEntry): String {
         val processed = if (entry.processedAt != null) getString(R.string.payload_status_processed) else getString(R.string.payload_status_pending)
-        val cacheState = if (entry.isDownloaded) getString(R.string.payload_status_cached) else getString(R.string.payload_status_not_downloaded)
+        val cacheState = if (entry.localPath?.let(::File)?.exists() == true) getString(R.string.payload_status_cached) else getString(R.string.payload_status_not_downloaded)
         val snoozeState = if (PayloadCacheStore.isSnoozed(entry)) {
             " / ${getString(R.string.payload_status_snoozed)}"
         } else {
@@ -343,7 +344,7 @@ class ReceivedPayloadActivity : AppCompatActivity() {
     }
 
     private fun buildActionHint(entry: PayloadEntry): String = when {
-        !entry.isDownloaded -> getString(R.string.payload_action_hint_download)
+        entry.localPath?.let(::File)?.exists() != true -> getString(R.string.payload_action_hint_download)
         entry.processedAt == null && entry.isImage -> getString(R.string.payload_action_hint_image_ready)
         entry.processedAt == null -> getString(R.string.payload_action_hint_file_ready)
         else -> getString(R.string.payload_action_hint_processed)
