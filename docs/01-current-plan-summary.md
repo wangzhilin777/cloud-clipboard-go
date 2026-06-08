@@ -7,7 +7,7 @@
 ## 当前项目基线
 
 - 工作目录：`E:\Workspace\VSCode\cloud-clipboard`
-- 当前主分支：`main`
+- 当前开发分支：`develop-codex`
 - 当前远端：`origin = https://github.com/wangzhilin777/cloud-clipboard-go.git`
 - 当前基座：`Jonnyan404/cloud-clipboard-go` 路线上的本地持续开发版本
 
@@ -166,6 +166,7 @@
 - `7ed4407` `补记安卓打包验证结果`
 - `9985b14` `补记服务端轻量验证结果`
 - `ed18cbc` `补记桌面端核心验证结果`
+- `57bd9b0` `补记前端构建验证结果`
 
 ## 当前待继续收口的重点
 
