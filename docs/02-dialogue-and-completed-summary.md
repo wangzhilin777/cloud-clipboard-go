@@ -211,6 +211,7 @@
 - 本轮继续做轻量收口复查：工作区干净，主源码和用户文档未命中明确 TODO / 待实现 / 开发态边界残留；Android 16 真机 `760435a8` 只读状态显示云剪同步无障碍仍在启用列表，`shizuku_server` root 进程和 `moe.shizuku.privileged.api` App 进程仍在运行，剪贴板 AppOps 中 `READ_CLIPBOARD` 保持 allow / foreground 记录；`desktop-client-go` 下 `go test ./internal/config ./internal/app ./internal/desktopcmd ./internal/syncclient` 通过，验证后已执行 `go clean -testcache` 清理 Go 测试缓存。本轮未安装手机、未修改手机配置、未删除手机端任何非调试数据或文件；同时已将 `7874e22 收口英文说明并同步计划状态` 补入 `docs/01-current-plan-summary.md` 最近提交列表
 - 本轮继续补齐计划摘要并验证 Android 打包链路：已将 `775dcd2 补记轻量收口复查结果` 补入 `docs/01-current-plan-summary.md` 最近提交列表；`android-sync-client` 下 `./gradlew.bat assembleDebug` 构建通过。本轮只构建不安装，未修改手机配置、未删除手机端任何非调试数据或文件；验证后已执行 `gradlew clean`、停止 Gradle daemon，并删除 Android 构建目录
 - 本轮继续审计工作区、最近提交、计划摘要、用户文档和主源码目录：当前工作区干净，未发现新的明确 TODO、待实现或用户可见开发态残留；扫描仅命中 Android README 中的 Debug APK 输出位置说明，属于构建说明。已将 `7ed4407 补记安卓打包验证结果` 补入 `docs/01-current-plan-summary.md` 最近提交列表；`cloud-clip` 下 `go test ./lib` 通过，验证后已执行 `go clean -testcache` 清理 Go 测试缓存。本轮未修改或删除服务端真实运行态数据，未安装手机、未修改手机配置、未删除手机端任何非调试数据或文件
+- 本轮继续补齐计划摘要并验证桌面端核心链路：已将 `9985b14 补记服务端轻量验证结果` 补入 `docs/01-current-plan-summary.md` 最近提交列表；`desktop-client-go` 下 `go test ./internal/config ./internal/app ./internal/desktopcmd ./internal/syncclient ./internal/panel ./internal/hotkey ./internal/transfer` 通过，覆盖配置归一化、应用层、一次性右键动作、同步客户端、面板包、热键包和传输包；验证后已执行 `go clean -testcache` 清理 Go 测试缓存。本轮未触碰真实桌面端配置、真实右键菜单、真实全局热键或系统剪贴板，也未安装手机或删除手机端任何非调试数据
 
 ## 当前判断还在继续推进的部分
 
