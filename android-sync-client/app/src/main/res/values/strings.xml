@@ -170,6 +170,8 @@
     <string name="payload_notice_text">%1$s，确认后下载到本地缓存</string>
     <string name="payload_ready_title">远端内容已缓存</string>
     <string name="payload_ready_text">%1$s 已可在接收页中打开</string>
+    <string name="notification_channel_sync">云剪同步运行状态</string>
+    <string name="notification_channel_receive">云剪同步接收提醒</string>
     <string name="payload_confirm_download">确认接收</string>
     <string name="floating_confirm_button">确认下载</string>
     <string name="floating_open_button">打开接收页</string>

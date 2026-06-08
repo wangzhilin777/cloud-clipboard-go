@@ -626,14 +626,14 @@ class SyncService : Service() {
         manager.createNotificationChannel(
             NotificationChannel(
                 CHANNEL_ID,
-                "Cloud Clipboard Sync",
+                getString(R.string.notification_channel_sync),
                 NotificationManager.IMPORTANCE_LOW,
             ),
         )
         manager.createNotificationChannel(
             NotificationChannel(
                 RECEIVE_CHANNEL_ID,
-                "Cloud Clipboard Receive",
+                getString(R.string.notification_channel_receive),
                 NotificationManager.IMPORTANCE_DEFAULT,
             ),
         )
