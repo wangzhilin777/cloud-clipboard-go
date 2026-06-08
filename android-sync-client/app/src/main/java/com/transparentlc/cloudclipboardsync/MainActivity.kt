@@ -302,6 +302,12 @@ class MainActivity : AppCompatActivity() {
         findViewById<Button>(R.id.openNotificationSettingsButton).setOnClickListener {
             openNotificationSettings()
         }
+        findViewById<Button>(R.id.openSyncNotificationChannelButton).setOnClickListener {
+            openNotificationChannelSettings(SyncService.CHANNEL_ID)
+        }
+        findViewById<Button>(R.id.openReceiveNotificationChannelButton).setOnClickListener {
+            openNotificationChannelSettings(SyncService.RECEIVE_CHANNEL_ID)
+        }
         findViewById<Button>(R.id.openOverlaySettingsButton).setOnClickListener {
             openOverlaySettings()
         }
@@ -824,6 +830,18 @@ class MainActivity : AppCompatActivity() {
             Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName"))
         }
         startActivity(intent)
+    }
+
+    private fun openNotificationChannelSettings(channelId: String) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
+            openNotificationSettings()
+            return
+        }
+        val intent = Intent(Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS)
+            .putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
+            .putExtra(Settings.EXTRA_CHANNEL_ID, channelId)
+        runCatching { startActivity(intent) }
+            .onFailure { openNotificationSettings() }
     }
 
     private fun openOverlaySettings() {

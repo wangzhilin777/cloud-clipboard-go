@@ -131,6 +131,8 @@
     <string name="permission_state_enabled">已开启</string>
     <string name="permission_state_disabled">未开启</string>
     <string name="open_notification_settings_button">通知设置</string>
+    <string name="open_sync_notification_channel_button">运行状态通知</string>
+    <string name="open_receive_notification_channel_button">接收提醒通知</string>
     <string name="open_overlay_settings_button">悬浮窗设置</string>
     <string name="open_accessibility_settings_button">无障碍设置</string>
     <string name="open_battery_settings_button">电池优化设置</string>

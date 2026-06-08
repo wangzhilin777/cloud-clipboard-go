@@ -668,8 +668,8 @@ class SyncService : Service() {
         private const val ACTION_CONFIRM_PAYLOAD = "com.transparentlc.cloudclipboardsync.action.CONFIRM_PAYLOAD"
         private const val ACTION_ACCESSIBILITY_PULSE = "com.transparentlc.cloudclipboardsync.action.ACCESSIBILITY_PULSE"
 
-        private const val CHANNEL_ID = "cloud_clipboard_sync"
-        private const val RECEIVE_CHANNEL_ID = "cloud_clipboard_receive"
+        const val CHANNEL_ID = "cloud_clipboard_sync"
+        const val RECEIVE_CHANNEL_ID = "cloud_clipboard_receive"
         private const val NOTIFICATION_ID = 1001
         private const val RECONNECT_ALERT_NOTIFICATION_ID = 1002
         private const val DUPLICATE_PUBLISH_SUPPRESS_MS = 30_000L

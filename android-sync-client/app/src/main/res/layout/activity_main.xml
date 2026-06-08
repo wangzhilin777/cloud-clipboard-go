@@ -591,6 +591,34 @@
                         android:orientation="horizontal">
 
                         <com.google.android.material.button.MaterialButton
+                            android:id="@+id/openSyncNotificationChannelButton"
+                            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="@string/open_sync_notification_channel_button"
+                            android:textColor="@color/cc_primary"
+                            app:strokeColor="@color/cc_primary_soft" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/openReceiveNotificationChannelButton"
+                            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="12dp"
+                            android:layout_weight="1"
+                            android:text="@string/open_receive_notification_channel_button"
+                            android:textColor="@color/cc_primary"
+                            app:strokeColor="@color/cc_primary_soft" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:orientation="horizontal">
+
+                        <com.google.android.material.button.MaterialButton
                             android:id="@+id/openAccessibilitySettingsButton"
                             style="@style/Widget.MaterialComponents.Button.OutlinedButton"
                             android:layout_width="0dp"
