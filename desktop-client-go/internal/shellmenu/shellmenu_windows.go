@@ -8,6 +8,7 @@ import (
 	"log"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/jonnyan404/cloud-clipboard-go/desktop-client-go/internal/config"
 	"golang.org/x/sys/windows/registry"
@@ -29,6 +30,10 @@ type manager struct {
 	exePath    string
 	configPath string
 	updateCh   chan config.Config
+	ensureFn   func(string, string) error
+	removeFn   func() error
+	mu         sync.Mutex
+	status     Status
 }
 
 func start(ctx context.Context, logger *log.Logger, cfg config.Config, exePath string, configPath string) Manager {
@@ -37,6 +42,12 @@ func start(ctx context.Context, logger *log.Logger, cfg config.Config, exePath s
 		exePath:    exePath,
 		configPath: configPath,
 		updateCh:   make(chan config.Config, 1),
+		ensureFn:   ensureMenus,
+		removeFn:   removeMenus,
+		status: Status{
+			Supported: true,
+			Message:   "等待同步 Windows 右键菜单状态",
+		}.withTimestamp(),
 	}
 	go mgr.loop(ctx, cfg)
 	return mgr
@@ -54,6 +65,12 @@ func (m *manager) Update(cfg config.Config) {
 	}
 }
 
+func (m *manager) Status() Status {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.status
+}
+
 func (m *manager) loop(ctx context.Context, cfg config.Config) {
 	m.apply(cfg)
 	for {
@@ -68,54 +85,103 @@ func (m *manager) loop(ctx context.Context, cfg config.Config) {
 
 func (m *manager) apply(cfg config.Config) {
 	if !cfg.ShellMenuEnabled {
-		if err := removeMenus(); err != nil {
+		if err := m.removeFn(); err != nil {
+			m.setStatus(Status{
+				Supported: true,
+				Enabled:   false,
+				Message:   "关闭右键菜单失败",
+				LastError: err.Error(),
+			})
 			m.logger.Printf("移除右键菜单失败: %v", err)
+			return
 		}
+		m.setStatus(Status{
+			Supported: true,
+			Enabled:   false,
+			Ready:     false,
+			Message:   "Windows 右键菜单已关闭",
+		})
 		return
 	}
-	if err := ensureMenus(m.exePath, m.configPath); err != nil {
+	if err := m.ensureFn(m.exePath, m.configPath); err != nil {
+		m.setStatus(Status{
+			Supported: true,
+			Enabled:   true,
+			Ready:     false,
+			Message:   "注册 Windows 右键菜单失败",
+			LastError: err.Error(),
+		})
 		m.logger.Printf("注册右键菜单失败: %v", err)
 		return
 	}
+	m.setStatus(Status{
+		Supported: true,
+		Enabled:   true,
+		Ready:     true,
+		Message:   "Windows 右键菜单已同步到资源管理器",
+	})
 	m.logger.Printf("已同步 Windows 右键菜单")
 }
 
-func ensureMenus(exePath string, configPath string) error {
-	exePath = strings.TrimSpace(exePath)
-	configPath = strings.TrimSpace(configPath)
-	if exePath == "" || configPath == "" {
-		return fmt.Errorf("右键菜单缺少可执行文件或配置路径")
-	}
-	sendCommand := fmt.Sprintf(`"%s" -config "%s" -shell-send "%%1"`, exePath, configPath)
-	pasteDirCommand := fmt.Sprintf(`"%s" -config "%s" -shell-download-dir "%%1"`, exePath, configPath)
-	pasteBackgroundCommand := fmt.Sprintf(`"%s" -config "%s" -shell-download-dir "%%V"`, exePath, configPath)
-	fetchLatestFileCommand := fmt.Sprintf(`"%s" -config "%s" -shell-fetch-latest-file`, exePath, configPath)
+func (m *manager) setStatus(status Status) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.status = status.withTimestamp()
+}
 
-	if err := writeParentMenu(fileMenuKey, "Cloud Clipboard", exePath); err != nil {
+func ensureMenus(exePath string, configPath string) error {
+	commands, err := buildMenuCommands(exePath, configPath)
+	if err != nil {
 		return err
 	}
-	if err := writeCommandMenu(fileSendMenuKey, "复制到剪贴板服务器", exePath, sendCommand); err != nil {
+	if err := writeParentMenu(fileMenuKey, "Cloud Clipboard", commands.IconPath); err != nil {
 		return err
 	}
-	if err := writeParentMenu(dirMenuKey, "Cloud Clipboard", exePath); err != nil {
+	if err := writeCommandMenu(fileSendMenuKey, "复制到剪贴板服务器", commands.IconPath, commands.SendCommand); err != nil {
 		return err
 	}
-	if err := writeCommandMenu(dirPasteMenuKey, "从剪贴板服务器粘贴到此处", exePath, pasteDirCommand); err != nil {
+	if err := writeParentMenu(dirMenuKey, "Cloud Clipboard", commands.IconPath); err != nil {
 		return err
 	}
-	if err := writeCommandMenu(dirFetchClipMenuKey, "拉取最新文件到剪贴板", exePath, fetchLatestFileCommand); err != nil {
+	if err := writeCommandMenu(dirPasteMenuKey, "从剪贴板服务器粘贴到此处", commands.IconPath, commands.PasteDirCommand); err != nil {
 		return err
 	}
-	if err := writeParentMenu(backgroundMenuKey, "Cloud Clipboard", exePath); err != nil {
+	if err := writeCommandMenu(dirFetchClipMenuKey, "拉取最新文件到剪贴板", commands.IconPath, commands.FetchLatestFileCommand); err != nil {
 		return err
 	}
-	if err := writeCommandMenu(backgroundPasteMenuKey, "从剪贴板服务器粘贴到此处", exePath, pasteBackgroundCommand); err != nil {
+	if err := writeParentMenu(backgroundMenuKey, "Cloud Clipboard", commands.IconPath); err != nil {
 		return err
 	}
-	if err := writeCommandMenu(backgroundFetchClipMenuKey, "拉取最新文件到剪贴板", exePath, fetchLatestFileCommand); err != nil {
+	if err := writeCommandMenu(backgroundPasteMenuKey, "从剪贴板服务器粘贴到此处", commands.IconPath, commands.PasteBackgroundCommand); err != nil {
+		return err
+	}
+	if err := writeCommandMenu(backgroundFetchClipMenuKey, "拉取最新文件到剪贴板", commands.IconPath, commands.FetchLatestFileCommand); err != nil {
 		return err
 	}
 	return nil
+}
+
+type menuCommands struct {
+	IconPath               string
+	SendCommand            string
+	PasteDirCommand        string
+	PasteBackgroundCommand string
+	FetchLatestFileCommand string
+}
+
+func buildMenuCommands(exePath string, configPath string) (menuCommands, error) {
+	exePath = strings.TrimSpace(exePath)
+	configPath = strings.TrimSpace(configPath)
+	if exePath == "" || configPath == "" {
+		return menuCommands{}, fmt.Errorf("右键菜单缺少可执行文件或配置路径")
+	}
+	return menuCommands{
+		IconPath:               exePath,
+		SendCommand:            fmt.Sprintf(`"%s" -config "%s" -shell-send "%%1"`, exePath, configPath),
+		PasteDirCommand:        fmt.Sprintf(`"%s" -config "%s" -shell-download-dir "%%1"`, exePath, configPath),
+		PasteBackgroundCommand: fmt.Sprintf(`"%s" -config "%s" -shell-download-dir "%%V"`, exePath, configPath),
+		FetchLatestFileCommand: fmt.Sprintf(`"%s" -config "%s" -shell-fetch-latest-file`, exePath, configPath),
+	}, nil
 }
 
 func removeMenus() error {

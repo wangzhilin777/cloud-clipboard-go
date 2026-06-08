@@ -950,6 +950,8 @@
         const shellPrefix = cfg && cfg.shellMenuEnabled ? '右键菜单：已启用，' : '右键菜单：';
         parts.push(shellPrefix + capabilities.shellMenu);
       }
+      if (capabilities.shellMenuStatus) parts.push(`右键状态：${capabilities.shellMenuStatus}`);
+      if (capabilities.shellMenuLastError) parts.push(`右键错误：${capabilities.shellMenuLastError}`);
       if (capabilities.clipboardFileConfirmation) parts.push(`剪贴板文件确认：${capabilities.clipboardFileConfirmation}`);
       if (!parts.length) return platform;
       return `${platform} / ${parts.join(' / ')}`;

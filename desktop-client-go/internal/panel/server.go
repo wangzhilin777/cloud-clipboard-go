@@ -66,6 +66,8 @@ type CapabilityView struct {
 	FilePicker                string `json:"filePicker"`
 	FileClipboardWrite        string `json:"fileClipboardWrite"`
 	ShellMenu                 string `json:"shellMenu"`
+	ShellMenuStatus           string `json:"shellMenuStatus,omitempty"`
+	ShellMenuLastError        string `json:"shellMenuLastError,omitempty"`
 	ShellMenuRecommended      bool   `json:"shellMenuRecommended"`
 	ClipboardFileConfirmation string `json:"clipboardFileConfirmation"`
 }

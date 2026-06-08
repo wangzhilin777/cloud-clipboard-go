@@ -329,10 +329,20 @@ func (a *App) Status() panel.StatusView {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	a.clearExpiredClipboardPendingLocked()
+	capabilities := panel.DetectCapabilities()
+	if a.shellMenu != nil {
+		shellStatus := a.shellMenu.Status()
+		if strings.TrimSpace(shellStatus.Message) != "" {
+			capabilities.ShellMenuStatus = shellStatus.Message
+		}
+		if strings.TrimSpace(shellStatus.LastError) != "" {
+			capabilities.ShellMenuLastError = shellStatus.LastError
+		}
+	}
 	return panel.StatusView{
 		Config:       a.cfg,
 		State:        panel.StateSnapshot(a.state.Current()),
-		Capabilities: panel.DetectCapabilities(),
+		Capabilities: capabilities,
 	}
 }
 
