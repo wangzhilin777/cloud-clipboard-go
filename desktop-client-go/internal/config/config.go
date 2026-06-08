@@ -89,6 +89,7 @@ func Load(path string) (Config, error) {
 		}
 		return Config{}, err
 	}
+	data = stripUTF8BOM(data)
 	if err := json.Unmarshal(data, &cfg); err != nil {
 		return Config{}, err
 	}
@@ -114,6 +115,10 @@ func Save(path string, cfg Config) error {
 		return err
 	}
 	return os.WriteFile(path, append(data, '\n'), 0o644)
+}
+
+func stripUTF8BOM(data []byte) []byte {
+	return bytes.TrimPrefix(data, []byte{0xEF, 0xBB, 0xBF})
 }
 
 type friendlyDurationFields struct {

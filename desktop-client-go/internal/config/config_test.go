@@ -106,6 +106,34 @@ func TestLoadPrefersFriendlyDurationFields(t *testing.T) {
 	}
 }
 
+func TestLoadAcceptsUTF8BOMConfig(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.json")
+	raw := append([]byte{0xEF, 0xBB, 0xBF}, []byte(`{
+  "serverBase": "http://127.0.0.1:9501/",
+  "deviceName": "BOM Device",
+  "deviceId": "bom-device-id"
+}`)...)
+	if err := os.WriteFile(path, raw, 0o644); err != nil {
+		t.Fatalf("write raw config: %v", err)
+	}
+
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("load config with bom: %v", err)
+	}
+	if cfg.DeviceName != "BOM Device" || cfg.DeviceID != "bom-device-id" {
+		t.Fatalf("unexpected config after bom load: name=%q id=%q", cfg.DeviceName, cfg.DeviceID)
+	}
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read normalized config: %v", err)
+	}
+	if len(data) >= 3 && data[0] == 0xEF && data[1] == 0xBB && data[2] == 0xBF {
+		t.Fatal("normalized config still contains utf-8 bom")
+	}
+}
+
 func TestNormalizeNoticeModeDefaultsToTipButKeepsExplicitPopup(t *testing.T) {
 	tests := []struct {
 		name  string
