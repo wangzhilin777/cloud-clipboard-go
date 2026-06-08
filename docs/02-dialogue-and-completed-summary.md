@@ -205,6 +205,8 @@
 - 本轮继续做核心回归验证：`cloud-clip` 下 `go test ./lib` 通过；`desktop-client-go` 下 `go test ./internal/config ./internal/app ./internal/desktopcmd ./internal/syncclient ./internal/panel` 通过；`android-sync-client` 下 `./gradlew.bat testDebugUnitTest` 通过。验证后已清理 `cloud-clip` 与 `desktop-client-go` 的 Go 测试缓存、执行 Android `gradlew clean`、停止 Gradle daemon，并删除 Android 构建目录。本轮未安装手机、未修改手机配置、未删除手机端任何非调试数据或文件；同时已补齐 `docs/01-current-plan-summary.md` 中 `265b3bc` 与 `4a0079e` 两笔提交记录
 - 本轮继续只读复查 Android 16 真机 `760435a8`：无障碍设置字符串仍包含云剪同步，`dumpsys accessibility` 中“云剪同步”同时出现在 Bound services 与 Enabled services，Crashed services 为空；`shizuku_server` 仍以 root 身份运行，`moe.shizuku.privileged.api` App 进程也在运行；通知权限与 Shizuku API 权限仍为 granted；剪贴板 AppOps 中 `READ_CLIPBOARD` 保持 allow / foreground 记录；当前 `SyncService` 未运行。本轮只读检查未覆盖安装、未修改手机配置、未删除手机端任何非调试数据或文件
 - 本轮完成桌面端无托盘面板隔离 smoke：使用临时 exe、临时配置、临时下载目录、随机本地端口和 `CLOUD_CLIPBOARD_DESKTOP_DISABLE_OS_INTEGRATIONS=1` 启动 `cloud-clipboard-panel`，验证 `/api/status` 能返回临时配置和 Windows 平台能力，首页能加载“云剪同步桌面端”与发布版说明文案。第一次 smoke 因脚本误校验状态接口不返回的 `deviceId` 字段失败，调整为校验实际返回的 `config.deviceName`、`config.room` 和 `capabilities.platform` 后通过；两次临时进程和临时目录均已清理，随后已执行 `go clean -cache` 清理 Go 构建缓存。本轮未触碰真实桌面端配置、真实右键菜单、真实全局热键或系统剪贴板
+- 本轮重新审计 `docs/01-current-plan-summary.md`、主源码目录和最近提交记录，未发现新的明确 TODO、未完成实现或需要立即修改的用户可见缺口；源码扫描仅命中非 Windows 平台“当前平台暂不支持文件剪贴板写入”的能力提示，属于跨平台能力说明，不影响 Windows 主链路。已将 `77f8709 补记安卓与桌面隔离复查结果` 补入 `docs/01-current-plan-summary.md` 最近提交列表；本轮未运行手机写操作、未安装手机、未删除手机端任何非调试数据或文件
+- 用户补充 Android 真机联调规则：手机已有 root 环境，后续确有必要时可以覆盖安装安卓包；如果安装后无障碍授权丢失，可打开爱玩机工具箱，用搜索按钮搜索“无障碍”，进入“无障碍助手”自主恢复授权。后续不再把“不能安装手机”作为绝对限制，但仍需避免清理或删除手机端非调试数据和文件
 
 ## 当前判断还在继续推进的部分
 
