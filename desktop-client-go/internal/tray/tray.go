@@ -4,6 +4,7 @@ package tray
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"strings"
 	"time"
@@ -102,70 +103,34 @@ func trayEventLoop(
 		case <-ctx.Done():
 			return
 		case <-openPanelItem.ClickedCh:
-			if err := backend.OpenPanel(); err != nil {
-				logger.Printf("托盘打开控制面板失败: %v", err)
-			}
+			detail, err := handleOpenPanel(backend)
+			runTrayAction(logger, detail, err, "托盘打开控制面板")
 		case <-reconnectItem.ClickedCh:
 			backend.RequestReconnect()
 		case <-sendClipboardItem.ClickedCh:
-			text, err := backend.SendText("", true)
-			if err != nil {
-				logger.Printf("托盘发送剪贴板文本失败: %v", err)
-				continue
-			}
-			logger.Printf("托盘发送剪贴板文本成功: %s", previewText(text))
+			detail, err := handleSendClipboardText(backend)
+			runTrayAction(logger, detail, err, "托盘发送剪贴板文本")
 		case <-confirmClipboardFilesItem.ClickedCh:
-			files, err := backend.ConfirmPendingClipboardFiles()
-			if err != nil {
-				logger.Printf("托盘发送待确认剪贴板文件失败: %v", err)
-				continue
-			}
-			if len(files) > 0 {
-				logger.Printf("托盘发送待确认剪贴板文件成功: %s", strings.Join(files, ", "))
-			}
+			detail, err := handleConfirmClipboardFiles(backend)
+			runTrayAction(logger, detail, err, "托盘发送待确认剪贴板文件")
 		case <-fetchLatestTextItem.ClickedCh:
-			text, err := backend.FetchLatestText()
-			if err != nil {
-				logger.Printf("托盘拉取最新文本失败: %v", err)
-				continue
-			}
-			logger.Printf("托盘拉取最新文本成功: %s", previewText(text))
+			detail, err := handleFetchLatestText(backend)
+			runTrayAction(logger, detail, err, "托盘拉取最新文本")
 		case <-fetchLatestFileItem.ClickedCh:
-			path, err := backend.FetchLatestFileToClipboard()
-			if err != nil {
-				logger.Printf("托盘拉取最新文件到剪贴板失败: %v", err)
-				continue
-			}
-			logger.Printf("托盘拉取最新文件到剪贴板成功: %s", path)
+			detail, err := handleFetchLatestFileToClipboard(backend)
+			runTrayAction(logger, detail, err, "托盘拉取最新文件到剪贴板")
 		case <-downloadLatestFileItem.ClickedCh:
-			path, err := backend.DownloadLatestFile()
-			if err != nil {
-				logger.Printf("托盘下载最新文件失败: %v", err)
-				continue
-			}
-			logger.Printf("托盘下载最新文件成功: %s", path)
+			detail, err := handleDownloadLatestFile(backend)
+			runTrayAction(logger, detail, err, "托盘下载最新文件")
 		case <-openDownloadDirItem.ClickedCh:
-			if err := backend.OpenDownloadDir(); err != nil {
-				logger.Printf("托盘打开下载目录失败: %v", err)
-				continue
-			}
-			logger.Printf("托盘已打开下载目录")
+			detail, err := handleOpenDownloadDir(backend)
+			runTrayAction(logger, detail, err, "托盘打开下载目录")
 		case <-clearDownloadDirItem.ClickedCh:
-			count, err := backend.ClearDownloadDir()
-			if err != nil {
-				logger.Printf("托盘清空下载缓存失败: %v", err)
-				continue
-			}
-			logger.Printf("托盘已清空下载缓存: %d 项", count)
+			detail, err := handleClearDownloadDir(backend)
+			runTrayAction(logger, detail, err, "托盘清空下载缓存")
 		case <-sendFilesItem.ClickedCh:
-			files, err := backend.SendFiles(nil)
-			if err != nil {
-				logger.Printf("托盘发送文件失败: %v", err)
-				continue
-			}
-			if len(files) > 0 {
-				logger.Printf("托盘发送文件成功: %s", strings.Join(files, ", "))
-			}
+			detail, err := handleSendFiles(backend)
+			runTrayAction(logger, detail, err, "托盘发送文件")
 		case <-quitItem.ClickedCh:
 			if stop != nil {
 				stop()
@@ -174,6 +139,87 @@ func trayEventLoop(
 			return
 		}
 	}
+}
+
+func runTrayAction(logger *log.Logger, detail string, err error, prefix string) {
+	if err != nil {
+		logger.Printf("%s失败: %v", prefix, err)
+		return
+	}
+	if strings.TrimSpace(detail) == "" {
+		logger.Printf("%s成功", prefix)
+		return
+	}
+	logger.Printf("%s成功: %s", prefix, detail)
+}
+
+func handleOpenPanel(backend Backend) (string, error) {
+	if err := backend.OpenPanel(); err != nil {
+		return "", err
+	}
+	return "", nil
+}
+
+func handleSendClipboardText(backend Backend) (string, error) {
+	text, err := backend.SendText("", true)
+	if err != nil {
+		return "", err
+	}
+	return previewText(text), nil
+}
+
+func handleConfirmClipboardFiles(backend Backend) (string, error) {
+	files, err := backend.ConfirmPendingClipboardFiles()
+	if err != nil {
+		return "", err
+	}
+	return joinPreview(files), nil
+}
+
+func handleFetchLatestText(backend Backend) (string, error) {
+	text, err := backend.FetchLatestText()
+	if err != nil {
+		return "", err
+	}
+	return previewText(text), nil
+}
+
+func handleFetchLatestFileToClipboard(backend Backend) (string, error) {
+	return backend.FetchLatestFileToClipboard()
+}
+
+func handleDownloadLatestFile(backend Backend) (string, error) {
+	return backend.DownloadLatestFile()
+}
+
+func handleOpenDownloadDir(backend Backend) (string, error) {
+	if err := backend.OpenDownloadDir(); err != nil {
+		return "", err
+	}
+	return "", nil
+}
+
+func handleClearDownloadDir(backend Backend) (string, error) {
+	count, err := backend.ClearDownloadDir()
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%d 项", count), nil
+}
+
+func handleSendFiles(backend Backend) (string, error) {
+	files, err := backend.SendFiles(nil)
+	if err != nil {
+		return "", err
+	}
+	return joinPreview(files), nil
+}
+
+func joinPreview(values []string) string {
+	if len(values) == 0 {
+		return ""
+	}
+	return strings.Join(values, ", ")
 }
 
 func normalizeStatus(status string) string {
@@ -221,3 +267,4 @@ func previewText(text string) string {
 	}
 	return text
 }
+
