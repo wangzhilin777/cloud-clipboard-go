@@ -109,8 +109,8 @@ Usage steps and expected behavior: [Sync Usage and Effects Guide](./docs/03-sync
 
 ### Boundaries
 
-- Current automatic clipboard sync is plain text only. Rich text sync is not implemented.
-- Automatic paste into third-party input fields is not implemented.
+- Automatic clipboard sync is limited to plain text. Rich text is outside the current sync scope.
+- Automatic paste into third-party input fields is outside the current sync scope.
 - Images/files are not automatically written into the system clipboard. Android also downloads them only after confirmation into the app private cache.
 - Windows and Web do not currently auto-receive images/files. They keep file notice sending and manual download capabilities.
 
