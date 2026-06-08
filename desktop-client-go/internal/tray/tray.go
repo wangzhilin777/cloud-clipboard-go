@@ -38,7 +38,7 @@ func Run(ctx context.Context, logger *log.Logger, backend Backend, stop func()) 
 		}
 	})
 
-	tray.AppendMenu("状态：启动中", func() {})
+	tray.AppendMenu("状态：请查看悬停提示", func() {})
 	if len(tray.Menu) > 0 {
 		tray.Menu[0].Disabled = true
 	}
@@ -70,10 +70,6 @@ func Run(ctx context.Context, logger *log.Logger, backend Backend, stop func()) 
 			logger.Printf("托盘发送待确认剪贴板文件成功: %s", strings.Join(files, ", "))
 		}
 	})
-	pendingClipboardMenuIndex := len(tray.Menu) - 1
-	if pendingClipboardMenuIndex >= 0 && tray.Menu[pendingClipboardMenuIndex] != nil {
-		tray.Menu[pendingClipboardMenuIndex].Disabled = true
-	}
 	tray.AppendSeparator()
 	tray.AppendMenu("拉取最新文本到剪贴板", func() {
 		text, err := backend.FetchLatestText()
@@ -135,7 +131,7 @@ func Run(ctx context.Context, logger *log.Logger, backend Backend, stop func()) 
 		}
 	})
 
-	go refreshTooltipLoop(ctx, tray, backend, pendingClipboardMenuIndex)
+	go refreshTooltipLoop(ctx, tray, backend)
 	go func() {
 		<-ctx.Done()
 		if err := tray.Stop(); err != nil {
@@ -146,22 +142,22 @@ func Run(ctx context.Context, logger *log.Logger, backend Backend, stop func()) 
 	return tray.Run()
 }
 
-func refreshTooltipLoop(ctx context.Context, tray *systray.Systray, backend Backend, pendingClipboardMenuIndex int) {
+func refreshTooltipLoop(ctx context.Context, tray *systray.Systray, backend Backend) {
 	ticker := time.NewTicker(2 * time.Second)
 	defer ticker.Stop()
 
-	updateTrayState(tray, backend.Status(), pendingClipboardMenuIndex)
+	updateTrayTooltip(tray, backend.Status())
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			updateTrayState(tray, backend.Status(), pendingClipboardMenuIndex)
+			updateTrayTooltip(tray, backend.Status())
 		}
 	}
 }
 
-func updateTrayState(tray *systray.Systray, status panel.StatusView, pendingClipboardMenuIndex int) {
+func updateTrayTooltip(tray *systray.Systray, status panel.StatusView) {
 	if tray == nil {
 		return
 	}
@@ -173,30 +169,6 @@ func updateTrayState(tray *systray.Systray, status panel.StatusView, pendingClip
 		text = text + " / " + strings.TrimSpace(status.Config.DeviceName)
 	}
 	_ = tray.SetTooltip(text)
-	if len(tray.Menu) > 0 && tray.Menu[0] != nil {
-		tray.Menu[0].Label = "状态：" + normalizeStatusLine(status)
-	}
-	if pendingClipboardMenuIndex >= 0 && pendingClipboardMenuIndex < len(tray.Menu) && tray.Menu[pendingClipboardMenuIndex] != nil {
-		files := status.State.PendingClipboardFiles
-		if len(files) == 0 {
-			tray.Menu[pendingClipboardMenuIndex].Label = "发送待确认剪贴板文件"
-			tray.Menu[pendingClipboardMenuIndex].Disabled = true
-			return
-		}
-		tray.Menu[pendingClipboardMenuIndex].Label = "发送待确认剪贴板文件：" + formatPendingClipboardName(files)
-		tray.Menu[pendingClipboardMenuIndex].Disabled = false
-	}
-}
-
-func normalizeStatusLine(status panel.StatusView) string {
-	parts := []string{normalizeStatus(status.State.Status)}
-	if status.State.Connected {
-		parts = append(parts, "已连接")
-	}
-	if strings.TrimSpace(status.Config.DeviceName) != "" {
-		parts = append(parts, strings.TrimSpace(status.Config.DeviceName))
-	}
-	return strings.Join(parts, " / ")
 }
 
 func normalizeStatus(status string) string {
@@ -232,20 +204,4 @@ func previewText(text string) string {
 		return string(runes[:24]) + "..."
 	}
 	return text
-}
-
-func formatPendingClipboardName(files []string) string {
-	if len(files) == 0 {
-		return "-"
-	}
-	name := strings.TrimSpace(files[0])
-	name = strings.ReplaceAll(name, "/", "\\")
-	parts := strings.Split(name, "\\")
-	if len(parts) > 0 && strings.TrimSpace(parts[len(parts)-1]) != "" {
-		name = strings.TrimSpace(parts[len(parts)-1])
-	}
-	if len(files) == 1 {
-		return name
-	}
-	return name + " 等"
 }

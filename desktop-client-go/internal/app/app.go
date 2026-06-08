@@ -398,17 +398,7 @@ func (a *App) OpenPanel() error {
 	if strings.TrimSpace(panelURL) == "" {
 		return errors.New("控制面板尚未启动")
 	}
-
-	var cmd *exec.Cmd
-	switch runtime.GOOS {
-	case "windows":
-		cmd = exec.Command("rundll32", "url.dll,FileProtocolHandler", panelURL)
-	case "darwin":
-		cmd = exec.Command("open", panelURL)
-	default:
-		cmd = exec.Command("xdg-open", panelURL)
-	}
-	if err := cmd.Start(); err != nil {
+	if err := startPanelWindow(panelURL); err != nil {
 		return err
 	}
 	a.saveLastAction("open-panel", panelURL)
