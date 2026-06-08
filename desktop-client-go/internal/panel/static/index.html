@@ -776,15 +776,15 @@
 
     function formatHotkeySummary(cfg) {
       const items = [];
-      if (cfg.openPanelHotkey) items.push(`板：${cfg.openPanelHotkey}`);
-      if (cfg.sendClipboardHotkey) items.push(`发：${cfg.sendClipboardHotkey}`);
-      if (cfg.fetchLatestHotkey) items.push(`拉：${cfg.fetchLatestHotkey}`);
-      if (cfg.fetchLatestFileHotkey) items.push(`贴：${cfg.fetchLatestFileHotkey}`);
-      if (cfg.downloadLatestHotkey) items.push(`下：${cfg.downloadLatestHotkey}`);
+      if (cfg.openPanelHotkey) items.push(`面板：${cfg.openPanelHotkey}`);
+      if (cfg.sendClipboardHotkey) items.push(`发送文本：${cfg.sendClipboardHotkey}`);
+      if (cfg.fetchLatestHotkey) items.push(`拉取文本：${cfg.fetchLatestHotkey}`);
+      if (cfg.fetchLatestFileHotkey) items.push(`拉取文件到剪贴板：${cfg.fetchLatestFileHotkey}`);
+      if (cfg.downloadLatestHotkey) items.push(`下载文件：${cfg.downloadLatestHotkey}`);
       if (cfg.shellMenuEnabled) items.push('右键菜单：开');
-      if (cfg.clipboardFileConfirmEnabled) items.push(`确认窗：${cfg.clipboardFileConfirmWindowSec || 0}s`);
-      if (cfg.noticeMode === 'tip') items.push(`Tip：${cfg.tipWidth || 0}x${cfg.tipHeight || 0} / ${cfg.tipTheme === 'light' ? '浅色' : '深色'}`);
-      if (cfg.noticeMode === 'tip' && Number(cfg.tipLeft) >= 0 && Number(cfg.tipTop) >= 0) items.push(`位置：${cfg.tipLeft},${cfg.tipTop}`);
+      if (cfg.clipboardFileConfirmEnabled) items.push(`文件确认：${cfg.clipboardFileConfirmWindowSec || 0}s`);
+      if (cfg.noticeMode === 'tip') items.push(`右下角提示：${cfg.tipWidth || 0}x${cfg.tipHeight || 0} / ${cfg.tipTheme === 'light' ? '浅色' : '深色'}`);
+      if (cfg.noticeMode === 'tip' && Number(cfg.tipLeft) >= 0 && Number(cfg.tipTop) >= 0) items.push(`提示位置：${cfg.tipLeft},${cfg.tipTop}`);
       if (cfg.successNoticeEnabled) items.push('成功提示：开');
       return items.length ? items.join(' / ') : '未配置';
     }
