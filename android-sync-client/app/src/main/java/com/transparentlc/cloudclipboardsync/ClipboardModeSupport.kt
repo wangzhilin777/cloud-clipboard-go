@@ -16,8 +16,8 @@ object ClipboardModeSupportHelper {
             if (status.accessibilityEnabled) {
                 ClipboardModeSupport(
                     canStart = true,
-                    readyMessage = "无障碍增强模式已就绪。",
-                    implementationSummary = "无障碍增强会在系统剪贴板回调之外，结合界面交互触发补检查，适合高版本 Android 的后台复制回传场景。",
+                    readyMessage = "无障碍增强模式已就绪（${status.accessibilityDetail}）。",
+                    implementationSummary = "无障碍增强会在系统剪贴板回调之外，结合界面交互触发补检查，适合高版本 Android 的后台复制回传场景。当前状态：${status.accessibilityDetail}。",
                 )
             } else {
                 ClipboardModeSupport(

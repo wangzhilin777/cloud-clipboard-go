@@ -978,7 +978,7 @@ class MainActivity : AppCompatActivity() {
         when (config.clipboardMode) {
             SettingsStore.CLIPBOARD_MODE_ACCESSIBILITY -> {
                 if (status.accessibilityEnabled) {
-                    readyItems += "无障碍服务已开启"
+                    readyItems += "无障碍服务${status.accessibilityDetail}"
                 } else {
                     pendingItems += "需要先开启无障碍服务"
                 }
@@ -1085,7 +1085,7 @@ class MainActivity : AppCompatActivity() {
     ): String = when (config.clipboardMode) {
         SettingsStore.CLIPBOARD_MODE_ACCESSIBILITY -> {
             if (status.accessibilityEnabled) {
-                "当前模式：无障碍增强\n启动状态：可直接启动同步\n系统限制：${clipboardRestrictionSummary()}\n说明：除了系统剪贴板回调，还会在界面交互时主动触发补检查，后台文本监听会更稳，但会比前台模式更耗电。"
+                "当前模式：无障碍增强\n启动状态：可直接启动同步\n授权状态：${status.accessibilityDetail}\n系统限制：${clipboardRestrictionSummary()}\n说明：除了系统剪贴板回调，还会在界面交互时主动触发补检查，后台文本监听会更稳，但会比前台模式更耗电。"
             } else {
                 "当前模式：无障碍增强\n启动状态：暂时被拦截\n原因：${validation.message}\n系统限制：${clipboardRestrictionSummary()}\n说明：开启后后台复制会更稳，但耗电略高。"
             }
@@ -1163,7 +1163,7 @@ class MainActivity : AppCompatActivity() {
                 "原因：${status.shizukuDetail}；剪贴板 AppOps 为读取 ${status.clipboardReadAppOp} / 写入 ${status.clipboardWriteAppOp}。当前 Shizuku 作为系统授权与诊断辅助，后台复制仍按系统实际限制表现。"
             !validation.ready -> "原因：${validation.message}"
             config.clipboardMode == SettingsStore.CLIPBOARD_MODE_ACCESSIBILITY && status.accessibilityEnabled ->
-                "原因：无障碍增强已开启，系统剪贴板回调之外还会做界面事件补检查。"
+                "原因：无障碍增强${status.accessibilityDetail}，系统剪贴板回调之外还会做界面事件补检查。"
             config.clipboardMode == SettingsStore.CLIPBOARD_MODE_FOREGROUND && Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE ->
                 "原因：Android 14 及以上对后台读取系统剪贴板限制更严，前台服务模式更适合你正在看着 App 的场景。"
             config.clipboardMode == SettingsStore.CLIPBOARD_MODE_FOREGROUND && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q ->
@@ -1218,7 +1218,7 @@ class MainActivity : AppCompatActivity() {
         val modeLine = when (config.clipboardMode) {
             SettingsStore.CLIPBOARD_MODE_ACCESSIBILITY -> {
                 if (status.accessibilityEnabled) {
-                    "当前监听策略：无障碍增强已开启，除了系统剪贴板回调，还会尝试用界面事件做补检查。"
+                    "当前监听策略：无障碍增强${status.accessibilityDetail}，除了系统剪贴板回调，还会尝试用界面事件做补检查。"
                 } else {
                     "当前监听策略：你选了无障碍增强，但系统无障碍还没打开，所以后台补传还不会生效。"
                 }

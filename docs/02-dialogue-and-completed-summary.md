@@ -188,10 +188,11 @@
 - 本轮继续对 Android 16 真机 `760435a8` 做只读权限巡检：设备在线，App 已安装，通知权限、Shizuku API 权限、剪贴板读写 AppOps 和电池白名单均可用，Shizuku Watchdog 前台服务正在运行；当前 `SyncService` 未运行，`Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES` 未列出云剪同步，但 `dumpsys activity services` 可见云剪同步无障碍服务连接记录，说明澎湃 OS 上可能存在“设置字符串与实际系统枚举不一致”的诊断场景；本轮未修改手机配置、未覆盖安装、未清理 App 数据、未删除任何手机端非调试数据或文件
 - 已优化 Android 无障碍启用状态判断：保留 `Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES` 精确匹配，同时增加 `AccessibilityManager.getEnabledAccessibilityServiceList()` 兜底枚举，减少厂商 ROM 上无障碍状态误判；并补充服务列表匹配单元测试，避免同包其它服务或 debug 包名误判为已启用
 - 已继续优化 Android 权限摘要展示：无障碍状态现在会显示来源详情，例如“已开启（系统设置）”“已开启（系统服务枚举）”或“未开启”，方便在澎湃 OS 这类系统设置字符串与实际服务枚举不一致时快速判断当前 App 采用了哪一路判断；本轮补充了来源文案单元测试
+- 已继续把 Android 无障碍来源详情同步到运行页：无障碍增强模式的就绪提示、模式说明、后台复制就绪度原因和后台复制诊断都会带上“系统设置 / 系统服务枚举”来源，避免权限页和运行页口径不一致
 
 ## 当前判断还在继续推进的部分
 
-- Android 真机后台复制和受限权限场景体验，后续重点转向更多真实 App 场景覆盖，以及 Shizuku 独立剪贴板增强主通道可行性评估；当前 Shizuku 已先收口为可启动的诊断辅助模式，无障碍启用状态已增加 AccessibilityManager 兜底判断和来源详情展示
+- Android 真机后台复制和受限权限场景体验，后续重点转向更多真实 App 场景覆盖，以及 Shizuku 独立剪贴板增强主通道可行性评估；当前 Shizuku 已先收口为可启动的诊断辅助模式，无障碍启用状态已增加 AccessibilityManager 兜底判断和贯穿权限页 / 运行页的来源详情展示
 - Android 10 / 13 / 14+ 高版本系统限制下的提示文案与模式引导仍可继续细化，但当前基础提示链路已补齐
 - 桌面端 Go 客户端进一步收口；无托盘面板版已完成本机闭环，托盘版在关闭本机安全软件拦截后已完成启动、临时服务端连接、设备批准、面板 trusted 状态、手动文本发送、文件发送和 `payloadNotice` 闭环，后续可继续围绕真实用户配置、托盘菜单和右键系统集成做完整联调
 - 二期交互与配置增强
