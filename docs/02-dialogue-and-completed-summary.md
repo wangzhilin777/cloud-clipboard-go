@@ -198,6 +198,8 @@
 - 已继续收口发布版用户可见文案：桌面端控制面板首页改为直接说明可管理连接、同步状态、快捷动作、提示方式和缓存策略；Android 端 Shizuku、自动续连和权限建议文案去掉“验证 / 评估 / 暂不可用”等开发态表达，改成面向用户的使用提示。本轮验证通过：`desktop-client-go` 下 `go test ./internal/panel ./internal/config ./internal/app`、无托盘面板隔离 smoke、`android-sync-client` 下 `./gradlew.bat testDebugUnitTest`；验证后已清理 Go 测试缓存、执行 Android `gradlew clean`、停止 Gradle daemon，并删除 Android 构建目录，本轮未安装手机、未修改手机配置、未删除手机端任何非调试数据或文件
 - 已按用户手动开启无障碍后的状态做真机只读复查：`760435a8` 的 `enabled_accessibility_services` 已包含 `com.transparentlc.cloudclipboardsync/.ClipboardAccessAccessibilityService`，`dumpsys accessibility` 也显示“云剪同步”在 Bound services 与 Enabled services 中；本轮只读确认包 `lastUpdateTime=2026-06-08 02:46:08`，没有覆盖安装、没有修改手机配置、没有删除手机端任何非调试数据或文件
 - 已继续收口发布版说明与诊断提示：根 README 的“当前新增能力 / 当前版本”改为更稳定的“新增同步能力 / 本项目”，桌面端 README 去掉“当前主收口 / 后续重新打包”等开发态表述，Android 本地剪贴板跳过诊断改成“已跳过本次...”的结果态提示。本轮验证通过：`android-sync-client` 下 `./gradlew.bat testDebugUnitTest`、`desktop-client-go` 下 `go test ./internal/config ./internal/app ./internal/desktopcmd`；验证后已清理 Go 测试缓存、执行 Android `gradlew clean`、停止 Gradle daemon，并删除 Android 构建目录
+- 本轮继续只读复查 Android 16 真机 `760435a8`：无障碍设置字符串、`dumpsys accessibility` 的 Enabled services 和 Bound services 均能看到“云剪同步”，Crashed services 为空；通知权限与 `moe.shizuku.manager.permission.API_V23` 均为 granted；进程列表显示 `shizuku_server` 以 root 身份运行，`moe.shizuku.privileged.api` App 也在运行；剪贴板 AppOps 中 `READ_CLIPBOARD` 有 allow / foreground 记录；当前 `SyncService` 未运行。本轮只读检查未覆盖安装、未修改手机配置、未删除手机端任何非调试数据或文件
+- 本轮继续验证桌面端核心包：`desktop-client-go` 下 `go test ./internal/config ./internal/app ./internal/desktopcmd ./internal/syncclient` 成功；验证后已执行 `go clean -testcache` 清理 Go 测试缓存。本轮同步更新 `docs/01-current-plan-summary.md`，补齐最近提交列表和 Android 当前真实权限状态，避免计划摘要继续落后于实际进度
 
 ## 当前判断还在继续推进的部分
 
