@@ -201,6 +201,7 @@
 - 本轮继续只读复查 Android 16 真机 `760435a8`：无障碍设置字符串、`dumpsys accessibility` 的 Enabled services 和 Bound services 均能看到“云剪同步”，Crashed services 为空；通知权限与 `moe.shizuku.manager.permission.API_V23` 均为 granted；进程列表显示 `shizuku_server` 以 root 身份运行，`moe.shizuku.privileged.api` App 也在运行；剪贴板 AppOps 中 `READ_CLIPBOARD` 有 allow / foreground 记录；当前 `SyncService` 未运行。本轮只读检查未覆盖安装、未修改手机配置、未删除手机端任何非调试数据或文件
 - 本轮继续验证桌面端核心包：`desktop-client-go` 下 `go test ./internal/config ./internal/app ./internal/desktopcmd ./internal/syncclient` 成功；验证后已执行 `go clean -testcache` 清理 Go 测试缓存。本轮同步更新 `docs/01-current-plan-summary.md`，补齐最近提交列表和 Android 当前真实权限状态，避免计划摘要继续落后于实际进度
 - 已继续收口 Android 同步客户端发布版文案：运行页将未满足授权条件时的“启动状态：暂时被拦截”改为“启动状态：需要处理”，减少普通用户把正常待处理状态误解成程序故障；Android README 的限制说明去掉“当前不做 / 一期 / 继续补强”等开发态表达，改为稳定的能力边界说明。本轮验证 `android-sync-client` 下 `./gradlew.bat testDebugUnitTest` 通过；验证后已执行 `gradlew clean`、停止 Gradle daemon，并删除 Android 构建目录。本轮未安装手机、未修改手机配置、未删除手机端任何非调试数据或文件
+- 已提交 `6c2fa6b 优化安卓运行状态提示文案`，并同步补齐 `docs/01-current-plan-summary.md` 最近提交列表，避免计划摘要落后于实际里程碑；本轮仅做文档对齐，未运行新的手机写操作、未安装手机、未删除手机端任何非调试数据或文件
 
 ## 当前判断还在继续推进的部分
 
