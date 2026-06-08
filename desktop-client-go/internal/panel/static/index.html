@@ -711,8 +711,7 @@
 
     function fillState(state) {
       const status = state.status || 'idle';
-      const statusLabel = normalizeStatusLabel(status);
-      statusText.textContent = state.connected && statusLabel !== '已连接' ? `${statusLabel} / 已连接` : statusLabel;
+      statusText.textContent = formatStatusSummary(state);
       statusText.className = `value ${statusClass(status)}`;
       payloadText.textContent = formatPayloadSummary(state);
       remoteTextText.textContent = formatRemoteTextSummary(state);
@@ -751,6 +750,15 @@
         default:
           return status || '空闲';
       }
+    }
+
+    function formatStatusSummary(state) {
+      const status = String(state.status || '').trim().toLowerCase();
+      const statusLabel = normalizeStatusLabel(status);
+      if (state.connected && !state.trusted && statusLabel !== '已连接') {
+        return `${statusLabel} / 链路已连`;
+      }
+      return statusLabel;
     }
 
     function actionLabel(actionType) {
@@ -847,7 +855,7 @@
       const label = actionLabel(state.lastActionType);
       const at = Number(state.lastActionAt || 0);
       const timeText = at ? new Date(at).toLocaleString() : '时间未知';
-      return `${label} / ${detail} / ${timeText}`;
+      return `${label} / ${previewSummaryText(detail)} / ${timeText}`;
     }
 
     function formatLastErrorSummary(state) {
@@ -856,6 +864,12 @@
       const at = Number(state.lastErrorAt || 0);
       const timeText = at ? new Date(at).toLocaleString() : '时间未知';
       return `${detail} / ${timeText}`;
+    }
+
+    function previewSummaryText(text) {
+      const normalized = String(text || '').replace(/\s+/g, ' ').trim();
+      if (!normalized) return '-';
+      return normalized.length > 42 ? `${normalized.slice(0, 42)}...` : normalized;
     }
 
     function formatConnectionDiagnosis(cfg, state) {
