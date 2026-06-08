@@ -276,11 +276,11 @@ class SyncService : Service() {
 
     private fun publishLocalClipboardIfNeeded(source: String): Boolean {
         if (applyingRemoteText) {
-            updateClipboardDiagnostic("skip-$source", "刚完成远端文本写回，暂时跳过本地回传，避免自激同步")
+            updateClipboardDiagnostic("skip-$source", "刚完成远端文本写回，已跳过本次本地回传，避免自激同步")
             return false
         }
         if (!trusted) {
-            updateClipboardDiagnostic("skip-$source", "设备尚未获批准，暂不处理本地剪贴板")
+            updateClipboardDiagnostic("skip-$source", "设备尚未获批准，已跳过本次本地剪贴板处理")
             return false
         }
         val clip = runCatching { clipboardManager.primaryClip }.getOrNull()

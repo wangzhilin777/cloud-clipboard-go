@@ -196,6 +196,8 @@
 - 已继续补充 Android 同步客户端通知渠道说明：运行状态渠道说明为“显示同步连接、重连和前台运行状态”，接收提醒渠道说明为“显示图片/文件接收确认、下载完成和同步失败提醒”，方便用户在系统通知设置里区分不同开关影响；本轮重新验证 `android-sync-client` 下 `./gradlew.bat testDebugUnitTest` 通过，验证后已执行 `gradlew clean`、停止 Gradle daemon，并清理 Android 构建目录
 - 已在 Android 权限页补充通知渠道直达入口：新增“运行状态通知”和“接收提醒通知”按钮，Android 8 及以上会跳转到对应通知渠道设置，低版本回退到应用通知设置；本轮重新验证 `android-sync-client` 下 `./gradlew.bat testDebugUnitTest` 通过，验证后已执行 `gradlew clean`、停止 Gradle daemon，并清理 Android 构建目录
 - 已继续收口发布版用户可见文案：桌面端控制面板首页改为直接说明可管理连接、同步状态、快捷动作、提示方式和缓存策略；Android 端 Shizuku、自动续连和权限建议文案去掉“验证 / 评估 / 暂不可用”等开发态表达，改成面向用户的使用提示。本轮验证通过：`desktop-client-go` 下 `go test ./internal/panel ./internal/config ./internal/app`、无托盘面板隔离 smoke、`android-sync-client` 下 `./gradlew.bat testDebugUnitTest`；验证后已清理 Go 测试缓存、执行 Android `gradlew clean`、停止 Gradle daemon，并删除 Android 构建目录，本轮未安装手机、未修改手机配置、未删除手机端任何非调试数据或文件
+- 已按用户手动开启无障碍后的状态做真机只读复查：`760435a8` 的 `enabled_accessibility_services` 已包含 `com.transparentlc.cloudclipboardsync/.ClipboardAccessAccessibilityService`，`dumpsys accessibility` 也显示“云剪同步”在 Bound services 与 Enabled services 中；本轮只读确认包 `lastUpdateTime=2026-06-08 02:46:08`，没有覆盖安装、没有修改手机配置、没有删除手机端任何非调试数据或文件
+- 已继续收口发布版说明与诊断提示：根 README 的“当前新增能力 / 当前版本”改为更稳定的“新增同步能力 / 本项目”，桌面端 README 去掉“当前主收口 / 后续重新打包”等开发态表述，Android 本地剪贴板跳过诊断改成“已跳过本次...”的结果态提示。本轮验证通过：`android-sync-client` 下 `./gradlew.bat testDebugUnitTest`、`desktop-client-go` 下 `go test ./internal/config ./internal/app ./internal/desktopcmd`；验证后已清理 Go 测试缓存、执行 Android `gradlew clean`、停止 Gradle daemon，并删除 Android 构建目录
 
 ## 当前判断还在继续推进的部分
 
