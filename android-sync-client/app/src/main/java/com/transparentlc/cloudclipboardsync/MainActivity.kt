@@ -1265,7 +1265,7 @@ class MainActivity : AppCompatActivity() {
             R.string.permission_summary_format,
             stateLabel(status.notificationsEnabled),
             stateLabel(status.overlayEnabled),
-            stateLabel(status.accessibilityEnabled),
+            status.accessibilityDetail,
             stateLabel(status.batteryOptimizationIgnored),
             shizukuStateLabel(status),
             status.clipboardReadAppOp,

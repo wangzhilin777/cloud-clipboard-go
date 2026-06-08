@@ -15,6 +15,7 @@ data class PermissionStatus(
     val notificationsEnabled: Boolean,
     val overlayEnabled: Boolean,
     val accessibilityEnabled: Boolean,
+    val accessibilityDetail: String,
     val batteryOptimizationIgnored: Boolean,
     val shizukuInstalled: Boolean,
     val shizukuRunning: Boolean,
@@ -29,12 +30,19 @@ object PermissionStatusHelper {
     private const val OPSTR_READ_CLIPBOARD = "android:read_clipboard"
     private const val OPSTR_WRITE_CLIPBOARD = "android:write_clipboard"
 
+    private data class AccessibilityStatus(
+        val enabled: Boolean,
+        val detail: String,
+    )
+
     fun read(context: Context): PermissionStatus {
         val shizukuState = ShizukuPermissionHelper.read(context)
+        val accessibilityStatus = readAccessibilityStatus(context)
         return PermissionStatus(
             notificationsEnabled = NotificationManagerCompat.from(context).areNotificationsEnabled(),
             overlayEnabled = Settings.canDrawOverlays(context),
-            accessibilityEnabled = isAccessibilityEnabled(context),
+            accessibilityEnabled = accessibilityStatus.enabled,
+            accessibilityDetail = accessibilityStatus.detail,
             batteryOptimizationIgnored = isIgnoringBatteryOptimizations(context),
             shizukuInstalled = shizukuState.installed,
             shizukuRunning = shizukuState.running,
@@ -46,16 +54,18 @@ object PermissionStatusHelper {
         )
     }
 
-    private fun isAccessibilityEnabled(context: Context): Boolean {
+    private fun readAccessibilityStatus(context: Context): AccessibilityStatus {
         val enabledServices = Settings.Secure.getString(
             context.contentResolver,
             Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES,
         ).orEmpty()
         val target = ComponentName(context, ClipboardAccessAccessibilityService::class.java).flattenToString()
-        if (isAccessibilityServiceEnabledInSetting(enabledServices, target)) {
-            return true
-        }
-        return isAccessibilityServiceEnabledInManager(context, target)
+        val enabledInSetting = isAccessibilityServiceEnabledInSetting(enabledServices, target)
+        val enabledInManager = if (enabledInSetting) false else isAccessibilityServiceEnabledInManager(context, target)
+        return AccessibilityStatus(
+            enabled = enabledInSetting || enabledInManager,
+            detail = accessibilityStateLabel(enabledInSetting, enabledInManager),
+        )
     }
 
     internal fun isAccessibilityServiceEnabledInSetting(enabledServices: String?, target: String): Boolean {
@@ -83,6 +93,12 @@ object PermissionStatusHelper {
         val normalizedTarget = target.trim()
         if (normalizedTarget.isBlank()) return false
         return services.any { it.trim().equals(normalizedTarget, ignoreCase = true) }
+    }
+
+    internal fun accessibilityStateLabel(enabledInSetting: Boolean, enabledInManager: Boolean): String = when {
+        enabledInSetting -> "已开启（系统设置）"
+        enabledInManager -> "已开启（系统服务枚举）"
+        else -> "未开启"
     }
 
     private fun isIgnoringBatteryOptimizations(context: Context): Boolean {

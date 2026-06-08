@@ -1,6 +1,7 @@
 package com.transparentlc.cloudclipboardsync
 
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -58,5 +59,12 @@ class PermissionStatusHelperTest {
         )
 
         assertFalse(PermissionStatusHelper.isAccessibilityServiceEnabledInServiceList(services, target))
+    }
+
+    @Test
+    fun accessibilityStateLabelDescribesSource() {
+        assertEquals("已开启（系统设置）", PermissionStatusHelper.accessibilityStateLabel(enabledInSetting = true, enabledInManager = false))
+        assertEquals("已开启（系统服务枚举）", PermissionStatusHelper.accessibilityStateLabel(enabledInSetting = false, enabledInManager = true))
+        assertEquals("未开启", PermissionStatusHelper.accessibilityStateLabel(enabledInSetting = false, enabledInManager = false))
     }
 }
