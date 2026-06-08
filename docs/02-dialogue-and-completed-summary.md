@@ -182,12 +182,13 @@
 - 已完成桌面端无托盘面板隔离 smoke：临时编译 `cloud-clipboard-panel` 到系统临时目录，使用临时配置、临时下载目录、随机本地端口和 `CLOUD_CLIPBOARD_DESKTOP_DISABLE_OS_INTEGRATIONS=1` 启动，验证 `/api/status` 正常返回、首页内已包含新的快捷键录入提示文案；验证后已停止临时进程并删除临时 exe、配置和下载目录
 - 本轮补充 Android 构建验证：`android-sync-client` 下 `.\gradlew.bat assembleDebug` 成功，确认当前无障碍判断测试与权限代码改动可完整编译出 debug 包；本轮仅构建不安装，真机 `760435a8` 保持在线但未被修改；验证后已执行 `gradlew clean`、停止 Gradle daemon，并清理 `android-sync-client/build` 与 `android-sync-client/app/build`
 - 已继续收口 README 发布版表述：根 README / 英文 README / Android 同步客户端 README 去掉“当前阶段目标”“暂不作为发送主入口”“Currently Android-only”等偏开发态表达，改为“提供以下能力”“以接收为主 / Receive-focused”等面向用户的描述，并补充 Android 文件通知可由网页端或桌面端触发
+- 已在关闭本机安全软件拦截后完成桌面端托盘版隔离 smoke：临时编译 `cloud-clipboard-desktop` 到系统临时目录，使用临时配置、临时下载目录、随机本地端口启动，未启用右键菜单、热键和剪贴板文件确认；验证 `/api/status` 可访问，托盘版进程可正常启动，日志中仅因测试配置故意指向 `127.0.0.1:9` 产生一次连接失败并按配置暂停自动重连；验证后已停止临时进程并删除临时 exe、配置和下载目录
 
 ## 当前判断还在继续推进的部分
 
 - Android 真机后台复制和受限权限场景体验，后续重点转向更多真实 App 场景覆盖，以及 Shizuku 独立剪贴板增强主通道可行性评估；当前 Shizuku 已先收口为可启动的诊断辅助模式
 - Android 10 / 13 / 14+ 高版本系统限制下的提示文案与模式引导仍可继续细化，但当前基础提示链路已补齐
-- 桌面端 Go 客户端进一步收口；无托盘面板版已完成本机闭环，托盘版完整联调需要在本地安全策略不拦截托盘组件的环境继续测试
+- 桌面端 Go 客户端进一步收口；无托盘面板版已完成本机闭环，托盘版在关闭本机安全软件拦截后已完成启动与面板状态接口 smoke，后续可继续围绕真实服务端连接、托盘菜单、用户配置和文件动作做完整联调
 - 二期交互与配置增强
 
 ## 与 `docs/01` 对齐后的当前判断
