@@ -202,6 +202,7 @@
 - 本轮继续验证桌面端核心包：`desktop-client-go` 下 `go test ./internal/config ./internal/app ./internal/desktopcmd ./internal/syncclient` 成功；验证后已执行 `go clean -testcache` 清理 Go 测试缓存。本轮同步更新 `docs/01-current-plan-summary.md`，补齐最近提交列表和 Android 当前真实权限状态，避免计划摘要继续落后于实际进度
 - 已继续收口 Android 同步客户端发布版文案：运行页将未满足授权条件时的“启动状态：暂时被拦截”改为“启动状态：需要处理”，减少普通用户把正常待处理状态误解成程序故障；Android README 的限制说明去掉“当前不做 / 一期 / 继续补强”等开发态表达，改为稳定的能力边界说明。本轮验证 `android-sync-client` 下 `./gradlew.bat testDebugUnitTest` 通过；验证后已执行 `gradlew clean`、停止 Gradle daemon，并删除 Android 构建目录。本轮未安装手机、未修改手机配置、未删除手机端任何非调试数据或文件
 - 已提交 `6c2fa6b 优化安卓运行状态提示文案`，并同步补齐 `docs/01-current-plan-summary.md` 最近提交列表，避免计划摘要落后于实际里程碑；本轮仅做文档对齐，未运行新的手机写操作、未安装手机、未删除手机端任何非调试数据或文件
+- 本轮继续做核心回归验证：`cloud-clip` 下 `go test ./lib` 通过；`desktop-client-go` 下 `go test ./internal/config ./internal/app ./internal/desktopcmd ./internal/syncclient ./internal/panel` 通过；`android-sync-client` 下 `./gradlew.bat testDebugUnitTest` 通过。验证后已清理 `cloud-clip` 与 `desktop-client-go` 的 Go 测试缓存、执行 Android `gradlew clean`、停止 Gradle daemon，并删除 Android 构建目录。本轮未安装手机、未修改手机配置、未删除手机端任何非调试数据或文件；同时已补齐 `docs/01-current-plan-summary.md` 中 `265b3bc` 与 `4a0079e` 两笔提交记录
 
 ## 当前判断还在继续推进的部分
 
