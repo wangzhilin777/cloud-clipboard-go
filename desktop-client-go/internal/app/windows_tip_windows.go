@@ -14,7 +14,7 @@ import (
 	"strings"
 )
 
-func showWindowsTip(title string, body string, primaryLabel string, primaryURL string, secondaryLabel string, secondaryURL string, seconds int, width int, height int, theme string, left int, top int, configPath string) error {
+func showWindowsTip(title string, body string, primaryLabel string, primaryURL string, secondaryLabel string, secondaryURL string, dropURL string, seconds int, width int, height int, theme string, left int, top int, configPath string) error {
 	title = strings.TrimSpace(title)
 	body = strings.TrimSpace(body)
 	if title == "" {
@@ -33,7 +33,7 @@ func showWindowsTip(title string, body string, primaryLabel string, primaryURL s
 		theme = "dark"
 	}
 	_ = closeWindowsTip(configPath)
-	script := buildWindowsTipScript(title, body, primaryLabel, primaryURL, secondaryLabel, secondaryURL, seconds, width, height, theme, left, top, configPath)
+	script := buildWindowsTipScript(title, body, primaryLabel, primaryURL, secondaryLabel, secondaryURL, dropURL, seconds, width, height, theme, left, top, configPath)
 	encoded := base64.StdEncoding.EncodeToString([]byte(script))
 	ps := fmt.Sprintf("[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('%s')) | Invoke-Expression", encoded)
 	cmd := exec.Command("powershell", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-STA", "-WindowStyle", "Hidden", "-Command", ps)
@@ -65,10 +65,11 @@ func activeTipMarkerPath(configPath string) string {
 	return filepath.Join(os.TempDir(), name)
 }
 
-func buildWindowsTipScript(title string, body string, primaryLabel string, primaryURL string, secondaryLabel string, secondaryURL string, seconds int, width int, height int, theme string, left int, top int, configPath string) string {
+func buildWindowsTipScript(title string, body string, primaryLabel string, primaryURL string, secondaryLabel string, secondaryURL string, dropURL string, seconds int, width int, height int, theme string, left int, top int, configPath string) string {
 	return fmt.Sprintf(`
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
+Add-Type -AssemblyName System.Web.Extensions
 Add-Type @"
 using System;
 using System.Runtime.InteropServices;
@@ -85,6 +86,30 @@ public static class DpiHelper {
 function Invoke-Action($target) {
   if ([string]::IsNullOrWhiteSpace($target)) { return }
   Start-Process $target | Out-Null
+}
+
+function Invoke-DropUpload($target, $paths) {
+  if ([string]::IsNullOrWhiteSpace($target)) { throw '未配置拖拽上传地址' }
+  if ($null -eq $paths -or $paths.Count -eq 0) { throw '未检测到可发送的文件' }
+  $payload = @{ paths = @($paths) }
+  $json = [System.Web.Script.Serialization.JavaScriptSerializer]::new().Serialize($payload)
+  $bytes = [System.Text.Encoding]::UTF8.GetBytes($json)
+  $request = [System.Net.HttpWebRequest]::Create($target)
+  $request.Method = 'POST'
+  $request.ContentType = 'application/json; charset=utf-8'
+  $request.ContentLength = $bytes.Length
+  $stream = $request.GetRequestStream()
+  try {
+    $stream.Write($bytes, 0, $bytes.Length)
+  } finally {
+    $stream.Dispose()
+  }
+  $response = $request.GetResponse()
+  try {
+    return $response.StatusCode
+  } finally {
+    $response.Dispose()
+  }
 }
 
 function Clamp-Value($value, $min, $max) {
@@ -132,6 +157,7 @@ $primaryLabel = %s
 $primaryURL = %s
 $secondaryLabel = %s
 $secondaryURL = %s
+$dropURL = %s
 $timeoutMs = %d
 $tipWidth = %d
 $tipHeight = %d
@@ -251,11 +277,21 @@ $body.AutoEllipsis = $true
 $body.Font = New-Object System.Drawing.Font('Segoe UI', 9, [System.Drawing.FontStyle]::Regular)
 $body.ForeColor = [System.Drawing.ColorTranslator]::FromHtml($bodyFg)
 
+$dropHint = New-Object System.Windows.Forms.Label
+$dropHint.Text = '也可以把文件拖到这里直接发送'
+$dropHint.Location = New-Object System.Drawing.Point(16, ($buttonTop - 20))
+$dropHint.Size = New-Object System.Drawing.Size($contentWidth, 16)
+$dropHint.UseCompatibleTextRendering = $false
+$dropHint.Font = New-Object System.Drawing.Font('Segoe UI', 8.25, [System.Drawing.FontStyle]::Regular)
+$dropHint.ForeColor = [System.Drawing.ColorTranslator]::FromHtml($metaFg)
+$dropHint.Visible = -not [string]::IsNullOrWhiteSpace($dropURL)
+
 $surface.Controls.Add($accent)
 $surface.Controls.Add($meta)
 $surface.Controls.Add($title)
 $surface.Controls.Add($close)
 $surface.Controls.Add($body)
+$surface.Controls.Add($dropHint)
 
 if (-not [string]::IsNullOrWhiteSpace($primaryLabel)) {
   $primary = New-Object System.Windows.Forms.Button
@@ -334,6 +370,37 @@ Register-DragTarget $surface
 Register-DragTarget $meta
 Register-DragTarget $title
 Register-DragTarget $body
+Register-DragTarget $dropHint
+
+if (-not [string]::IsNullOrWhiteSpace($dropURL)) {
+  $dropTargets = @($form, $surface, $meta, $title, $body, $dropHint)
+  foreach ($dropTarget in $dropTargets) {
+    $dropTarget.AllowDrop = $true
+    $dropTarget.Add_DragEnter({
+      if ($_.Data.GetDataPresent([System.Windows.Forms.DataFormats]::FileDrop)) {
+        $_.Effect = [System.Windows.Forms.DragDropEffects]::Copy
+        $timer.Stop()
+      } else {
+        $_.Effect = [System.Windows.Forms.DragDropEffects]::None
+      }
+    })
+    $dropTarget.Add_DragDrop({
+      try {
+        $fileDrop = $_.Data.GetData([System.Windows.Forms.DataFormats]::FileDrop)
+        $paths = @($fileDrop | Where-Object { $_ -and (Test-Path -LiteralPath $_ -PathType Leaf) })
+        if ($paths.Count -eq 0) {
+          throw '请拖入文件，暂不支持目录直接发送。'
+        }
+        Invoke-DropUpload $dropURL $paths | Out-Null
+        $form.Close()
+      } catch {
+        [System.Windows.Forms.MessageBox]::Show($_.Exception.Message, '发送失败', [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Warning) | Out-Null
+        $timer.Stop()
+        $timer.Start()
+      }
+    })
+  }
+}
 
 $form.Add_FormClosing({
   Save-TipPosition $configPath $form.Left $form.Top
@@ -343,7 +410,7 @@ $form.Add_FormClosing({
 Save-TipMarker $markerPath
 
 [System.Windows.Forms.Application]::Run($form)
-`, toPSString(title), toPSString(body), toPSString(primaryLabel), toPSString(primaryURL), toPSString(secondaryLabel), toPSString(secondaryURL), seconds*1000, width, height, toPSString(strings.ToLower(strings.TrimSpace(theme))), left, top, toPSString(configPath), toPSString(activeTipMarkerPath(configPath)))
+`, toPSString(title), toPSString(body), toPSString(primaryLabel), toPSString(primaryURL), toPSString(secondaryLabel), toPSString(secondaryURL), toPSString(dropURL), seconds*1000, width, height, toPSString(strings.ToLower(strings.TrimSpace(theme))), left, top, toPSString(configPath), toPSString(activeTipMarkerPath(configPath)))
 }
 
 func toPSString(value string) string {

@@ -13,7 +13,7 @@ type windowsTipNotifier struct {
 }
 
 func (n windowsTipNotifier) Notify(title string, body string) {
-	if err := showWindowsTip(title, body, "", "", "", "", 5, n.width, n.height, n.theme, n.left, n.top, n.configPath); err != nil && n.logger != nil {
+	if err := showWindowsTip(title, body, "", "", "", "", "", 5, n.width, n.height, n.theme, n.left, n.top, n.configPath); err != nil && n.logger != nil {
 		n.logger.Printf("右下角提示失败: %v", err)
 	}
 }

@@ -165,6 +165,10 @@ func (s *Server) PendingClipboardConfirmURL() string {
 	return fmt.Sprintf("http://%s/tips/confirm-pending-clipboard-files", s.address)
 }
 
+func (s *Server) SendFilesURL() string {
+	return fmt.Sprintf("http://%s/api/send-file", s.address)
+}
+
 func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)

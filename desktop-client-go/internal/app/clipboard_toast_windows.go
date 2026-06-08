@@ -12,13 +12,14 @@ import (
 func (a *App) showClipboardFilesToast(paths []string, windowSeconds int) bool {
 	cfg := a.currentConfig()
 	panelURL, confirmURL := a.pendingClipboardToastURLs()
+	dropURL := a.pendingClipboardDropURL()
 	if strings.TrimSpace(confirmURL) == "" {
 		return false
 	}
 	body := clipboardToastBody(paths, windowSeconds)
 	switch strings.ToLower(strings.TrimSpace(cfg.NoticeMode)) {
 	case "tip":
-		if err := showWindowsTip("检测到新的剪贴板文件", body, "立即发送", confirmURL, "打开面板", panelURL, windowSeconds, cfg.TipWidth, cfg.TipHeight, cfg.TipTheme, cfg.TipLeft, cfg.TipTop, a.configPath); err != nil {
+		if err := showWindowsTip("检测到新的剪贴板文件", body, "立即发送", confirmURL, "打开面板", panelURL, dropURL, windowSeconds, cfg.TipWidth, cfg.TipHeight, cfg.TipTheme, cfg.TipLeft, cfg.TipTop, a.configPath); err != nil {
 			a.logger.Printf("右下角剪贴板提示失败: %v", err)
 			return false
 		}
@@ -59,6 +60,15 @@ func (a *App) pendingClipboardToastURLs() (string, string) {
 		return "", ""
 	}
 	return a.panel.URL(), a.panel.PendingClipboardConfirmURL()
+}
+
+func (a *App) pendingClipboardDropURL() string {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.panel == nil {
+		return ""
+	}
+	return a.panel.SendFilesURL()
 }
 
 func clipboardToastBody(paths []string, windowSeconds int) string {
