@@ -872,6 +872,16 @@
       return normalized.length > 42 ? `${normalized.slice(0, 42)}...` : normalized;
     }
 
+    function normalizeErrorMessage(error) {
+      const raw = String(error && error.message ? error.message : error || '').trim();
+      if (!raw) return '发生了未知错误，请稍后重试。';
+      if (/^HTTP\s+404$/i.test(raw)) return '接口地址不存在，请确认本地控制面板服务是否已更新并正常运行。';
+      if (/^HTTP\s+401$/i.test(raw) || /^HTTP\s+403$/i.test(raw)) return '当前操作被拒绝，请检查房间密码、全局密码或设备批准状态。';
+      if (/^HTTP\s+500$/i.test(raw)) return '客户端内部处理失败，请结合“最近错误”和连接状态继续排查。';
+      if (/^HTTP\s+\d+$/i.test(raw)) return `请求失败：${raw}。请确认本地控制面板服务和同步链路是否正常。`;
+      return raw;
+    }
+
     function formatConnectionDiagnosis(cfg, state) {
       const issues = [];
       const serverBase = String(cfg.serverBase || '').trim();
@@ -1078,7 +1088,7 @@
         fillState(data.state || {});
         if (!silent) message.textContent = '状态已刷新';
       } catch (err) {
-        message.textContent = `状态读取失败：${err.message}`;
+        message.textContent = `状态读取失败：${normalizeErrorMessage(err)}`;
       }
     }
 
@@ -1125,7 +1135,7 @@
         fillState(data.state || {});
         message.textContent = '配置已保存，客户端正在重连。';
       } catch (err) {
-        message.textContent = `保存失败：${err.message}`;
+        message.textContent = `保存失败：${normalizeErrorMessage(err)}`;
       }
     }
 
@@ -1136,7 +1146,7 @@
         if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
         message.textContent = '已触发重连。';
       } catch (err) {
-        message.textContent = `重连失败：${err.message}`;
+        message.textContent = `重连失败：${normalizeErrorMessage(err)}`;
       }
     }
 
@@ -1147,7 +1157,7 @@
         if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
         message.textContent = '已请求打开控制面板窗口；若系统未找到宿主浏览器，会返回明确错误。';
       } catch (err) {
-        message.textContent = `打开失败：${err.message}`;
+        message.textContent = `打开失败：${normalizeErrorMessage(err)}`;
       }
     }
 
@@ -1170,7 +1180,7 @@
           setActionMessage('已取消选择文件。');
         }
       } catch (err) {
-        setActionMessage(`发送失败：${err.message}`, true);
+        setActionMessage(`发送失败：${normalizeErrorMessage(err)}`, true);
       }
     }
 
@@ -1193,7 +1203,7 @@
         }
         setActionMessage(`文本发送成功：${data.text || ''}`);
       } catch (err) {
-        setActionMessage(`文本发送失败：${err.message}`, true);
+        setActionMessage(`文本发送失败：${normalizeErrorMessage(err)}`, true);
       }
     }
 
@@ -1206,7 +1216,7 @@
         const data = JSON.parse(text || '{}');
         setActionMessage(`已写入剪贴板：${data.text || ''}`);
       } catch (err) {
-        setActionMessage(`拉取文本失败：${err.message}`, true);
+        setActionMessage(`拉取文本失败：${normalizeErrorMessage(err)}`, true);
       }
     }
 
@@ -1219,7 +1229,7 @@
         const data = JSON.parse(text || '{}');
         setActionMessage(`下载成功：${data.path || ''}`);
       } catch (err) {
-        setActionMessage(`下载文件失败：${err.message}`, true);
+        setActionMessage(`下载文件失败：${normalizeErrorMessage(err)}`, true);
       }
     }
 
@@ -1232,7 +1242,7 @@
         const data = JSON.parse(text || '{}');
         setActionMessage(`已写入文件剪贴板：${data.path || ''}`);
       } catch (err) {
-        setActionMessage(`拉取最新文件到剪贴板失败：${err.message}`, true);
+        setActionMessage(`拉取最新文件到剪贴板失败：${normalizeErrorMessage(err)}`, true);
       }
     }
 
@@ -1244,7 +1254,7 @@
         if (!resp.ok) throw new Error(text || `HTTP ${resp.status}`);
         message.textContent = '已打开下载目录';
       } catch (err) {
-        message.textContent = `打开下载目录失败：${err.message}`;
+        message.textContent = `打开下载目录失败：${normalizeErrorMessage(err)}`;
       }
     }
 
@@ -1257,7 +1267,7 @@
         const data = JSON.parse(text || '{}');
         message.textContent = `已清空下载缓存：${data.removed || 0} 项`;
       } catch (err) {
-        message.textContent = `清空下载缓存失败：${err.message}`;
+        message.textContent = `清空下载缓存失败：${normalizeErrorMessage(err)}`;
       }
     }
 
@@ -1271,7 +1281,7 @@
         message.textContent = `已发送待确认剪贴板文件：${(data.files || []).join('，')}`;
         await loadStatus(true);
       } catch (err) {
-        message.textContent = `发送待确认剪贴板文件失败：${err.message}`;
+        message.textContent = `发送待确认剪贴板文件失败：${normalizeErrorMessage(err)}`;
       }
     }
 
