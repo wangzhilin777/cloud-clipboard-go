@@ -33,7 +33,7 @@ object SyncEndpointUrls {
         if (normalizedTarget.startsWith("http://", ignoreCase = true) ||
             normalizedTarget.startsWith("https://", ignoreCase = true)
         ) {
-            return normalizedTarget
+            return rewriteLoopbackAbsoluteUrl(serverBase, normalizedTarget)
         }
         if (normalizedTarget.startsWith("/")) {
             return resolveRelativeUrl(serverBase, normalizedTarget)
@@ -53,6 +53,25 @@ object SyncEndpointUrls {
             resolved += "#$fragment"
         }
         return resolved
+    }
+
+    private fun rewriteLoopbackAbsoluteUrl(serverBase: String, targetUrl: String): String {
+        val target = runCatching { URI(targetUrl) }.getOrNull() ?: return targetUrl
+        val host = target.host?.trim().orEmpty()
+        if (!isLoopbackHost(host)) return targetUrl
+        val serverUri = runCatching { URI(serverBase.trim()) }.getOrNull() ?: return targetUrl
+        val serverHost = serverUri.host?.trim().orEmpty()
+        if (serverHost.isBlank() || isLoopbackHost(serverHost)) return targetUrl
+        val rebuilt = URI(
+            target.scheme,
+            target.userInfo,
+            serverHost,
+            target.port,
+            target.path,
+            target.query,
+            target.fragment,
+        )
+        return rebuilt.toString()
     }
 
     private fun normalizeEndpointPath(baseUrl: String, path: String): String {
@@ -92,6 +111,11 @@ object SyncEndpointUrls {
 
     private fun encodeQueryComponent(value: String): String =
         URLEncoder.encode(value, StandardCharsets.UTF_8.name()).replace("+", "%20")
+
+    private fun isLoopbackHost(host: String): Boolean {
+        if (host.equals("localhost", ignoreCase = true)) return true
+        return host == "127.0.0.1" || host == "::1"
+    }
 
     private fun lastUrlSegment(rawUrl: String): String {
         val parsedPath = runCatching { URI(rawUrl).path.orEmpty() }.getOrDefault("")

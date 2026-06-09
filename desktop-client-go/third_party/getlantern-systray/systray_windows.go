@@ -643,6 +643,7 @@ func (t *winTray) showMenu() error {
 	const (
 		TPM_BOTTOMALIGN = 0x0020
 		TPM_LEFTALIGN   = 0x0000
+		WM_NULL         = 0x0000
 	)
 	p := point{}
 	res, _, err := pGetCursorPos.Call(uintptr(unsafe.Pointer(&p)))
@@ -663,6 +664,15 @@ func (t *winTray) showMenu() error {
 	if res == 0 {
 		return err
 	}
+
+	// Follow the standard tray menu handshake on Windows so repeated
+	// right-clicks keep reopening the menu after the first popup closes.
+	pPostMessage.Call(
+		uintptr(t.window),
+		WM_NULL,
+		0,
+		0,
+	)
 
 	return nil
 }

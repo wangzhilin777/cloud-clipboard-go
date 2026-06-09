@@ -5,6 +5,7 @@ import android.content.IntentFilter
 import android.graphics.BitmapFactory
 import android.net.Uri
 import android.os.Bundle
+import android.util.Log
 import android.view.View
 import android.widget.Button
 import android.widget.ImageView
@@ -15,7 +16,9 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import com.transparentlc.cloudclipboardsync.sync.PayloadCacheStore
+import com.transparentlc.cloudclipboardsync.sync.PayloadDownloader
 import com.transparentlc.cloudclipboardsync.sync.PayloadEntry
+import com.transparentlc.cloudclipboardsync.sync.SettingsStore
 import com.transparentlc.cloudclipboardsync.sync.SyncService
 import java.io.File
 import java.text.DateFormat
@@ -24,6 +27,8 @@ import android.content.ActivityNotFoundException
 import android.content.Context
 
 class ReceivedPayloadActivity : AppCompatActivity() {
+    private val logTag = "ReceivedPayloadActivity"
+
     enum class FilterMode {
         ALL,
         PENDING,
@@ -60,6 +65,8 @@ class ReceivedPayloadActivity : AppCompatActivity() {
     private var entries: List<PayloadEntry> = emptyList()
     private var filterMode = FilterMode.ALL
     private var headerExpanded = false
+    @Volatile
+    private var downloadingPayloadId: String? = null
 
     private val payloadUpdateReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -130,7 +137,7 @@ class ReceivedPayloadActivity : AppCompatActivity() {
         }
 
         downloadButton.setOnClickListener {
-            currentPayloadId?.let { payloadId -> SyncService.confirmPayload(this, payloadId) }
+            currentEntry()?.let(::downloadCurrentEntry)
         }
         openButton.setOnClickListener {
             currentEntry()?.let(::openFile)
@@ -267,6 +274,7 @@ class ReceivedPayloadActivity : AppCompatActivity() {
         currentPayloadId = targetEntry.payloadId
         val localFile = targetEntry.localPath?.let(::File)
         val fileReady = localFile?.exists() == true
+        val downloadInProgress = downloadingPayloadId == targetEntry.payloadId
         titleText.text = targetEntry.title
         metaText.text = buildMeta(targetEntry)
         collapsedSummaryText.text = getString(
@@ -288,8 +296,12 @@ class ReceivedPayloadActivity : AppCompatActivity() {
         val currentIndex = filtered.indexOfFirst { it.payloadId == targetEntry.payloadId }.takeIf { it >= 0 } ?: 0
         indexText.text = getString(R.string.payload_index_format, currentIndex + 1, filtered.size.coerceAtLeast(1))
         actionHintText.text = buildActionHint(targetEntry)
-        downloadButton.isEnabled = true
-        downloadButton.text = if (fileReady) getString(R.string.payload_redownload_button) else getString(R.string.payload_download_button)
+        downloadButton.isEnabled = !downloadInProgress
+        downloadButton.text = when {
+            downloadInProgress -> "下载中..."
+            fileReady -> getString(R.string.payload_redownload_button)
+            else -> getString(R.string.payload_download_button)
+        }
         openButton.isEnabled = fileReady
         shareButton.isEnabled = fileReady
         saveButton.isEnabled = fileReady
@@ -406,6 +418,36 @@ class ReceivedPayloadActivity : AppCompatActivity() {
         buttons.forEach { (button, selected) ->
             button.alpha = if (selected) 1f else 0.72f
         }
+    }
+
+    private fun downloadCurrentEntry(entry: PayloadEntry) {
+        if (downloadingPayloadId == entry.payloadId) return
+        Log.i(logTag, "downloadCurrentEntry start payloadId=${entry.payloadId} title=${entry.title}")
+        downloadingPayloadId = entry.payloadId
+        bindEntry(entry)
+        Thread {
+            runCatching {
+                PayloadDownloader.download(this, SettingsStore.load(this), entry)
+            }.onSuccess { downloaded ->
+                Log.i(logTag, "downloadCurrentEntry success payloadId=${downloaded.payloadId} localPath=${downloaded.localPath}")
+                runOnUiThread {
+                    downloadingPayloadId = null
+                    entries = PayloadCacheStore.list(this)
+                    currentPayloadId = downloaded.payloadId
+                    notifyPayloadCollectionChanged(downloaded.payloadId)
+                    bindEntry(downloaded)
+                    Toast.makeText(this, R.string.payload_ready_title, Toast.LENGTH_SHORT).show()
+                }
+            }.onFailure { error ->
+                Log.e(logTag, "downloadCurrentEntry failed payloadId=${entry.payloadId}", error)
+                runOnUiThread {
+                    downloadingPayloadId = null
+                    entries = PayloadCacheStore.list(this)
+                    bindEntry(currentEntry())
+                    Toast.makeText(this, error.message ?: "下载失败，请稍后再试", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }.start()
     }
 
     private fun openFile(entry: PayloadEntry) {

@@ -10,6 +10,7 @@ import (
 	"log"
 	"mime"
 	"mime/multipart"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -436,6 +437,8 @@ func (s *Sender) sendSingleFileWorkerMultipart(ctx context.Context, path string,
 }
 
 func (s *Sender) broadcastPayloadNotice(ctx context.Context, result UploadResult) error {
+	actionURL := rewriteLoopbackURLForLAN(s.cfg.ServerBase, result.ActionURL)
+	downloadURL := rewriteLoopbackURLForLAN(s.cfg.ServerBase, result.DownloadURL)
 	body := map[string]interface{}{
 		"payloadId":      uuid.NewString(),
 		"sourceDeviceId": s.cfg.DeviceID,
@@ -444,8 +447,8 @@ func (s *Sender) broadcastPayloadNotice(ctx context.Context, result UploadResult
 		"title":          result.Name,
 		"mime":           result.Mime,
 		"size":           result.Size,
-		"actionUrl":      result.ActionURL,
-		"downloadUrl":    result.DownloadURL,
+		"actionUrl":      actionURL,
+		"downloadUrl":    downloadURL,
 		"createdAt":      time.Now().UnixMilli(),
 	}
 	raw, err := json.Marshal(body)
@@ -830,4 +833,111 @@ func appendDownloadQuery(raw string) (string, error) {
 	query.Set("download", "true")
 	parsed.RawQuery = query.Encode()
 	return parsed.String(), nil
+}
+
+func rewriteLoopbackURLForLAN(serverBase string, raw string) string {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return ""
+	}
+	parsed, err := url.Parse(raw)
+	if err != nil {
+		return raw
+	}
+	host := strings.TrimSpace(parsed.Hostname())
+	if !isLoopbackHost(host) {
+		return raw
+	}
+	lanHost := preferredLANHost(serverBase)
+	if lanHost == "" {
+		return raw
+	}
+	port := parsed.Port()
+	if port == "" {
+		port = defaultPortForScheme(parsed.Scheme)
+	}
+	if port != "" {
+		parsed.Host = net.JoinHostPort(lanHost, port)
+	} else {
+		parsed.Host = lanHost
+	}
+	return parsed.String()
+}
+
+func preferredLANHost(serverBase string) string {
+	if host := nonLoopbackHostFromURL(serverBase); host != "" {
+		return host
+	}
+	addrs, err := net.InterfaceAddrs()
+	if err != nil {
+		return ""
+	}
+	for _, addr := range addrs {
+		ipNet, ok := addr.(*net.IPNet)
+		if !ok || ipNet == nil {
+			continue
+		}
+		ip := ipNet.IP
+		if ip == nil || ip.IsLoopback() {
+			continue
+		}
+		ip = ip.To4()
+		if ip == nil {
+			continue
+		}
+		if isPrivateIPv4(ip) {
+			return ip.String()
+		}
+	}
+	return ""
+}
+
+func nonLoopbackHostFromURL(raw string) string {
+	parsed, err := url.Parse(strings.TrimSpace(raw))
+	if err != nil {
+		return ""
+	}
+	host := strings.TrimSpace(parsed.Hostname())
+	if host == "" || isLoopbackHost(host) {
+		return ""
+	}
+	return host
+}
+
+func isLoopbackHost(host string) bool {
+	if strings.EqualFold(host, "localhost") {
+		return true
+	}
+	ip := net.ParseIP(host)
+	return ip != nil && ip.IsLoopback()
+}
+
+func defaultPortForScheme(scheme string) string {
+	switch strings.ToLower(strings.TrimSpace(scheme)) {
+	case "http":
+		return "80"
+	case "https":
+		return "443"
+	default:
+		return ""
+	}
+}
+
+func isPrivateIPv4(ip net.IP) bool {
+	if ip == nil {
+		return false
+	}
+	if len(ip) != net.IPv4len {
+		return false
+	}
+	switch {
+	case ip[0] == 10:
+		return true
+	case ip[0] == 172 && ip[1] >= 16 && ip[1] <= 31:
+		return true
+	case ip[0] == 192 && ip[1] == 168:
+		return true
+	default:
+		return false
+	}
 }

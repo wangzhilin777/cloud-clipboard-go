@@ -1,6 +1,7 @@
 package transfer
 
 import (
+	"net/url"
 	"reflect"
 	"strings"
 	"testing"
@@ -80,5 +81,37 @@ func TestLatestContentEndpointsPreserveConfiguredRoom(t *testing.T) {
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("latestContentEndpoints() = %#v, want %#v", got, want)
+	}
+}
+
+func TestRewriteLoopbackURLForLANUsesServerBaseHost(t *testing.T) {
+	got := rewriteLoopbackURLForLAN("http://192.168.31.236:9501", "http://127.0.0.1:9501/file/u/name.txt?download=true")
+	want := "http://192.168.31.236:9501/file/u/name.txt?download=true"
+	if got != want {
+		t.Fatalf("rewriteLoopbackURLForLAN() = %q, want %q", got, want)
+	}
+}
+
+func TestRewriteLoopbackURLForLANLeavesNonLoopbackUntouched(t *testing.T) {
+	raw := "http://192.168.31.236:9501/file/u/name.txt?download=true"
+	if got := rewriteLoopbackURLForLAN("http://127.0.0.1:9501", raw); got != raw {
+		t.Fatalf("rewriteLoopbackURLForLAN() = %q, want %q", got, raw)
+	}
+}
+
+func TestRewriteLoopbackURLForLANPreservesPathQueryAndPort(t *testing.T) {
+	got := rewriteLoopbackURLForLAN("http://192.168.31.236:9501/api", "http://localhost:9501/api/file/u/%E6%B5%8B%E8%AF%95.png?download=true&token=abc")
+	parsed, err := url.Parse(got)
+	if err != nil {
+		t.Fatalf("url.Parse() error = %v", err)
+	}
+	if parsed.Host != "192.168.31.236:9501" {
+		t.Fatalf("host = %q, want %q", parsed.Host, "192.168.31.236:9501")
+	}
+	if parsed.Path != "/api/file/u/测试.png" && parsed.EscapedPath() != "/api/file/u/%E6%B5%8B%E8%AF%95.png" {
+		t.Fatalf("path = %q escaped = %q", parsed.Path, parsed.EscapedPath())
+	}
+	if parsed.Query().Get("download") != "true" || parsed.Query().Get("token") != "abc" {
+		t.Fatalf("query = %#v", parsed.Query())
 	}
 }

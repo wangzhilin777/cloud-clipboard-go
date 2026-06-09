@@ -45,6 +45,7 @@ class SyncService : Service() {
     private var lastObservedLocalText = ""
     private var serviceStarted = false
     private var reconnectAttempt = 0
+    private var reconnectRunnable: Runnable? = null
     private val recentPublishedTexts = mutableMapOf<String, Long>()
     private val downloadingPayloads = mutableSetOf<String>()
     private var lastClipboardRoute = "idle"
@@ -101,10 +102,12 @@ class SyncService : Service() {
         if (!serviceStarted) {
             lastObservedLocalText = readCurrentClipboardText()
             startForeground(NOTIFICATION_ID, buildNotification(getString(R.string.status_connecting)))
-            connect()
             handler.post(refreshRunnable)
             handler.post(clipboardPollRunnable)
             serviceStarted = true
+            reconnectNow("service-start")
+        } else {
+            reconnectNow("manual-start")
         }
         return START_STICKY
     }
@@ -122,6 +125,7 @@ class SyncService : Service() {
         handler.removeCallbacksAndMessages(null)
         clipboardManager.removePrimaryClipChangedListener(clipboardListener)
         client?.disconnect()
+        client = null
         removeForegroundNotification()
         isRunning = false
         super.onDestroy()
@@ -195,6 +199,17 @@ class SyncService : Service() {
         client?.connect()
     }
 
+    private fun reconnectNow(reason: String) {
+        reconnectRunnable?.let(handler::removeCallbacks)
+        reconnectRunnable = null
+        reconnectAttempt = 0
+        trusted = false
+        updateClipboardDiagnostic(reason, "正在重新建立同步连接")
+        broadcastStatus(getString(R.string.status_connecting), "正在重新建立同步连接")
+        updateNotification(getString(R.string.status_connecting))
+        connect()
+    }
+
     private fun scheduleReconnectOrStop() {
         if (reconnectAttempt >= reconnectDelaysMs.size) {
             reconnectAttempt = 0
@@ -212,7 +227,11 @@ class SyncService : Service() {
         updateClipboardDiagnostic("reconnect-$attempt", "$message，等待 ${delayMs / 1000} 秒后再试")
         broadcastStatus(getString(R.string.status_disconnected), message)
         updateNotification(getString(R.string.status_disconnected))
-        handler.postDelayed({ connect() }, delayMs)
+        reconnectRunnable = Runnable {
+            reconnectRunnable = null
+            connect()
+        }
+        handler.postDelayed(reconnectRunnable!!, delayMs)
     }
 
     private fun refreshTrustState() {

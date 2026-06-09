@@ -25,8 +25,10 @@ class ClipboardSyncClient(
     private val client = OkHttpClient()
     private var webSocket: WebSocket? = null
     private var trusted = false
+    private var manualDisconnect = false
 
     fun connect() {
+        manualDisconnect = false
         val wsUrl = SyncEndpointUrls.webSocketUrl(
             serverBase = config.serverBase,
             path = "sync/ws",
@@ -84,17 +86,28 @@ class ClipboardSyncClient(
             }
 
             override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
-                callbacks.onDisconnected()
+                webSocket.close(code, reason)
+            }
+
+            override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
+                this@ClipboardSyncClient.webSocket = null
+                if (!manualDisconnect) {
+                    callbacks.onDisconnected()
+                }
             }
 
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
+                this@ClipboardSyncClient.webSocket = null
                 callbacks.onLog("同步连接失败：${t.message}")
-                callbacks.onDisconnected()
+                if (!manualDisconnect) {
+                    callbacks.onDisconnected()
+                }
             }
         })
     }
 
     fun disconnect() {
+        manualDisconnect = true
         webSocket?.close(1000, "bye")
         webSocket = null
     }
