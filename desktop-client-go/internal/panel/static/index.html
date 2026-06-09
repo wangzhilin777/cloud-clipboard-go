@@ -795,11 +795,11 @@
       if (cfg.fetchLatestHotkey) items.push(`拉取文本：${cfg.fetchLatestHotkey}`);
       if (cfg.fetchLatestFileHotkey) items.push(`拉取文件到剪贴板：${cfg.fetchLatestFileHotkey}`);
       if (cfg.downloadLatestHotkey) items.push(`下载文件：${cfg.downloadLatestHotkey}`);
-      if (cfg.shellMenuEnabled) items.push('右键菜单：开');
-      if (cfg.clipboardFileConfirmEnabled) items.push(`文件确认：${cfg.clipboardFileConfirmWindowSec || 0}s`);
+      if (cfg.shellMenuEnabled) items.push('右键菜单：已启用');
+      if (cfg.clipboardFileConfirmEnabled) items.push(`文件确认：${cfg.clipboardFileConfirmWindowSec || 0} 秒`);
       if (cfg.noticeMode === 'tip') items.push(`右下角提示：${cfg.tipWidth || 0}x${cfg.tipHeight || 0} / ${cfg.tipTheme === 'light' ? '浅色' : '深色'}`);
       if (cfg.noticeMode === 'tip' && Number(cfg.tipLeft) >= 0 && Number(cfg.tipTop) >= 0) items.push(`提示位置：${cfg.tipLeft},${cfg.tipTop}`);
-      if (cfg.successNoticeEnabled) items.push('成功提示：开');
+      if (cfg.successNoticeEnabled) items.push('成功提示：已开启');
       return items.length ? items.join(' / ') : '未配置';
     }
 
@@ -898,7 +898,7 @@
         if (status === 'trusted' || status === 'connected') {
           return `已连接 / ${room}`;
         }
-        return `待启动 / ${room}`;
+        return `尚未开始同步 / ${room}`;
       }
       return issues.join(' / ');
     }
