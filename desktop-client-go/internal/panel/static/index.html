@@ -952,7 +952,7 @@
       const retention = Number(cfg.downloadCacheRetentionHours || 0);
       const cleanup = Number(state.lastCacheCleanupAt || 0);
       const cleanupText = cleanup ? new Date(cleanup).toLocaleString() : '暂无清理记录';
-      return `${retention || 0}h / ${dir} / ${cleanupText}`;
+      return `缓存保留 ${retention || 0} 小时 / ${dir} / ${cleanupText}`;
     }
 
     function formatCapabilities(capabilities, cfg) {
