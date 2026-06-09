@@ -285,3 +285,4 @@
 
 
 - 本轮继续收 Windows 托盘右键稳定性问题：排查当前托盘实现后，已在 desktop-client-go/third_party/getlantern-systray/systray_windows.go 的菜单弹出逻辑里补上 Windows 托盘常见的 WM_NULL 收尾消息，避免菜单第一次成功弹出后，后续右键因为焦点收尾不完整而不再重新弹出。定向验证通过：desktop-client-go 下 go test ./internal/tray ./internal/app ./internal/panel ./internal/shellmenu 与 go build ./cmd/cloud-clipboard-desktop ./cmd/cloud-clipboard-panel 均通过；其中 internal/shellmenu 首次在系统临时目录执行测试 exe 被本机拒绝访问，切换到仓库内临时 GOCACHE / GOTMPDIR 后复跑通过，说明这次托盘补丁本身未引入新的桌面端回归。验证后已删除临时 GOCACHE / GOTMPDIR 目录，未触碰真实桌面端配置、真实右键菜单注册项、手机端非调试数据或服务端非调试数据
+- 本轮继续做 Windows 面板真实打开链路自动验证：使用临时 cloud-clipboard-panel.exe、临时配置和本地端口 127.0.0.1:19530 启动隔离面板进程，/api/status 返回正常；随后调用 POST /api/open-panel，接口返回 {\"ok\":true}，并在系统现有 Edge 进程窗口标题中实际观察到新增独立窗口 云剪同步桌面端，证明当前“打开控制面板窗口”链路不是只停留在接口成功，而是确实能拉起 Windows 独立 app 窗口。整个验证过程中未触碰真实桌面端配置、真实右键菜单、手机端非调试数据或服务端非调试数据
