@@ -632,6 +632,8 @@
   </div>
 
   <script>
+    const PANEL_TAB_STORAGE_KEY = 'cloud-clipboard-panel-active-tab';
+    const PANEL_MANUAL_TEXT_STORAGE_KEY = 'cloud-clipboard-panel-manual-text';
     const fields = {
       serverBase: document.getElementById('serverBase'),
       room: document.getElementById('room'),
@@ -705,6 +707,26 @@
     let hotkeyCaptureTarget = null;
     let refreshTimer = null;
 
+    function readStoredValue(key) {
+      try {
+        return window.localStorage ? window.localStorage.getItem(key) : null;
+      } catch (_) {
+        return null;
+      }
+    }
+
+    function writeStoredValue(key, value) {
+      try {
+        if (!window.localStorage) return;
+        if (value === null || value === undefined || value === '') {
+          window.localStorage.removeItem(key);
+          return;
+        }
+        window.localStorage.setItem(key, String(value));
+      } catch (_) {
+      }
+    }
+
     function switchTab(tabName) {
       tabButtons.forEach((button) => {
         button.classList.toggle('active', button.dataset.tabButton === tabName);
@@ -712,6 +734,7 @@
       tabPanels.forEach((panel) => {
         panel.classList.toggle('active', panel.dataset.tabPanel === tabName);
       });
+      writeStoredValue(PANEL_TAB_STORAGE_KEY, tabName);
     }
 
     function statusClass(status) {
@@ -1284,6 +1307,7 @@
         const data = JSON.parse(text || '{}');
         if (!fromClipboard) {
           manualText.value = '';
+          writeStoredValue(PANEL_MANUAL_TEXT_STORAGE_KEY, '');
         }
         setActionMessage(`文本发送成功：${data.text || ''}`);
       } catch (err) {
@@ -1384,6 +1408,9 @@
     confirmPendingClipboardFilesButton.addEventListener('click', () => runButtonAction(confirmPendingClipboardFilesButton, '发送中...', confirmPendingClipboardFiles));
     copyActionMessageButton.addEventListener('click', copyActionMessage);
     clearActionMessageButton.addEventListener('click', clearActionMessage);
+    manualText.addEventListener('input', () => {
+      writeStoredValue(PANEL_MANUAL_TEXT_STORAGE_KEY, manualText.value);
+    });
     manualText.addEventListener('keydown', (event) => {
       if (event.isComposing || event.key !== 'Enter') return;
       if (!(event.ctrlKey || event.metaKey) || event.shiftKey || event.altKey) return;
@@ -1446,6 +1473,14 @@
       closeHotkeyCapture();
     });
 
+    const storedManualText = readStoredValue(PANEL_MANUAL_TEXT_STORAGE_KEY);
+    if (typeof storedManualText === 'string' && storedManualText) {
+      manualText.value = storedManualText;
+    }
+    const storedTab = readStoredValue(PANEL_TAB_STORAGE_KEY);
+    if (storedTab && tabPanels.some((panel) => panel.dataset.tabPanel === storedTab)) {
+      switchTab(storedTab);
+    }
     loadStatus();
     setActionMessage('动作结果会显示在这里。');
     refreshTimer = setInterval(() => loadStatus(true), 2000);
