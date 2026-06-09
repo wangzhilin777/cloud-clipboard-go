@@ -235,6 +235,12 @@
       color: var(--accent);
       padding: 8px 12px;
     }
+    .message-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 10px;
+    }
     .footer {
       margin-top: 20px;
       color: var(--muted);
@@ -479,6 +485,10 @@
             <button class="secondary" id="fetchLatestTextButton" type="button">拉取最新文本到剪贴板</button>
           </div>
           <div class="message action-message" id="actionMessage">动作结果会显示在这里。</div>
+          <div class="message-actions">
+            <button class="ghost" id="copyActionMessageButton" type="button" disabled>复制结果</button>
+            <button class="ghost" id="clearActionMessageButton" type="button" disabled>清空结果</button>
+          </div>
         </div>
 
         <div>
@@ -681,6 +691,8 @@
     const openDownloadDirButton = document.getElementById('openDownloadDirButton');
     const clearDownloadDirButton = document.getElementById('clearDownloadDirButton');
     const confirmPendingClipboardFilesButton = document.getElementById('confirmPendingClipboardFilesButton');
+    const copyActionMessageButton = document.getElementById('copyActionMessageButton');
+    const clearActionMessageButton = document.getElementById('clearActionMessageButton');
     const tabButtons = Array.from(document.querySelectorAll('[data-tab-button]'));
     const tabPanels = Array.from(document.querySelectorAll('[data-tab-panel]'));
     const hotkeyOpenButtons = Array.from(document.querySelectorAll('[data-hotkey-open]'));
@@ -1184,6 +1196,40 @@
       if (!actionMessage) return;
       actionMessage.textContent = text;
       actionMessage.classList.toggle('error', isError);
+      const normalized = String(text || '').trim();
+      const hasValue = normalized && normalized !== '动作结果会显示在这里。';
+      if (copyActionMessageButton) copyActionMessageButton.disabled = !hasValue;
+      if (clearActionMessageButton) clearActionMessageButton.disabled = !hasValue;
+    }
+
+    async function copyActionMessage() {
+      const text = String(actionMessage && actionMessage.textContent ? actionMessage.textContent : '').trim();
+      if (!text || text === '动作结果会显示在这里。') {
+        setActionMessage('当前没有可复制的动作结果。', true);
+        return;
+      }
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(text);
+        } else {
+          const temp = document.createElement('textarea');
+          temp.value = text;
+          temp.setAttribute('readonly', 'readonly');
+          temp.style.position = 'fixed';
+          temp.style.opacity = '0';
+          document.body.appendChild(temp);
+          temp.select();
+          document.execCommand('copy');
+          document.body.removeChild(temp);
+        }
+        setActionMessage(`已复制动作结果：${text}`);
+      } catch (err) {
+        setActionMessage(`复制失败：${normalizeErrorMessage(err)}`, true);
+      }
+    }
+
+    function clearActionMessage() {
+      setActionMessage('动作结果会显示在这里。');
     }
 
     async function runButtonAction(button, busyText, action) {
@@ -1336,6 +1382,8 @@
     openDownloadDirButton.addEventListener('click', () => runButtonAction(openDownloadDirButton, '打开中...', openDownloadDir));
     clearDownloadDirButton.addEventListener('click', () => runButtonAction(clearDownloadDirButton, '清理中...', clearDownloadDir));
     confirmPendingClipboardFilesButton.addEventListener('click', () => runButtonAction(confirmPendingClipboardFilesButton, '发送中...', confirmPendingClipboardFiles));
+    copyActionMessageButton.addEventListener('click', copyActionMessage);
+    clearActionMessageButton.addEventListener('click', clearActionMessage);
     manualText.addEventListener('keydown', (event) => {
       if (event.isComposing || event.key !== 'Enter') return;
       if (!(event.ctrlKey || event.metaKey) || event.shiftKey || event.altKey) return;
@@ -1399,6 +1447,7 @@
     });
 
     loadStatus();
+    setActionMessage('动作结果会显示在这里。');
     refreshTimer = setInterval(() => loadStatus(true), 2000);
     window.addEventListener('beforeunload', () => clearInterval(refreshTimer));
   </script>
