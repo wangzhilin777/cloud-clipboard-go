@@ -371,7 +371,7 @@
         <h2 class="form-title">常用动作</h2>
         <div class="actions">
           <button class="primary" id="reconnectButton" type="button">立即重连</button>
-          <button class="secondary" id="openPanelButton" type="button">打开独立面板窗口</button>
+          <button class="secondary" id="openPanelButton" type="button">打开控制面板窗口</button>
           <button class="secondary" id="confirmPendingClipboardFilesButton" type="button">发送待确认剪贴板文件</button>
           <button class="secondary" id="openDownloadDirButton" type="button">打开下载目录</button>
         </div>
@@ -782,7 +782,7 @@
         case 'clipboard-file-send':
           return '发送待确认剪贴板文件';
         case 'open-panel':
-          return '打开独立面板窗口';
+          return '打开控制面板窗口';
         default:
           return actionType || '动作';
       }
@@ -1141,11 +1141,11 @@
     }
 
     async function openPanelInBrowser() {
-      message.textContent = '正在打开独立面板窗口...';
+      message.textContent = '正在打开控制面板窗口...';
       try {
         const resp = await fetch('/api/open-panel', { method: 'POST' });
         if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-        message.textContent = '已请求打开独立面板窗口；若系统未找到宿主浏览器，会返回明确错误。';
+        message.textContent = '已请求打开控制面板窗口；若系统未找到宿主浏览器，会返回明确错误。';
       } catch (err) {
         message.textContent = `打开失败：${err.message}`;
       }
