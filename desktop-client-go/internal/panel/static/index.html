@@ -128,13 +128,18 @@
     input, select, button {
       font: inherit;
     }
-    input, select {
+    input, select, textarea {
       width: 100%;
       border: 1px solid var(--line);
       border-radius: 12px;
       padding: 10px 12px;
       background: #fbfdff;
       color: var(--text);
+    }
+    textarea {
+      min-height: 108px;
+      resize: vertical;
+      line-height: 1.6;
     }
     .actions {
       display: flex;
@@ -464,8 +469,8 @@
           <div class="form-grid">
             <label class="field full">
               <span class="label">手动发送文本</span>
-              <input id="manualText" placeholder="输入要发送到同步房间的文本">
-              <span class="helper">输入后按 Enter 可直接发送，留空时不会误发空文本。</span>
+              <textarea id="manualText" placeholder="输入要发送到同步房间的文本，支持多行内容"></textarea>
+              <span class="helper">支持多行文本；按 Ctrl+Enter 直接发送，单独按 Enter 仅换行，留空时不会误发空文本。</span>
             </label>
           </div>
           <div class="actions">
@@ -1332,7 +1337,8 @@
     clearDownloadDirButton.addEventListener('click', () => runButtonAction(clearDownloadDirButton, '清理中...', clearDownloadDir));
     confirmPendingClipboardFilesButton.addEventListener('click', () => runButtonAction(confirmPendingClipboardFilesButton, '发送中...', confirmPendingClipboardFiles));
     manualText.addEventListener('keydown', (event) => {
-      if (event.key !== 'Enter' || event.shiftKey || event.ctrlKey || event.altKey || event.metaKey || event.isComposing) return;
+      if (event.isComposing || event.key !== 'Enter') return;
+      if (!(event.ctrlKey || event.metaKey) || event.shiftKey || event.altKey) return;
       event.preventDefault();
       runButtonAction(sendTextButton, '发送中...', () => sendText(false));
     });
