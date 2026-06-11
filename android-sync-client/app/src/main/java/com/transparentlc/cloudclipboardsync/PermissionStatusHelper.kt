@@ -138,6 +138,24 @@ object PermissionStatusHelper {
         else -> "未启用"
     }
 
+    internal fun clipboardAppOpLabel(mode: String): String = when (mode.trim().lowercase()) {
+        "allow" -> "允许"
+        "foreground" -> "仅前台允许"
+        "ignore" -> "已忽略"
+        "errored" -> "已拒绝"
+        "default" -> "系统默认"
+        else -> mode.ifBlank { "未知" }
+    }
+
+    internal fun clipboardReadRestrictionLabel(mode: String): String = when (mode.trim().lowercase()) {
+        "allow" -> "系统当前没有额外把读剪贴板限制在前台。"
+        "foreground" -> "系统当前仍只允许前台读取剪贴板，后台复制不能视为已打通。"
+        "ignore" -> "系统当前直接忽略读剪贴板请求。"
+        "errored" -> "系统当前会拒绝读剪贴板请求。"
+        "default" -> "系统仍按默认策略处理读剪贴板，请结合前后台实测判断。"
+        else -> "系统读剪贴板状态为 $mode，请结合前后台实测判断。"
+    }
+
     private fun readEnabledInputMethods(context: Context): List<String> {
         val manager = context.getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager ?: return emptyList()
         val methods = runCatching { manager.enabledInputMethodList }.getOrDefault(emptyList())

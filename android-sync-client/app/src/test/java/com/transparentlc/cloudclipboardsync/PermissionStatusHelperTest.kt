@@ -113,4 +113,23 @@ class PermissionStatusHelperTest {
             PermissionStatusHelper.inputMethodStateLabel(enabled = false, selected = false),
         )
     }
+
+    @Test
+    fun clipboardAppOpLabelDescribesMode() {
+        assertEquals("允许", PermissionStatusHelper.clipboardAppOpLabel("allow"))
+        assertEquals("仅前台允许", PermissionStatusHelper.clipboardAppOpLabel("foreground"))
+        assertEquals("系统默认", PermissionStatusHelper.clipboardAppOpLabel("default"))
+    }
+
+    @Test
+    fun clipboardReadRestrictionLabelHighlightsForegroundLimit() {
+        assertEquals(
+            "系统当前仍只允许前台读取剪贴板，后台复制不能视为已打通。",
+            PermissionStatusHelper.clipboardReadRestrictionLabel("foreground"),
+        )
+        assertEquals(
+            "系统当前没有额外把读剪贴板限制在前台。",
+            PermissionStatusHelper.clipboardReadRestrictionLabel("allow"),
+        )
+    }
 }

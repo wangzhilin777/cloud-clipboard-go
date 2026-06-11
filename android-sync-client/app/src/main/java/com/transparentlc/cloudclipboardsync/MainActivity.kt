@@ -1305,7 +1305,7 @@ class MainActivity : AppCompatActivity() {
                 !status.shizukuInstalled -> "当前模式：Shizuku\n启动状态：需要处理\n原因：${validation.message}\n系统限制：${clipboardRestrictionSummary()}\n说明：先安装 Shizuku，再用 root 或 adb 启动服务。"
                 !status.shizukuRunning -> "当前模式：Shizuku\n启动状态：需要处理\n原因：${validation.message}\n系统限制：${clipboardRestrictionSummary()}\n说明：当前已安装 Shizuku，但服务还没运行；root 启动后回到这里刷新状态。"
                 !status.shizukuPermissionGranted -> "当前模式：Shizuku\n启动状态：需要处理\n原因：${validation.message}\n系统限制：${clipboardRestrictionSummary()}\n说明：Shizuku 服务已运行，点快捷处理按钮授权云剪同步。"
-                else -> "当前模式：Shizuku 辅助诊断\n启动状态：可直接启动同步\n系统限制：${clipboardRestrictionSummary()}\nAppOps：读取 ${status.clipboardReadAppOp} / 写入 ${status.clipboardWriteAppOp}\n说明：Shizuku 已授权${status.shizukuUid?.let { "（UID $it）" }.orEmpty()}；当前只作为系统授权和剪贴板 AppOps 诊断辅助，不再额外轮询系统剪贴板，也不承诺绕过后台剪贴板限制。正式推荐模式请改用前台服务、输入法或悬浮窗。"
+                else -> "当前模式：Shizuku 辅助诊断\n启动状态：可直接启动同步\n系统限制：${clipboardRestrictionSummary()}\nAppOps：读取 ${PermissionStatusHelper.clipboardAppOpLabel(status.clipboardReadAppOp)} / 写入 ${PermissionStatusHelper.clipboardAppOpLabel(status.clipboardWriteAppOp)}\n说明：Shizuku 已授权${status.shizukuUid?.let { "（UID $it）" }.orEmpty()}；${PermissionStatusHelper.clipboardReadRestrictionLabel(status.clipboardReadAppOp)}当前只作为系统授权和剪贴板 AppOps 诊断辅助，不再额外轮询系统剪贴板，也不承诺绕过后台剪贴板限制。正式推荐模式请改用前台服务、输入法或悬浮窗。"
             }
         }
 
@@ -1389,7 +1389,7 @@ class MainActivity : AppCompatActivity() {
 
         val reason = when {
             config.clipboardMode == SettingsStore.CLIPBOARD_MODE_SHIZUKU ->
-                "原因：${status.shizukuDetail}；剪贴板 AppOps 为读取 ${status.clipboardReadAppOp} / 写入 ${status.clipboardWriteAppOp}。当前 Shizuku 只作为系统授权与诊断模式，不承诺绕过后台剪贴板限制。"
+                "原因：${status.shizukuDetail}；剪贴板 AppOps 为读取 ${PermissionStatusHelper.clipboardAppOpLabel(status.clipboardReadAppOp)} / 写入 ${PermissionStatusHelper.clipboardAppOpLabel(status.clipboardWriteAppOp)}。${PermissionStatusHelper.clipboardReadRestrictionLabel(status.clipboardReadAppOp)}当前 Shizuku 只作为系统授权与诊断模式，不承诺绕过后台剪贴板限制。"
             config.clipboardMode == SettingsStore.CLIPBOARD_MODE_IME ->
                 "原因：输入法模式依赖你主动打开键盘并点击发送按钮；它更适合作为后台复制受限时的稳定兜底，而不是自动读取后台系统剪贴板。当前状态：${status.imeDetail}。"
             config.clipboardMode == SettingsStore.CLIPBOARD_MODE_FLOATING ->
@@ -1466,7 +1466,7 @@ class MainActivity : AppCompatActivity() {
             }
 
             SettingsStore.CLIPBOARD_MODE_SHIZUKU ->
-                "当前监听策略：${status.shizukuDetail}；剪贴板 AppOps 为读取 ${status.clipboardReadAppOp} / 写入 ${status.clipboardWriteAppOp}。当前仅保留系统剪贴板回调，并把 Shizuku 状态作为诊断信息展示，不再额外轮询系统剪贴板。"
+                "当前监听策略：${status.shizukuDetail}；剪贴板 AppOps 为读取 ${PermissionStatusHelper.clipboardAppOpLabel(status.clipboardReadAppOp)} / 写入 ${PermissionStatusHelper.clipboardAppOpLabel(status.clipboardWriteAppOp)}。${PermissionStatusHelper.clipboardReadRestrictionLabel(status.clipboardReadAppOp)}当前仅保留系统剪贴板回调，并把 Shizuku 状态作为诊断信息展示，不再额外轮询系统剪贴板。"
 
             SettingsStore.CLIPBOARD_MODE_IME ->
                 "当前监听策略：当前主要依赖键盘面板里的手动发送按钮作为稳定兜底，不会承诺自动绕过系统后台剪贴板限制。"
