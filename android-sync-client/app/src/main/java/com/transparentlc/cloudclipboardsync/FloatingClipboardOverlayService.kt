@@ -35,10 +35,15 @@ class FloatingClipboardOverlayService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (intent?.action == ACTION_DISMISS) {
+            dismiss()
+            return START_NOT_STICKY
+        }
         if (!canDrawOverlays()) {
             stopSelf()
             return START_NOT_STICKY
         }
+        FloatingConfirmService.dismiss(this)
         showOverlay()
         return START_NOT_STICKY
     }
@@ -231,8 +236,17 @@ class FloatingClipboardOverlayService : Service() {
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density).roundToInt()
 
     companion object {
+        private const val ACTION_DISMISS = "com.transparentlc.cloudclipboardsync.action.DISMISS_FLOATING_CLIPBOARD"
+
         fun show(context: Context) {
             context.startService(Intent(context, FloatingClipboardOverlayService::class.java))
+        }
+
+        fun dismiss(context: Context) {
+            context.startService(
+                Intent(context, FloatingClipboardOverlayService::class.java)
+                    .setAction(ACTION_DISMISS),
+            )
         }
     }
 }

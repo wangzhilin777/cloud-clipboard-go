@@ -41,6 +41,10 @@ class FloatingConfirmService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (intent?.action == ACTION_DISMISS) {
+            dismissCurrent(showNext = false)
+            return START_NOT_STICKY
+        }
         if (intent?.action == ACTION_SHOW_ALERT) {
             showAlertOverlay(
                 intent.getStringExtra(EXTRA_ALERT_TITLE).orEmpty(),
@@ -99,6 +103,7 @@ class FloatingConfirmService : Service() {
             stopSelf()
             return
         }
+        FloatingClipboardOverlayService.dismiss(this)
         handler.removeCallbacks(hideRunnable)
         countdownRunnable?.let(handler::removeCallbacks)
         overlayView?.let { windowManager?.removeViewImmediate(it) }
@@ -107,6 +112,7 @@ class FloatingConfirmService : Service() {
         val snoozeMinutes = config.floatingSnoozeMinutes.coerceAtLeast(1)
         val snoozeDurationMs = snoozeMinutes * 60_000L
         val root = LayoutInflater.from(this).inflate(R.layout.view_floating_confirm, null)
+        val dragHandle = root.findViewById<View>(R.id.floatingConfirmDragHandle)
         val badgeText = root.findViewById<TextView>(R.id.floatingBadgeText)
         val titleText = root.findViewById<TextView>(R.id.floatingTitleText)
         val metaText = root.findViewById<TextView>(R.id.floatingMetaText)
@@ -200,7 +206,7 @@ class FloatingConfirmService : Service() {
         }
         root.minimumHeight = dp(config.floatingHeightDp)
 
-        attachDragSupport(root, params)
+        attachDragSupport(dragHandle, root, params)
         layoutParams = params
         overlayView = root
         if (!attachOverlayView(root, params)) {
@@ -215,6 +221,7 @@ class FloatingConfirmService : Service() {
             stopSelf()
             return
         }
+        FloatingClipboardOverlayService.dismiss(this)
         alertMode = true
         handler.removeCallbacks(hideRunnable)
         countdownRunnable?.let(handler::removeCallbacks)
@@ -222,6 +229,7 @@ class FloatingConfirmService : Service() {
 
         val config = SettingsStore.load(this)
         val root = LayoutInflater.from(this).inflate(R.layout.view_floating_confirm, null)
+        val dragHandle = root.findViewById<View>(R.id.floatingConfirmDragHandle)
         root.findViewById<TextView>(R.id.floatingBadgeText).text = getString(R.string.reconnect_failure_alert_title)
         root.findViewById<TextView>(R.id.floatingTitleText).text = title.ifBlank { getString(R.string.reconnect_failure_alert_title) }
         root.findViewById<TextView>(R.id.floatingMetaText).text = message
@@ -249,7 +257,7 @@ class FloatingConfirmService : Service() {
             y = config.floatingPosY
         }
 
-        attachDragSupport(root, params)
+        attachDragSupport(dragHandle, root, params)
         layoutParams = params
         overlayView = root
         if (!attachOverlayView(root, params)) {
@@ -264,6 +272,7 @@ class FloatingConfirmService : Service() {
             stopSelf()
             return
         }
+        FloatingClipboardOverlayService.dismiss(this)
         alertMode = true
         handler.removeCallbacks(hideRunnable)
         countdownRunnable?.let(handler::removeCallbacks)
@@ -271,6 +280,7 @@ class FloatingConfirmService : Service() {
 
         val config = SettingsStore.load(this)
         val root = LayoutInflater.from(this).inflate(R.layout.view_floating_confirm, null)
+        val dragHandle = root.findViewById<View>(R.id.floatingConfirmDragHandle)
         root.findViewById<TextView>(R.id.floatingBadgeText).text = getString(R.string.floating_preview_badge)
         root.findViewById<TextView>(R.id.floatingTitleText).text = getString(R.string.floating_preview_title)
         val metaText = root.findViewById<TextView>(R.id.floatingMetaText)
@@ -342,7 +352,7 @@ class FloatingConfirmService : Service() {
         }
         root.minimumHeight = dp(config.floatingHeightDp)
 
-        attachDragSupport(root, params)
+        attachDragSupport(dragHandle, root, params)
         layoutParams = params
         overlayView = root
         if (!attachOverlayView(root, params)) {
@@ -361,12 +371,12 @@ class FloatingConfirmService : Service() {
         false
     }
 
-    private fun attachDragSupport(view: View, params: WindowManager.LayoutParams) {
+    private fun attachDragSupport(dragHandle: View, contentView: View, params: WindowManager.LayoutParams) {
         var startX = 0
         var startY = 0
         var touchX = 0f
         var touchY = 0f
-        view.setOnTouchListener { _, event ->
+        dragHandle.setOnTouchListener { _, event ->
             when (event.action) {
                 MotionEvent.ACTION_DOWN -> {
                     startX = params.x
@@ -378,11 +388,11 @@ class FloatingConfirmService : Service() {
                 MotionEvent.ACTION_MOVE -> {
                     params.x = startX + (event.rawX - touchX).roundToInt()
                     params.y = startY + (event.rawY - touchY).roundToInt()
-                    applyClampedPosition(view, params, save = false)
+                    applyClampedPosition(contentView, params, save = false)
                     true
                 }
                 MotionEvent.ACTION_UP -> {
-                    applyClampedPosition(view, params, save = true)
+                    applyClampedPosition(contentView, params, save = true)
                     false
                 }
                 else -> false
@@ -497,6 +507,7 @@ class FloatingConfirmService : Service() {
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density).roundToInt()
 
     companion object {
+        private const val ACTION_DISMISS = "com.transparentlc.cloudclipboardsync.action.DISMISS_FLOATING_CONFIRM"
         private const val ACTION_SHOW_ALERT = "com.transparentlc.cloudclipboardsync.action.SHOW_ALERT"
         private const val ACTION_SHOW_PREVIEW = "com.transparentlc.cloudclipboardsync.action.SHOW_PREVIEW"
         private const val EXTRA_PAYLOAD_ID = "payload_id"
@@ -519,6 +530,12 @@ class FloatingConfirmService : Service() {
         fun showPreview(context: Context) {
             val intent = Intent(context, FloatingConfirmService::class.java)
                 .setAction(ACTION_SHOW_PREVIEW)
+            context.startService(intent)
+        }
+
+        fun dismiss(context: Context) {
+            val intent = Intent(context, FloatingConfirmService::class.java)
+                .setAction(ACTION_DISMISS)
             context.startService(intent)
         }
     }
