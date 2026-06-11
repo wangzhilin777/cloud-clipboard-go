@@ -698,9 +698,18 @@ class MainActivity : AppCompatActivity() {
         runtimeAdviceText.text = buildClipboardModeAdvice(config, status, validation)
         runtimeImplementationText.text = buildRuntimeImplementationSummary(config, status, support)
         runtimeModeActionButton.text = runtimeModeActionLabel(config, status)
-        runtimeImeSendButton.visibility = when {
-            config.clipboardMode == SettingsStore.CLIPBOARD_MODE_IME && status.imeEnabled && status.imeSelected -> View.VISIBLE
-            else -> View.GONE
+        when {
+            config.clipboardMode == SettingsStore.CLIPBOARD_MODE_IME && status.imeEnabled && status.imeSelected -> {
+                runtimeImeSendButton.visibility = View.VISIBLE
+                runtimeImeSendButton.text = getString(R.string.runtime_mode_action_ime_send)
+            }
+            config.clipboardMode == SettingsStore.CLIPBOARD_MODE_FLOATING && status.overlayEnabled -> {
+                runtimeImeSendButton.visibility = View.VISIBLE
+                runtimeImeSendButton.text = getString(R.string.runtime_mode_action_floating_send)
+            }
+            else -> {
+                runtimeImeSendButton.visibility = View.GONE
+            }
         }
         autoResumeSummaryText.text = buildAutoResumeSummary(config, status)
         runtimeClipboardReadinessText.text = buildClipboardReadinessSummary(config, status, validation)
@@ -845,7 +854,7 @@ class MainActivity : AppCompatActivity() {
                 when {
                     !status.overlayEnabled -> openOverlaySettings()
                     !status.notificationsEnabled -> openNotificationSettings()
-                    else -> Toast.makeText(this, R.string.runtime_mode_action_floating_ready_toast, Toast.LENGTH_LONG).show()
+                    else -> FloatingClipboardOverlayService.show(this)
                 }
             }
 
@@ -861,9 +870,13 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun handleImeManualSend() {
+        val route = when (SettingsStore.load(this).clipboardMode) {
+            SettingsStore.CLIPBOARD_MODE_FLOATING -> "floating-panel"
+            else -> SettingsStore.CLIPBOARD_MODE_IME
+        }
         ManualClipboardSender.sendCurrentClipboardText(
             context = this,
-            route = SettingsStore.CLIPBOARD_MODE_IME,
+            route = route,
         ) { message ->
             lastSyncText.text = message
             Toast.makeText(this, message, Toast.LENGTH_SHORT).show()

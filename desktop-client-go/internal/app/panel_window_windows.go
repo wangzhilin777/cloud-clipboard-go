@@ -3,6 +3,7 @@
 package app
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"os"
@@ -12,11 +13,15 @@ import (
 )
 
 var windowsPanelBrowsers = []string{
-	`C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe`,
-	`C:\Program Files\Microsoft\Edge\Application\msedge.exe`,
 	`C:\Program Files\Google\Chrome\Application\chrome.exe`,
 	`C:\Program Files (x86)\Google\Chrome\Application\chrome.exe`,
+	`C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe`,
+	`C:\Program Files\Microsoft\Edge\Application\msedge.exe`,
 }
+
+var detectPanelWindowRunning = isPanelWindowRunning
+var activatePanelWindowFn = activatePanelWindow
+var findPanelBrowserFn = findPanelBrowser
 
 func startPanelWindow(panelURL string) error {
 	panelURL = strings.TrimSpace(panelURL)
@@ -24,10 +29,10 @@ func startPanelWindow(panelURL string) error {
 		return errors.New("控制面板地址为空")
 	}
 	title := "云剪同步桌面端"
-	if activatePanelWindow(title) == nil {
+	if running, err := detectPanelWindowRunning(panelURL); err == nil && running && activatePanelWindowFn(title) == nil {
 		return nil
 	}
-	browserPath, err := findPanelBrowser()
+	browserPath, err := findPanelBrowserFn()
 	if err != nil {
 		return err
 	}
@@ -38,6 +43,8 @@ func startPanelWindow(panelURL string) error {
 	args := []string{
 		"--app=" + panelURL,
 		"--window-size=1120,860",
+		"--no-first-run",
+		"--no-default-browser-check",
 		"--disable-features=msEdgeSidebarV2",
 		"--user-data-dir=" + userDataDir,
 	}
@@ -46,6 +53,30 @@ func startPanelWindow(panelURL string) error {
 		return err
 	}
 	return nil
+}
+
+func isPanelWindowRunning(panelURL string) (bool, error) {
+	panelURL = strings.TrimSpace(panelURL)
+	if panelURL == "" {
+		return false, errors.New("控制面板地址为空")
+	}
+	script := fmt.Sprintf(
+		`$target = %s; $procs = Get-CimInstance Win32_Process -Filter "name='chrome.exe'" -ErrorAction SilentlyContinue; foreach ($proc in $procs) { if ($proc.CommandLine -like ("*--app=" + $target + "*")) { "FOUND"; exit 0 } }`,
+		toPanelPSString(panelURL),
+	)
+	cmd := exec.Command("powershell", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", script)
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err != nil {
+		message := strings.TrimSpace(stderr.String())
+		if message == "" {
+			message = err.Error()
+		}
+		return false, fmt.Errorf("检测面板窗口失败: %s", message)
+	}
+	return strings.Contains(stdout.String(), "FOUND"), nil
 }
 
 func findPanelBrowser() (string, error) {
@@ -67,4 +98,8 @@ func activatePanelWindow(title string) error {
 		return err
 	}
 	return nil
+}
+
+func toPanelPSString(value string) string {
+	return "'" + strings.ReplaceAll(value, "'", "''") + "'"
 }

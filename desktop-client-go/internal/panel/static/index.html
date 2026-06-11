@@ -241,6 +241,28 @@
       flex-wrap: wrap;
       margin-top: 10px;
     }
+    .file-dropzone {
+      margin-top: 14px;
+      border: 1px dashed rgba(45, 108, 223, 0.38);
+      border-radius: 16px;
+      background: linear-gradient(180deg, #f7faff 0%, #edf4ff 100%);
+      padding: 18px 16px;
+      color: var(--accent);
+      font-weight: 700;
+      text-align: center;
+      transition: border-color 0.15s ease, transform 0.15s ease, background 0.15s ease;
+    }
+    .file-dropzone.active {
+      border-color: rgba(31, 143, 95, 0.72);
+      background: linear-gradient(180deg, #eefbf4 0%, #e3f6eb 100%);
+      color: var(--good);
+      transform: translateY(-1px);
+    }
+    .file-dropzone .helper {
+      margin-top: 6px;
+      color: var(--muted);
+      font-weight: 400;
+    }
     .footer {
       margin-top: 20px;
       color: var(--muted);
@@ -498,6 +520,11 @@
             <button class="secondary" id="fetchLatestFileToClipboardButton" type="button">拉取最新文件到剪贴板</button>
             <button class="secondary" id="downloadLatestFileButton" type="button">下载最新文件到本机</button>
           </div>
+          <input id="sendFileInput" type="file" multiple hidden>
+          <div class="file-dropzone" id="fileDropzone" tabindex="0" role="button" aria-label="拖拽文件到这里直接发送，或按回车打开文件选择框">
+            拖拽文件到这里直接发送
+            <div class="helper">也可以按 Enter / Space，或点击上方“选择文件并发送”来挑选文件。</div>
+          </div>
         </div>
       </section>
     </section>
@@ -685,6 +712,8 @@
     const connectionReconnectButton = document.getElementById('connectionReconnectButton');
     const openPanelButton = document.getElementById('openPanelButton');
     const sendFileButton = document.getElementById('sendFileButton');
+    const sendFileInput = document.getElementById('sendFileInput');
+    const fileDropzone = document.getElementById('fileDropzone');
     const sendTextButton = document.getElementById('sendTextButton');
     const sendClipboardTextButton = document.getElementById('sendClipboardTextButton');
     const fetchLatestTextButton = document.getElementById('fetchLatestTextButton');
@@ -1269,17 +1298,37 @@
     }
 
     async function sendFile() {
-      setActionMessage('正在打开文件选择框...');
+      if (!sendFileInput) {
+        setActionMessage('当前页面未准备好文件选择控件。', true);
+        return;
+      }
+      sendFileInput.value = '';
+      sendFileInput.click();
+    }
+
+    async function uploadSelectedFiles(fileList) {
+      const files = Array.from(fileList || []).filter((file) => file instanceof File);
+      if (!files.length) {
+        setActionMessage('已取消选择文件。');
+        return;
+      }
+      const formData = new FormData();
+      files.forEach((file) => formData.append('files', file, file.name));
+      setActionMessage(`正在发送 ${files.length} 个文件...`);
       try {
-        const resp = await fetch('/api/send-file', { method: 'POST' });
+        const resp = await fetch('/api/send-file', {
+          method: 'POST',
+          body: formData,
+        });
         const text = await resp.text();
         if (!resp.ok) throw new Error(text || `HTTP ${resp.status}`);
         const data = JSON.parse(text || '{}');
         if (Array.isArray(data.files) && data.files.length) {
           setActionMessage(`发送成功：${data.files.join('，')}`);
         } else {
-          setActionMessage('已取消选择文件。');
+          setActionMessage(`已发送 ${files.length} 个文件。`);
         }
+        await loadStatus(true);
       } catch (err) {
         setActionMessage(`发送失败：${normalizeErrorMessage(err)}`, true);
       }
@@ -1398,6 +1447,7 @@
     connectionReconnectButton.addEventListener('click', () => runButtonAction(connectionReconnectButton, '重连中...', reconnect));
     openPanelButton.addEventListener('click', () => runButtonAction(openPanelButton, '打开中...', openPanelInBrowser));
     sendFileButton.addEventListener('click', () => runButtonAction(sendFileButton, '选择中...', sendFile));
+    sendFileInput.addEventListener('change', () => uploadSelectedFiles(sendFileInput.files));
     sendTextButton.addEventListener('click', () => runButtonAction(sendTextButton, '发送中...', () => sendText(false)));
     sendClipboardTextButton.addEventListener('click', () => runButtonAction(sendClipboardTextButton, '发送中...', () => sendText(true)));
     fetchLatestTextButton.addEventListener('click', () => runButtonAction(fetchLatestTextButton, '拉取中...', fetchLatestText));
@@ -1434,6 +1484,31 @@
     });
     hotkeyCaptureModal.addEventListener('click', (event) => {
       if (event.target === hotkeyCaptureModal) closeHotkeyCapture();
+    });
+    ['dragenter', 'dragover'].forEach((eventName) => {
+      fileDropzone.addEventListener(eventName, (event) => {
+        event.preventDefault();
+        fileDropzone.classList.add('active');
+      });
+    });
+    ['dragleave', 'dragend', 'drop'].forEach((eventName) => {
+      fileDropzone.addEventListener(eventName, (event) => {
+        event.preventDefault();
+        if (eventName !== 'drop') {
+          fileDropzone.classList.remove('active');
+        }
+      });
+    });
+    fileDropzone.addEventListener('drop', (event) => {
+      fileDropzone.classList.remove('active');
+      const droppedFiles = event.dataTransfer ? event.dataTransfer.files : null;
+      uploadSelectedFiles(droppedFiles);
+    });
+    fileDropzone.addEventListener('click', () => sendFile());
+    fileDropzone.addEventListener('keydown', (event) => {
+      if (event.key !== 'Enter' && event.key !== ' ') return;
+      event.preventDefault();
+      sendFile();
     });
     window.addEventListener('keydown', (event) => {
       if (!hotkeyCaptureTarget || !hotkeyCaptureModal.classList.contains('active')) return;

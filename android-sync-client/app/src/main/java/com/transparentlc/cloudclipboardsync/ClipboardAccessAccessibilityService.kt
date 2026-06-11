@@ -83,7 +83,14 @@ class ClipboardAccessAccessibilityService : AccessibilityService() {
                     text.length >= 6 -> 3
                     else -> 5
                 }
-                candidates += TextCandidate(text, priority, depth)
+                val hint = node.hintText?.toString()?.trim().orEmpty()
+                candidates += TextCandidate(
+                    text = text,
+                    priority = priority,
+                    depth = depth,
+                    editable = node.isEditable || className.contains("EditText"),
+                    hint = hint,
+                )
             }
         }
         val description = node.contentDescription?.toString()?.trim().orEmpty()
@@ -107,27 +114,7 @@ class ClipboardAccessAccessibilityService : AccessibilityService() {
     }
 
     private fun buildSnapshotText(candidates: List<TextCandidate>): String {
-        val normalized = candidates
-            .asSequence()
-            .map { it.copy(text = it.text.trim()) }
-            .filter { it.text.isNotBlank() }
-            .filterNot { it.text.length == 1 && it.text[0] == '×' }
-            .distinctBy { it.text }
-            .sortedWith(compareBy<TextCandidate> { it.priority }.thenBy { it.depth }.thenBy { it.text.length })
-            .toList()
-        if (normalized.isEmpty()) return ""
-        val best = normalized.first()
-        if (best.priority <= 2) {
-            return best.text.take(4000)
-        }
-        return normalized
-            .asSequence()
-            .filter { it.priority <= 4 }
-            .map { it.text }
-            .take(8)
-            .joinToString("\n")
-            .trim()
-            .take(4000)
+        return AccessibilitySnapshotSelector.buildSnapshotText(candidates)
     }
 
     companion object {
@@ -168,8 +155,75 @@ data class SnapshotPayload(
     val capturedAt: Long,
 )
 
-private data class TextCandidate(
+internal data class TextCandidate(
     val text: String,
     val priority: Int,
     val depth: Int,
+    val editable: Boolean = false,
+    val hint: String = "",
 )
+
+internal object AccessibilitySnapshotSelector {
+    fun buildSnapshotText(candidates: List<TextCandidate>): String {
+        val normalized = candidates
+            .asSequence()
+            .map {
+                it.copy(
+                    text = it.text.trim(),
+                    hint = it.hint.trim(),
+                )
+            }
+            .filter { it.text.isNotBlank() }
+            .filterNot { it.text.length == 1 && it.text[0] == '×' }
+            .filterNot(::isInputPlaceholderCandidate)
+            .distinctBy { it.text }
+            .sortedWith(compareBy<TextCandidate> { effectivePriority(it) }.thenBy { it.depth }.thenByDescending { it.text.length })
+            .toList()
+        if (normalized.isEmpty()) return ""
+        val best = normalized.first()
+        if (effectivePriority(best) <= 2) {
+            return best.text.take(4000)
+        }
+        return normalized
+            .asSequence()
+            .filter { effectivePriority(it) <= 4 }
+            .map { it.text }
+            .take(8)
+            .joinToString("\n")
+            .trim()
+            .take(4000)
+    }
+
+    private fun effectivePriority(candidate: TextCandidate): Int = when {
+        looksLikeStructuredCopyText(candidate.text) -> 0
+        else -> candidate.priority
+    }
+
+    private fun isInputPlaceholderCandidate(candidate: TextCandidate): Boolean {
+        if (!candidate.editable) return false
+        val normalizedText = normalize(candidate.text)
+        if (normalizedText.isBlank()) return true
+        val normalizedHint = normalize(candidate.hint)
+        if (normalizedHint.isNotBlank() && normalizedText == normalizedHint) return true
+        return normalizedText in PLACEHOLDER_TEXTS
+    }
+
+    private fun looksLikeStructuredCopyText(text: String): Boolean {
+        val value = text.trim()
+        if (value.isBlank()) return false
+        if (value.contains("://")) return true
+        if (value.contains('/') && value.contains('.')) return true
+        if (value.contains('?') && value.contains('=')) return true
+        return false
+    }
+
+    private fun normalize(text: String): String = text.trim().lowercase(Locale.ROOT)
+
+    private val PLACEHOLDER_TEXTS = setOf(
+        "在 google 中搜索或输入网址",
+        "在google中搜索或输入网址",
+        "搜索或输入网址",
+        "search or type web address",
+        "search or type url",
+    )
+}

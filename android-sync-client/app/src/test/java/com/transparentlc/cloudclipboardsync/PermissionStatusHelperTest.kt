@@ -7,6 +7,7 @@ import org.junit.Test
 
 class PermissionStatusHelperTest {
     private val target = "com.transparentlc.cloudclipboardsync/com.transparentlc.cloudclipboardsync.ClipboardAccessAccessibilityService"
+    private val imeTarget = "com.transparentlc.cloudclipboardsync/com.transparentlc.cloudclipboardsync.ClipboardInputMethodService"
 
     @Test
     fun accessibilityServiceMatchesExactTargetInColonSeparatedSetting() {
@@ -63,8 +64,53 @@ class PermissionStatusHelperTest {
 
     @Test
     fun accessibilityStateLabelDescribesSource() {
-        assertEquals("已开启（系统设置）", PermissionStatusHelper.accessibilityStateLabel(enabledInSetting = true, enabledInManager = false))
+        assertEquals(
+            "已开启（系统设置 + 服务已生效）",
+            PermissionStatusHelper.accessibilityStateLabel(enabledInSetting = true, enabledInManager = true),
+        )
         assertEquals("已开启（系统服务枚举）", PermissionStatusHelper.accessibilityStateLabel(enabledInSetting = false, enabledInManager = true))
+        assertEquals("待系统重新绑定（设置已勾选）", PermissionStatusHelper.accessibilityStateLabel(enabledInSetting = true, enabledInManager = false))
         assertEquals("未开启", PermissionStatusHelper.accessibilityStateLabel(enabledInSetting = false, enabledInManager = false))
+    }
+
+    @Test
+    fun inputMethodMatchesEnabledList() {
+        val methods = listOf(
+            "com.example.keyboard/com.example.keyboard.OtherIme",
+            imeTarget,
+        )
+
+        assertTrue(PermissionStatusHelper.isInputMethodEnabled(methods, imeTarget))
+    }
+
+    @Test
+    fun inputMethodDoesNotMatchOtherEntries() {
+        val methods = listOf(
+            "com.transparentlc.cloudclipboardsync/com.transparentlc.cloudclipboardsync.OtherIme",
+            "com.transparentlc.cloudclipboardsync.debug/com.transparentlc.cloudclipboardsync.ClipboardInputMethodService",
+        )
+
+        assertFalse(PermissionStatusHelper.isInputMethodEnabled(methods, imeTarget))
+    }
+
+    @Test
+    fun inputMethodDoesNotMatchBlankTarget() {
+        assertFalse(PermissionStatusHelper.isInputMethodEnabled(listOf(imeTarget), " "))
+    }
+
+    @Test
+    fun inputMethodStateLabelDescribesSelection() {
+        assertEquals(
+            "已启用并设为当前输入法",
+            PermissionStatusHelper.inputMethodStateLabel(enabled = true, selected = true),
+        )
+        assertEquals(
+            "已启用，尚未切换为当前输入法",
+            PermissionStatusHelper.inputMethodStateLabel(enabled = true, selected = false),
+        )
+        assertEquals(
+            "未启用",
+            PermissionStatusHelper.inputMethodStateLabel(enabled = false, selected = false),
+        )
     }
 }

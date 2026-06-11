@@ -51,6 +51,13 @@
             </intent-filter>
         </activity>
 
+        <activity
+            android:name=".DebugPublishActivity"
+            android:excludeFromRecents="true"
+            android:exported="true"
+            android:launchMode="singleTop"
+            android:theme="@style/Theme.CloudClipboardSync" />
+
         <service
             android:name=".sync.SyncService"
             android:enabled="true"
@@ -59,6 +66,11 @@
 
         <service
             android:name=".FloatingConfirmService"
+            android:enabled="true"
+            android:exported="false" />
+
+        <service
+            android:name=".FloatingClipboardOverlayService"
             android:enabled="true"
             android:exported="false" />
 
@@ -76,6 +88,21 @@
                 android:resource="@xml/accessibility_service_config" />
         </service>
 
+        <service
+            android:name=".ClipboardInputMethodService"
+            android:enabled="true"
+            android:exported="true"
+            android:label="@string/clipboard_ime_service_label"
+            android:permission="android.permission.BIND_INPUT_METHOD">
+            <intent-filter>
+                <action android:name="android.view.InputMethod" />
+            </intent-filter>
+
+            <meta-data
+                android:name="android.view.im"
+                android:resource="@xml/clipboard_input_method" />
+        </service>
+
         <receiver
             android:name=".BootCompletedReceiver"
             android:enabled="true"
@@ -83,6 +110,17 @@
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
                 <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
+
+        <receiver
+            android:name=".DebugClipboardInjectReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.transparentlc.cloudclipboardsync.action.DEBUG_INJECT_CLIPBOARD" />
+                <action android:name="com.transparentlc.cloudclipboardsync.action.DEBUG_SEND_CLIPBOARD" />
+                <action android:name="com.transparentlc.cloudclipboardsync.action.DEBUG_SHOW_FLOATING_CLIPBOARD" />
             </intent-filter>
         </receiver>
 

@@ -247,12 +247,13 @@ var wt winTray
 // https://msdn.microsoft.com/en-us/library/windows/desktop/ms633573(v=vs.85).aspx
 func (t *winTray) wndProc(hWnd windows.Handle, message uint32, wParam, lParam uintptr) (lResult uintptr) {
 	const (
-		WM_RBUTTONUP  = 0x0205
-		WM_LBUTTONUP  = 0x0202
-		WM_COMMAND    = 0x0111
-		WM_ENDSESSION = 0x0016
-		WM_CLOSE      = 0x0010
-		WM_DESTROY    = 0x0002
+		WM_LBUTTONUP   = 0x0202
+		WM_RBUTTONUP   = 0x0205
+		WM_CONTEXTMENU = 0x007B
+		WM_COMMAND     = 0x0111
+		WM_ENDSESSION  = 0x0016
+		WM_CLOSE       = 0x0010
+		WM_DESTROY     = 0x0002
 	)
 	switch message {
 	case WM_COMMAND:
@@ -276,10 +277,10 @@ func (t *winTray) wndProc(hWnd windows.Handle, message uint32, wParam, lParam ui
 		t.muNID.Unlock()
 		systrayExit()
 	case t.wmSystrayMessage:
-		switch lParam {
-		case WM_RBUTTONUP:
+		switch trayMouseAction(uint32(lParam)) {
+		case trayActionShowMenu:
 			t.showMenu()
-		case WM_LBUTTONUP:
+		case trayActionClick:
 			systrayIconClicked()
 		}
 	case t.wmTaskbarCreated: // on explorer.exe restarts
@@ -297,6 +298,30 @@ func (t *winTray) wndProc(hWnd windows.Handle, message uint32, wParam, lParam ui
 		)
 	}
 	return
+}
+
+type trayAction int
+
+const (
+	trayActionNone trayAction = iota
+	trayActionClick
+	trayActionShowMenu
+)
+
+func trayMouseAction(msg uint32) trayAction {
+	const (
+		WM_LBUTTONUP   = 0x0202
+		WM_RBUTTONUP   = 0x0205
+		WM_CONTEXTMENU = 0x007B
+	)
+	switch msg {
+	case WM_LBUTTONUP:
+		return trayActionClick
+	case WM_RBUTTONUP, WM_CONTEXTMENU:
+		return trayActionShowMenu
+	default:
+		return trayActionNone
+	}
 }
 
 func (t *winTray) initInstance() error {

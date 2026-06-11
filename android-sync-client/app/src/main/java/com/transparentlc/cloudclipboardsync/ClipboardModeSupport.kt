@@ -16,15 +16,15 @@ object ClipboardModeSupportHelper {
             if (status.accessibilityEnabled) {
                 ClipboardModeSupport(
                     canStart = true,
-                    readyMessage = "无障碍增强模式已就绪（${status.accessibilityDetail}）。",
-                    implementationSummary = "无障碍增强会在系统剪贴板回调之外，结合界面交互触发补检查，适合高版本 Android 的后台复制回传场景。当前状态：${status.accessibilityDetail}。",
+                    readyMessage = "无障碍辅助能力已就绪（${status.accessibilityDetail}）。",
+                    implementationSummary = "无障碍当前只作为兼容旧配置时的辅助能力保留。它会在系统剪贴板回调之外，结合界面交互触发补检查，但不再作为正式推荐的后台同步主模式。当前状态：${status.accessibilityDetail}。",
                 )
             } else {
                 ClipboardModeSupport(
                     canStart = false,
                     readyMessage = "",
                     blockedMessage = context.getString(R.string.runtime_mode_accessibility_blocked),
-                    implementationSummary = "无障碍增强需要先开启系统无障碍服务，开启后才能按该模式启动同步。",
+                    implementationSummary = "无障碍当前只作为兼容旧配置时的辅助能力保留；若历史配置仍落在这里，需要先开启系统无障碍服务。正式推荐模式请改用前台服务、输入法或悬浮窗。",
                 )
             }
         }
@@ -55,7 +55,48 @@ object ClipboardModeSupportHelper {
                 else -> ClipboardModeSupport(
                     canStart = true,
                     readyMessage = context.getString(R.string.runtime_mode_shizuku_ready),
-                    implementationSummary = "Shizuku 服务已运行且云剪同步已授权；同步服务会正常启动，并把系统剪贴板 AppOps 状态纳入诊断。后台复制不稳时仍建议优先使用无障碍增强模式。",
+                    implementationSummary = "Shizuku 服务已运行且云剪同步已授权；当前仅作为系统授权与剪贴板 AppOps 诊断辅助保留，不再额外轮询系统剪贴板，也不再作为正式推荐的后台同步主模式。",
+                )
+            }
+        }
+
+        SettingsStore.CLIPBOARD_MODE_IME -> {
+            when {
+                !status.imeEnabled -> ClipboardModeSupport(
+                    canStart = false,
+                    readyMessage = "",
+                    blockedMessage = context.getString(R.string.runtime_mode_ime_blocked),
+                    implementationSummary = "输入法模式需要先在系统输入法列表中启用“云剪同步输入助手”；启用后可以在输入场景直接把当前剪贴板文本发送到服务端。",
+                )
+
+                !status.imeSelected -> ClipboardModeSupport(
+                    canStart = false,
+                    readyMessage = "",
+                    blockedMessage = context.getString(R.string.runtime_mode_ime_not_selected),
+                    implementationSummary = "输入法模式已经启用，但当前还没切到云剪同步输入助手；切换为当前输入法后，键盘面板里的发送按钮才能成为稳定兜底通道。",
+                )
+
+                else -> ClipboardModeSupport(
+                    canStart = true,
+                    readyMessage = context.getString(R.string.runtime_mode_ime_ready),
+                    implementationSummary = "输入法模式已就绪，会把“键盘已打开且用户主动发送”作为最稳定的文本上行兜底通道。它适合输入场景，不承诺绕过系统后台剪贴板限制。当前状态：${status.imeDetail}。",
+                )
+            }
+        }
+
+        SettingsStore.CLIPBOARD_MODE_FLOATING -> {
+            if (status.overlayEnabled) {
+                ClipboardModeSupport(
+                    canStart = true,
+                    readyMessage = context.getString(R.string.runtime_mode_floating_ready),
+                    implementationSummary = "悬浮窗模式当前先作为复制后快速发送助手的正式模式入口。它依赖悬浮窗权限，后续会继续扩展为更轻量的复制后发送浮标，不承诺绕过系统后台剪贴板限制。",
+                )
+            } else {
+                ClipboardModeSupport(
+                    canStart = false,
+                    readyMessage = "",
+                    blockedMessage = context.getString(R.string.runtime_mode_floating_blocked),
+                    implementationSummary = "悬浮窗模式需要先允许本应用显示悬浮窗；开启后可作为复制后快速发送助手的正式入口。",
                 )
             }
         }

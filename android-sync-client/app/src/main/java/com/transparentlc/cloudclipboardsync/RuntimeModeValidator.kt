@@ -12,6 +12,8 @@ data class RuntimeModeValidation(
 enum class RuntimeModeAction {
     NONE,
     OPEN_ACCESSIBILITY,
+    OPEN_INPUT_METHOD,
+    OPEN_FLOATING,
     OPEN_SHIZUKU,
 }
 
@@ -33,6 +35,18 @@ object RuntimeModeValidator {
                 ready = false,
                 message = support.blockedMessage ?: context.getString(R.string.runtime_mode_shizuku_blocked),
                 action = RuntimeModeAction.OPEN_SHIZUKU,
+            )
+
+            SettingsStore.CLIPBOARD_MODE_IME -> RuntimeModeValidation(
+                ready = false,
+                message = support.blockedMessage ?: context.getString(R.string.runtime_mode_ime_blocked),
+                action = RuntimeModeAction.OPEN_INPUT_METHOD,
+            )
+
+            SettingsStore.CLIPBOARD_MODE_FLOATING -> RuntimeModeValidation(
+                ready = false,
+                message = support.blockedMessage ?: context.getString(R.string.runtime_mode_floating_blocked),
+                action = RuntimeModeAction.OPEN_FLOATING,
             )
 
             else -> RuntimeModeValidation(true, support.readyMessage)

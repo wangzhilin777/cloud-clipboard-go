@@ -432,10 +432,11 @@ class ReceivedPayloadActivity : AppCompatActivity() {
                 Log.i(logTag, "downloadCurrentEntry success payloadId=${downloaded.payloadId} localPath=${downloaded.localPath}")
                 runOnUiThread {
                     downloadingPayloadId = null
+                    PayloadCacheStore.markProcessed(this, downloaded.payloadId)
                     entries = PayloadCacheStore.list(this)
                     currentPayloadId = downloaded.payloadId
                     notifyPayloadCollectionChanged(downloaded.payloadId)
-                    bindEntry(downloaded)
+                    bindEntry(PayloadCacheStore.get(this, downloaded.payloadId) ?: downloaded)
                     Toast.makeText(this, R.string.payload_ready_title, Toast.LENGTH_SHORT).show()
                 }
             }.onFailure { error ->

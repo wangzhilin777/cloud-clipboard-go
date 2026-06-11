@@ -82,6 +82,7 @@
 
 ## 最近已经完成的关键提交
 
+- `8d9f2a2` `收口安卓首页沉浸式适配`
 - `22769e0` `修复网页时间流同步记录合并`
 - `b76525d` `增强同步协议参数校验兼容性`
 - `91e9022` `修复房间内容链接编码兼容性`
@@ -242,9 +243,15 @@
 
 ## 本轮新增进展补记
 
+- 本轮继续把 Android 13 新真机 `4e9e24e7 / Redmi K50 Ultra / deviceId=c1c65d39-d744-455f-91e4-af08251148bc` 的二期联调从“能配上、能 trusted”推进到了“输入法/悬浮发送助手自动化入口可回归”：手机私有配置仍保持 `server_base=http://192.168.31.236:9501`、`room=default`，前台 `DebugPublishActivity` 已再次验证可把测试文本 `codex-debug-direct-publish-20260611-2` 真实写入 `http://127.0.0.1:9501/api/sync/bootstrap` 的 `recentMessages`，并让该设备恢复为 `online=true / trusted=true`
+- 在上面这条主链路已确认可用的基础上，本轮还顺手抓到了一个会直接影响输入法模式、悬浮发送助手和主界面“发送当前剪贴板文本”的真实缺口：`SyncService.sendManualText(...)` 原先每次都重新走 `startForegroundService`，在服务已在线时既容易被 ROM 干扰，也会让手动发送动作多绕一层；现已把它改成优先直达当前运行中的 `SyncService` 实例，仅在服务未运行时才回退到前台服务启动。修复后再用前台 `DebugPublishActivity` 触发 `manual-send`，测试文本 `codex-debug-manual-send-20260611-6` 已成功进入真实服务端 `recentMessages`，说明“输入法面板 / 悬浮发送助手 / 运行页手动发送”共用的手动发送主链路终于在真机上被压实
+- Android 二期的调试入口本轮也补成了后续可复用的正式联调工具，而不是一次性脚本：`DebugPublishActivity` 现在除了原来的 `extra_text -> debug publish`，还支持 `extra_action=manual-send` 和 `extra_action=show-floating`；同时补上了 `singleTop` 场景下的 `onNewIntent` 处理，避免 adb 连续 `am start` 时新 Intent 只是送到顶部实例、动作却完全没执行。当前用 `extra_action=show-floating` 拉起后，系统 `dumpsys notification` 已出现 `AlertWindowNotification - com.transparentlc.cloudclipboardsync`，可确认悬浮发送助手已经被系统实际显示，而不再只是“命令发了但是否弹出不明确”
+- 广播型 `DebugClipboardInjectReceiver` 本轮也继续保留，但结合这台 Android 13 / MIUI 现场联调结果，后续应把它视为次级调试入口：系统层已经确认广播可送达，但在当前 ROM 下它不如前台 `DebugPublishActivity` 稳定；因此后续自动化联调应优先使用 `DebugPublishActivity` 的前台入口做“直接发布 / 手动发送 / 悬浮发送助手”回归，避免再把 ROM 对后台 receiver 拉前台服务的干扰误判成业务逻辑失败
 - 本轮已继续把 Android 主路径收口从“只写在计划里”落实到代码层：`SettingsStore` 对历史 `clipboard_mode=accessibility/shizuku` 的自动迁移已落地；主界面模式选择现只保留 `foreground / ime / floating` 三个正式入口；`RuntimeModeValidator`、`ClipboardModeSupport`、运行页/权限页状态摘要与快捷处理文案也开始同步改口径，把 `accessibility` 明确降为兼容旧配置时的辅助能力，把 `shizuku` 明确降为系统授权与 AppOps 诊断辅助，不再继续当成正式后台同步主模式宣传
 - 本轮已完成 Android 主界面第一轮全面屏修复并做真机验证：`MainActivity` 接入 edge-to-edge 与 `WindowInsetsCompat`，`activity_main.xml` 增加了根布局与滚动区 id 配合 inset 分发；真机截图已确认顶部背景与头部区域能铺满状态栏，不再出现“上面露一截”的断层观感
 - 在上面这轮基础上，本轮又继续做完了第二轮视觉收口，而不是停在“技术上铺满了就算结束”：状态栏现已真正透明，顶部沉浸背景直接延伸到系统图标后面，首页头图也从“整体圆角卡片”改成“顶部直切、仅底部圆角”的整块背景；通过 `adb exec-out screencap -p` 抓取真机首页复看后，已确认之前两侧露白、顶部条带分层和卡片悬浮感都明显收敛。后续这条 UI 只剩常规细节打磨，不再属于阻塞性缺口
+- 本轮继续把 Android 13 新真机的两条正式 UI 发送路径都压到“真实按钮闭环”而不只是调试动作可用：其一，用前台 `DebugPublishActivity --es extra_action show-floating --es extra_text codex-floating-ui-20260611-3` 拉起正式悬浮发送卡片后，真机截图已确认卡片实际展示了 `codex-floating-ui-20260611-3` 预览文本；随后直接点击卡片自己的“发送文本”按钮，真实 `9501` 的 `recentMessages` 新增了同名文本，说明 `floating` 模式的正式按钮链路已经闭环。其二，在把云剪输入法重新切成当前默认输入法、确认 `mInputShown=true` 后，又真实点了一次输入法面板自己的“发送当前剪贴板文本”按钮；截图里状态徽章和 Toast 已明确出现“已请求发送当前剪贴板文本”，同时 `recentMessages` 新增了来源于当前 Android 13 真机的文本记录，说明 `ime` 模式的正式按钮链路也已经跑通，不再只停留在 `manual-send` 调试入口
+- 本轮也顺手记录下 Android 13 / MIUI 现场联调里的一个很具体的 ROM 差异，后续不要丢：`adb shell am broadcast -a com.transparentlc.cloudclipboardsync.action.DEBUG_SHOW_FLOATING_CLIPBOARD --es extra_text codex-ime-ui-20260611-3` 这条广播在当前 ROM 上可以稳定送达，但它对系统当前剪贴板内容的覆盖并不总能立即反映到后续输入法面板读取结果里。本轮现场表现为：服务端 recent 中并没有出现 `codex-ime-ui-20260611-3`，说明广播没有偷跑正式发布；但随后从输入法面板真实点“发送当前剪贴板文本”时，服务端收到的仍是前一个剪贴板值 `codex-ime-ui-20260611-2`。因此当前可以确认的是“IME 正式发送按钮链路可用”，而“靠后台广播稳定改写当前系统剪贴板后再喂给 IME 自动化”在这台 MIUI 上仍不可靠，后续自动化应优先依赖前台入口、真实复制动作或直接检查发送结果，而不是把这条广播当成稳定的剪贴板注入器
 
 - 本轮继续把 Android 输入法模式的真机恢复链路压实到了“可继续现场联调”的状态，而不是只停在代码或构建层：之前为了装入新版 debug 包，真机本地 `cloud_clipboard_sync.xml` 被重置成新的 `device_id=b5ad27c2-3331-411b-bfe8-3d8bf4a1f55c`、空 `server_base`、空 `room`、`clipboard_mode=foreground`，导致虽然 APK 已安装、IME service 也已被系统识别，但这台新身份实际上没有连回真实服务端。本轮已先在真实 `http://127.0.0.1:9501` 上通过 `/api/sync/pair/request` 注册该新安卓身份，再通过 `/api/sync/device/{deviceId}/trust` 明确补成 `trusted=true`，避免再死磕把旧 `android-live-device` 身份硬写回手机
 - 在不删除手机端任何非调试数据/文件的前提下，本轮还通过 `adb push -> /data/local/tmp -> run-as cp shared_prefs` 的中转方式，安全恢复了当前 App 私有配置：真机 `cloud_clipboard_sync.xml` 现已确认是 `server_base=http://192.168.31.236:9501`、`room=default`、`clipboard_mode=ime`、`device_name=REDMI K90`、`device_id=b5ad27c2-3331-411b-bfe8-3d8bf4a1f55c`。这一步没有去清理或覆盖手机其它业务数据，也没有删除服务端真实历史或真实上传
@@ -275,5 +282,9 @@
 - 本轮继续把 Android 后台复制二期从“计划口径”推进到“代码主干”：`SettingsStore` 已正式纳入 `ime / floating` 两个新 `clipboard_mode`；`PermissionStatusHelper` 已补齐输入法启用状态、当前选中状态和中文状态文案；`RuntimeModeValidator`、`ClipboardModeSupportHelper`、`MainActivity` 运行页 / 权限页 / 快捷动作 / 就绪度摘要 / 诊断摘要都已扩展成 `foreground / accessibility / shizuku / ime / floating` 五模式统一逻辑；`activity_main.xml` 与 `strings.xml` 也已经新增正式单选入口和对应中文文案
 - 本轮 Android 二期还落了一个最小可用的真实文本发送入口，而不只是 UI 骨架：新增 `ClipboardInputMethodService`、`res/xml/clipboard_input_method.xml` 与 Manifest 注册，输入法面板里已经可以点“发送当前剪贴板文本 / 打开云剪同步主界面”；`SyncService` 同时新增正式 `ACTION_SEND_MANUAL_TEXT / EXTRA_MANUAL_TEXT / EXTRA_MANUAL_ROUTE`，沿用现有 trusted、去重、防回环和诊断广播主链路推送文本，不再复用 debug-only 注入动作。`floating` 模式本轮先停在“正式模式入口 + 悬浮窗权限校验 + 运行时文案骨架”，还没有单独引入新的悬浮发送服务，这点后续继续联调时不要误记成已经完成
 - 本轮 Android 本地验证已闭环：`android-sync-client` 下 `./gradlew.bat testDebugUnitTest --no-daemon` 通过，新增 `PermissionStatusHelperTest` 已覆盖输入法启用识别与状态文案；`./gradlew.bat assembleDebug --no-daemon` 也通过。过程中出现过一次输入法 service 重复注册、一次 `ClipboardInputMethodService` 空安全编译错误和一次 Gradle `R.jar` classpath snapshot 变换失败，现都已收口；后续真机优先验证顺序已经固定为：1）安装本轮 debug 包后确认运行页 5 种模式可见；2）验证输入法模式下手动发送链路能把当前剪贴板文本推到真实服务端；3）再决定悬浮窗模式优先补轻量浮标还是继续参考 `局域网同步-Android-0.2.46` 的双模式实现
+- 本轮又把 Android 输入法模式和悬浮发送助手往“可交付细节”推进了一步，而不只是停在最小可用：`ClipboardInputMethodService` 现在会在输入法面板里实时展示当前剪贴板预览，空剪贴板时直接禁用发送按钮；发送成功后状态徽章会短暂切到成功态，再自动复位到“等待发送”。这样后续真机联调时，不再只有一个按钮和瞬时 Toast，而是能直接看到“当前准备发什么、是不是空剪贴板、发送后是否已回到待命态”
+- 同一轮还把悬浮发送助手的一个真实交互坑先收掉了：之前整张悬浮卡片都挂在拖动手势上，容易和“发送文本 / 打开主界面 / 关闭”这类点按动作互相抢事件。现在拖动只绑定在顶部拖拽区，正文和底部按钮保持普通点击行为；同时位置记忆逻辑继续保留，因此后续真机联调时既能拖动记住位置，也更不容易出现“悬浮卡片能出来但按钮不好点”的体验问题
+- Windows 面板这轮也补了一个轻量但实用的交互收口：控制面板网页在通过文件选择器或拖拽发送文件后，如果后端没有回传文件名列表，不再把结果误提示成“已取消选择文件”，而是改成按实际选择数量反馈“已发送 N 个文件”，并立即刷新概览状态，减少用户看到“明明发了却像没发”的错觉
+- 本轮最新自动验证结果也需要一起记住：`android-sync-client` 下 `./gradlew.bat testDebugUnitTest --no-daemon`、`./gradlew.bat assembleDebug --no-daemon` 再次通过；`desktop-client-go` 下 `go test ./internal/app ./internal/tray ./internal/panel ./internal/shellmenu` 与 `go build ./cmd/cloud-clipboard-desktop ./cmd/cloud-clipboard-panel` 通过；真机 `adb devices -l` 当前已重新枚举到 `4e9e24e7 / 22081212C`，新版 debug 包已成功 `adb install -r` 覆盖安装，随后只做了不破坏配置的 smoke 检查：`ime list -a` 仍可识别 `com.transparentlc.cloudclipboardsync/.ClipboardInputMethodService`，`MainActivity` 也可正常拉起为前台顶层界面。整个过程中未删除手机端任何非调试数据或服务端真实历史/真实上传
 - 在上面这轮 5 模式代码骨架落地之后，产品口径又进一步收敛了一次，后续不要把“当前代码里暂时还兼容 5 模式”误写成“后续也会长期保留 5 模式并列”：兼容层面暂时还需要识别 `accessibility / shizuku`，但计划层面已经改成逐步收敛到 `foreground / ime / floating` 三条正式模式。后续代码清理时应按“先兼容迁移、再删除入口、最后删遗留实现”的顺序推进，而不是继续扩展 `accessibility / shizuku` 的新功能
 

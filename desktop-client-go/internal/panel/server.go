@@ -4,11 +4,17 @@ import (
 	"context"
 	"embed"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"io/fs"
+	"mime"
 	"net"
 	"net/http"
+	"os"
+	"path/filepath"
 	"runtime"
+	"strings"
 	"time"
 
 	"github.com/jonnyan404/cloud-clipboard-go/desktop-client-go/internal/config"
@@ -73,9 +79,9 @@ type CapabilityView struct {
 }
 
 type StatusView struct {
-	Config       config.Config   `json:"config"`
-	State        StateSnapshot   `json:"state"`
-	Capabilities CapabilityView  `json:"capabilities"`
+	Config       config.Config  `json:"config"`
+	State        StateSnapshot  `json:"state"`
+	Capabilities CapabilityView `json:"capabilities"`
 }
 
 type statusResponse struct {
@@ -263,6 +269,30 @@ func (s *Server) handleSendFile(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
+	paths, cleanup, err := collectSendFilePaths(r)
+	if cleanup != nil {
+		defer cleanup()
+	}
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	results, err := s.backend.SendFiles(paths)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"files": results})
+}
+
+func collectSendFilePaths(r *http.Request) ([]string, func(), error) {
+	if r == nil {
+		return nil, nil, errors.New("请求无效")
+	}
+	mediaType, _, _ := mime.ParseMediaType(r.Header.Get("Content-Type"))
+	if strings.EqualFold(mediaType, "multipart/form-data") {
+		return collectMultipartUploadPaths(r)
+	}
 	var body struct {
 		Paths []string `json:"paths"`
 	}
@@ -270,12 +300,81 @@ func (s *Server) handleSendFile(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 		_ = json.NewDecoder(r.Body).Decode(&body)
 	}
-	results, err := s.backend.SendFiles(body.Paths)
+	return body.Paths, nil, nil
+}
+
+func collectMultipartUploadPaths(r *http.Request) ([]string, func(), error) {
+	reader, err := r.MultipartReader()
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		return nil, nil, fmt.Errorf("解析上传文件失败: %w", err)
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"files": results})
+	tempDir, err := os.MkdirTemp("", "cloud-clipboard-panel-upload-*")
+	if err != nil {
+		return nil, nil, fmt.Errorf("创建临时上传目录失败: %w", err)
+	}
+	cleanup := func() {
+		_ = os.RemoveAll(tempDir)
+	}
+	paths := make([]string, 0, 4)
+	for {
+		part, err := reader.NextPart()
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		if err != nil {
+			cleanup()
+			return nil, nil, fmt.Errorf("读取上传内容失败: %w", err)
+		}
+		if part.FileName() == "" {
+			_ = part.Close()
+			continue
+		}
+		targetPath, err := uniqueUploadPath(tempDir, part.FileName())
+		if err != nil {
+			_ = part.Close()
+			cleanup()
+			return nil, nil, err
+		}
+		dst, err := os.Create(targetPath)
+		if err != nil {
+			_ = part.Close()
+			cleanup()
+			return nil, nil, fmt.Errorf("创建临时上传文件失败: %w", err)
+		}
+		if _, err := io.Copy(dst, part); err != nil {
+			_ = dst.Close()
+			_ = part.Close()
+			cleanup()
+			return nil, nil, fmt.Errorf("写入临时上传文件失败: %w", err)
+		}
+		_ = dst.Close()
+		_ = part.Close()
+		paths = append(paths, targetPath)
+	}
+	if len(paths) == 0 {
+		cleanup()
+		return nil, nil, errors.New("当前没有可发送的文件")
+	}
+	return paths, cleanup, nil
+}
+
+func uniqueUploadPath(dir string, fileName string) (string, error) {
+	baseName := filepath.Base(strings.TrimSpace(fileName))
+	if baseName == "" || baseName == "." || baseName == string(filepath.Separator) {
+		return "", errors.New("上传文件名无效")
+	}
+	target := filepath.Join(dir, baseName)
+	if _, err := os.Stat(target); errors.Is(err, os.ErrNotExist) {
+		return target, nil
+	}
+	ext := filepath.Ext(baseName)
+	nameOnly := strings.TrimSuffix(baseName, ext)
+	for index := 1; ; index++ {
+		candidate := filepath.Join(dir, fmt.Sprintf("%s (%d)%s", nameOnly, index, ext))
+		if _, err := os.Stat(candidate); errors.Is(err, os.ErrNotExist) {
+			return candidate, nil
+		}
+	}
 }
 
 func (s *Server) handleSendText(w http.ResponseWriter, r *http.Request) {
@@ -525,5 +624,3 @@ func writeTipHTML(w http.ResponseWriter, code int, title string, detail string) 
 </body>
 </html>`, title, title, detail)
 }
-
-

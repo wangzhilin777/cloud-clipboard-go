@@ -9,6 +9,7 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ApplicationInfo
 import android.os.Build
 import android.os.Handler
 import android.os.IBinder
@@ -50,6 +51,8 @@ class SyncService : Service() {
     private val downloadingPayloads = mutableSetOf<String>()
     private var lastClipboardRoute = "idle"
     private var lastClipboardDetail = "等待开始"
+    private var pendingDebugPublishText = ""
+    private var pendingManualPublishText = ""
 
     private val clipboardListener = ClipboardManager.OnPrimaryClipChangedListener {
         publishLocalClipboardIfNeeded("listener")
@@ -64,7 +67,7 @@ class SyncService : Service() {
 
     private val clipboardPollRunnable = object : Runnable {
         override fun run() {
-            if (config.clipboardMode != SettingsStore.CLIPBOARD_MODE_ACCESSIBILITY) {
+            if (config.clipboardMode == SettingsStore.CLIPBOARD_MODE_FOREGROUND) {
                 publishLocalClipboardIfNeeded("poll")
             }
             handler.postDelayed(this, clipboardPollIntervalMs)
@@ -73,6 +76,7 @@ class SyncService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+        activeInstance = this
         isRunning = true
         clipboardManager = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
         clipboardManager.addPrimaryClipChangedListener(clipboardListener)
@@ -81,8 +85,10 @@ class SyncService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        config = SettingsStore.load(this)
+        refreshConfig()
         PayloadCacheStore.pruneExpired(this)
+        val debugPublishIntent = intent?.action == ACTION_DEBUG_PUBLISH_TEXT
+        val manualPublishIntent = intent?.action == ACTION_SEND_MANUAL_TEXT
         val serverBaseMessage = when {
             config.serverBase.isBlank() -> getString(R.string.server_base_missing_hint)
             SettingsStore.isLoopbackServerBase(config.serverBase) -> getString(R.string.server_base_loopback_hint)
@@ -92,12 +98,14 @@ class SyncService : Service() {
             return stopStartupWithMessage(serverBaseMessage)
         }
         val runtimeValidation = RuntimeModeValidator.validate(this, config)
-        if (!runtimeValidation.ready) {
+        if (!debugPublishIntent && !manualPublishIntent && !runtimeValidation.ready) {
             return stopStartupWithMessage(runtimeValidation.message)
         }
         when (intent?.action) {
             ACTION_CONFIRM_PAYLOAD -> intent.getStringExtra(EXTRA_PAYLOAD_ID)?.let(::confirmPayloadDownload)
             ACTION_ACCESSIBILITY_PULSE -> handleAccessibilityPulse(intent)
+            ACTION_DEBUG_PUBLISH_TEXT -> queueDebugPublish(intent)
+            ACTION_SEND_MANUAL_TEXT -> queueManualPublish(intent)
         }
         if (!serviceStarted) {
             lastObservedLocalText = readCurrentClipboardText()
@@ -106,6 +114,9 @@ class SyncService : Service() {
             handler.post(clipboardPollRunnable)
             serviceStarted = true
             reconnectNow("service-start")
+        } else if ((debugPublishIntent || manualPublishIntent) && trusted) {
+            flushPendingDebugPublishText()
+            flushPendingManualPublishText()
         } else {
             reconnectNow("manual-start")
         }
@@ -128,6 +139,9 @@ class SyncService : Service() {
         client = null
         removeForegroundNotification()
         isRunning = false
+        if (activeInstance === this) {
+            activeInstance = null
+        }
         super.onDestroy()
     }
 
@@ -150,6 +164,8 @@ class SyncService : Service() {
                 updateClipboardDiagnostic("connected", "同步连接已建立，等待本地或远端剪贴板事件")
                 broadcastStatus(getString(R.string.status_connected), "同步连接已建立")
                 updateNotification(getString(R.string.status_connected))
+                flushPendingDebugPublishText()
+                flushPendingManualPublishText()
             }
 
             override fun onTrustedChanged(trusted: Boolean) {
@@ -161,6 +177,10 @@ class SyncService : Service() {
                 )
                 broadcastStatus(status, if (trusted) "设备已连接" else "设备等待网页批准")
                 updateNotification(status)
+                if (trusted) {
+                    flushPendingDebugPublishText()
+                    flushPendingManualPublishText()
+                }
             }
 
             override fun onRemoteText(messageId: String, text: String) {
@@ -294,6 +314,7 @@ class SyncService : Service() {
     }
 
     private fun publishLocalClipboardIfNeeded(source: String): Boolean {
+        refreshConfig()
         if (applyingRemoteText) {
             updateClipboardDiagnostic("skip-$source", "刚完成远端文本写回，已跳过本次本地回传，避免自激同步")
             return false
@@ -301,6 +322,37 @@ class SyncService : Service() {
         if (!trusted) {
             updateClipboardDiagnostic("skip-$source", "设备尚未获批准，已跳过本次本地剪贴板处理")
             return false
+        }
+        if (config.clipboardMode == SettingsStore.CLIPBOARD_MODE_SHIZUKU) {
+            val result = ShizukuClipboardReader.readText(this)
+            if (!result.success) {
+                updateClipboardDiagnostic(source, result.detail)
+                return false
+            }
+            val text = result.text.trim()
+            if (text.isBlank()) {
+                updateClipboardDiagnostic(source, result.detail)
+                return false
+            }
+            val now = System.currentTimeMillis()
+            if (shouldSuppressRemoteEcho(text)) {
+                updateClipboardDiagnostic(source, "当前剪贴板仍是远端写入内容，已阻止回环发送")
+                return false
+            }
+            if (text == lastObservedLocalText) {
+                updateClipboardDiagnostic(source, "检测到的文本与上次一致，已忽略重复内容")
+                return false
+            }
+            if (isRecentlyPublishedText(text, now)) {
+                updateClipboardDiagnostic(source, "短时间内已发送过相同文本，已跳过")
+                return false
+            }
+            lastObservedLocalText = text
+            if (text == lastPublishedText && now - lastPublishedAt < 2_000) {
+                updateClipboardDiagnostic(source, "短时间内检测到重复发布，已跳过")
+                return false
+            }
+            return publishTextToServer(text, now, "已通过 Shizuku 读取系统剪贴板并推送到服务端", "shizuku-$source")
         }
         val clip = runCatching { clipboardManager.primaryClip }.getOrNull()
         if (clip == null) {
@@ -347,11 +399,13 @@ class SyncService : Service() {
     }
 
     private fun shouldUseAccessibilitySnapshotFallback(source: String): Boolean {
+        refreshConfig()
         if (config.clipboardMode != SettingsStore.CLIPBOARD_MODE_ACCESSIBILITY) return false
         return source == "accessibility" || source == "listener"
     }
 
     private fun handleAccessibilityPulse(intent: Intent) {
+        refreshConfig()
         val sourcePackage = intent.getStringExtra(EXTRA_ACCESSIBILITY_PACKAGE).orEmpty()
         val reason = intent.getStringExtra(EXTRA_ACCESSIBILITY_REASON).orEmpty()
         if (!trusted) {
@@ -408,6 +462,75 @@ class SyncService : Service() {
         broadcastStatus(currentStatus(), detail)
     }
 
+    private fun queueDebugPublish(intent: Intent) {
+        if ((applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) == 0) {
+            return
+        }
+        val text = intent.getStringExtra(EXTRA_DEBUG_TEXT)?.trim().orEmpty()
+        if (text.isBlank()) {
+            return
+        }
+        pendingDebugPublishText = text
+    }
+
+    private fun queueManualPublish(intent: Intent) {
+        val text = intent.getStringExtra(EXTRA_MANUAL_TEXT)?.trim().orEmpty()
+        if (text.isBlank()) {
+            return
+        }
+        val route = intent.getStringExtra(EXTRA_MANUAL_ROUTE)?.trim().orEmpty().ifBlank { "manual" }
+        enqueueManualPublish(text, route)
+    }
+
+    private fun enqueueManualPublish(text: String, route: String): Boolean {
+        val normalized = text.trim()
+        if (normalized.isBlank()) {
+            return false
+        }
+        pendingManualPublishText = normalized
+        updateClipboardDiagnostic(route, "已接收手动发送请求，等待同步连接可用")
+        if (serviceStarted && trusted && client != null) {
+            flushPendingManualPublishText()
+            return true
+        }
+        if (serviceStarted && client == null) {
+            reconnectNow("manual-send")
+        }
+        return false
+    }
+
+    private fun flushPendingDebugPublishText() {
+        val text = pendingDebugPublishText.trim()
+        if (text.isBlank() || !trusted) {
+            return
+        }
+        pendingDebugPublishText = ""
+        val now = System.currentTimeMillis()
+        lastObservedLocalText = text
+        publishTextToServer(
+            text,
+            now,
+            "已通过调试注入直接推送文本到服务端",
+            "debug-inject",
+        )
+    }
+
+    private fun flushPendingManualPublishText() {
+        val text = pendingManualPublishText.trim()
+        if (text.isBlank() || !trusted) {
+            return
+        }
+        pendingManualPublishText = ""
+        val now = System.currentTimeMillis()
+        lastObservedLocalText = text
+        publishTextToServer(
+            text,
+            now,
+            "已通过手动发送入口推送文本到服务端",
+            "manual-send",
+        )
+    }
+
     private fun publishAccessibilitySnapshotFallback(source: String, fallbackReason: String): Boolean {
         val snapshot = ClipboardAccessAccessibilityService.consumeRecentSnapshot(sourcePackage = "") ?: return false
         val text = snapshot.text.trim()
@@ -442,6 +565,11 @@ class SyncService : Service() {
     }
 
     private fun readCurrentClipboardText(): String {
+        refreshConfig()
+        if (::config.isInitialized && config.clipboardMode == SettingsStore.CLIPBOARD_MODE_SHIZUKU) {
+            val result = ShizukuClipboardReader.readText(this)
+            return if (result.success) result.text.trim() else ""
+        }
         val clip = runCatching { clipboardManager.primaryClip }.getOrNull() ?: return ""
         if (clip.itemCount <= 0) return ""
         return clip.getItemAt(0).coerceToText(this)?.toString().orEmpty().trim()
@@ -482,6 +610,10 @@ class SyncService : Service() {
     private fun updateClipboardDiagnostic(route: String, detail: String) {
         lastClipboardRoute = route
         lastClipboardDetail = detail
+    }
+
+    private fun refreshConfig() {
+        config = SettingsStore.load(this)
     }
 
     private fun currentStatus(): String = when {
@@ -674,13 +806,21 @@ class SyncService : Service() {
     }
 
     companion object {
+        @Volatile
+        private var activeInstance: SyncService? = null
+
         const val ACTION_STATUS = "com.transparentlc.cloudclipboardsync.STATUS"
         const val ACTION_PAYLOAD_UPDATED = "com.transparentlc.cloudclipboardsync.PAYLOAD_UPDATED"
+        const val ACTION_DEBUG_PUBLISH_TEXT = "com.transparentlc.cloudclipboardsync.action.DEBUG_PUBLISH_TEXT"
+        const val ACTION_SEND_MANUAL_TEXT = "com.transparentlc.cloudclipboardsync.action.SEND_MANUAL_TEXT"
         const val EXTRA_STATUS = "extra_status"
         const val EXTRA_LAST_RESULT = "extra_last_result"
         const val EXTRA_CLIPBOARD_ROUTE = "extra_clipboard_route"
         const val EXTRA_CLIPBOARD_DETAIL = "extra_clipboard_detail"
         const val EXTRA_PAYLOAD_ID = "extra_payload_id"
+        const val EXTRA_DEBUG_TEXT = "extra_debug_text"
+        const val EXTRA_MANUAL_TEXT = "extra_manual_text"
+        const val EXTRA_MANUAL_ROUTE = "extra_manual_route"
         private const val EXTRA_ACCESSIBILITY_PACKAGE = "extra_accessibility_package"
         private const val EXTRA_ACCESSIBILITY_REASON = "extra_accessibility_reason"
 
@@ -718,6 +858,21 @@ class SyncService : Service() {
                     .setAction(ACTION_ACCESSIBILITY_PULSE)
                     .putExtra(EXTRA_ACCESSIBILITY_PACKAGE, sourcePackage)
                     .putExtra(EXTRA_ACCESSIBILITY_REASON, reason),
+            )
+        }
+
+        fun sendManualText(context: Context, text: String, route: String) {
+            activeInstance?.let { service ->
+                if (service.enqueueManualPublish(text, route)) {
+                    return
+                }
+            }
+            ContextCompat.startForegroundService(
+                context,
+                Intent(context, SyncService::class.java)
+                    .setAction(ACTION_SEND_MANUAL_TEXT)
+                    .putExtra(EXTRA_MANUAL_TEXT, text)
+                    .putExtra(EXTRA_MANUAL_ROUTE, route),
             )
         }
 

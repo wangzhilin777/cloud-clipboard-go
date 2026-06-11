@@ -33,6 +33,8 @@ object SettingsStore {
     const val CLIPBOARD_MODE_FOREGROUND = "foreground"
     const val CLIPBOARD_MODE_ACCESSIBILITY = "accessibility"
     const val CLIPBOARD_MODE_SHIZUKU = "shizuku"
+    const val CLIPBOARD_MODE_IME = "ime"
+    const val CLIPBOARD_MODE_FLOATING = "floating"
     const val RUNNING_STATE_STOPPED = "stopped"
     const val RUNNING_STATE_RUNNING = "running"
     private const val LEGACY_DEFAULT_DEVICE_NAME = "Android 同步端"
@@ -66,13 +68,30 @@ object SettingsStore {
         val lastDesiredRunningState: String,
     )
 
+    data class MigrationResult(
+        val config: Config,
+        val modeMigrated: Boolean,
+        val previousMode: String?,
+    )
+
     fun load(context: Context): Config {
+        return loadWithMigration(context).config
+    }
+
+    fun loadWithMigration(context: Context): MigrationResult {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         val deviceId = prefs.getString(KEY_DEVICE_ID, null) ?: UUID.randomUUID().toString().also {
             prefs.edit().putString(KEY_DEVICE_ID, it).apply()
         }
         val resolvedDeviceName = resolveStoredDeviceName(context, prefs)
-        return Config(
+        val rawClipboardMode = prefs.getString(KEY_CLIPBOARD_MODE, CLIPBOARD_MODE_FOREGROUND)
+        val normalizedClipboardMode = normalizeClipboardMode(rawClipboardMode)
+        val migrated = rawClipboardMode == CLIPBOARD_MODE_ACCESSIBILITY || rawClipboardMode == CLIPBOARD_MODE_SHIZUKU
+        if (migrated) {
+            prefs.edit().putString(KEY_CLIPBOARD_MODE, normalizedClipboardMode).apply()
+        }
+        return MigrationResult(
+            config = Config(
             serverBase = prefs.getString(KEY_SERVER_BASE, "") ?: "",
             room = prefs.getString(KEY_ROOM, "") ?: "",
             roomPassword = prefs.getString(KEY_ROOM_PASSWORD, prefs.getString(KEY_AUTH_CODE_LEGACY, "")) ?: "",
@@ -91,12 +110,13 @@ object SettingsStore {
             floatingSnoozeMinutes = prefs.getInt(KEY_FLOATING_SNOOZE_MINUTES, DEFAULT_FLOATING_SNOOZE_MINUTES),
             floatingCompactEnabled = prefs.getBoolean(KEY_FLOATING_COMPACT_ENABLED, true),
             cacheRetentionHours = prefs.getInt(KEY_CACHE_RETENTION_HOURS, 24),
-            clipboardMode = prefs.getString(KEY_CLIPBOARD_MODE, CLIPBOARD_MODE_FOREGROUND)
-                ?.takeIf { it == CLIPBOARD_MODE_FOREGROUND || it == CLIPBOARD_MODE_ACCESSIBILITY || it == CLIPBOARD_MODE_SHIZUKU }
-                ?: CLIPBOARD_MODE_FOREGROUND,
+            clipboardMode = normalizedClipboardMode,
             lastDesiredRunningState = prefs.getString(KEY_LAST_DESIRED_RUNNING_STATE, RUNNING_STATE_STOPPED)
                 ?.takeIf { it == RUNNING_STATE_RUNNING || it == RUNNING_STATE_STOPPED }
                 ?: RUNNING_STATE_STOPPED,
+            ),
+            modeMigrated = migrated,
+            previousMode = rawClipboardMode,
         )
     }
 
@@ -211,5 +231,15 @@ object SettingsStore {
             return null
         }
         return trimmed
+    }
+
+    private fun normalizeClipboardMode(rawMode: String?): String {
+        return when (rawMode) {
+            CLIPBOARD_MODE_IME -> CLIPBOARD_MODE_IME
+            CLIPBOARD_MODE_FLOATING -> CLIPBOARD_MODE_FLOATING
+            CLIPBOARD_MODE_FOREGROUND -> CLIPBOARD_MODE_FOREGROUND
+            CLIPBOARD_MODE_ACCESSIBILITY, CLIPBOARD_MODE_SHIZUKU -> CLIPBOARD_MODE_FOREGROUND
+            else -> CLIPBOARD_MODE_FOREGROUND
+        }
     }
 }

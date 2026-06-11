@@ -8,6 +8,7 @@ import android.os.Build
 import android.os.PowerManager
 import android.os.Process
 import android.provider.Settings
+import android.view.inputmethod.InputMethodManager
 import android.view.accessibility.AccessibilityManager
 import androidx.core.app.NotificationManagerCompat
 
@@ -22,6 +23,9 @@ data class PermissionStatus(
     val shizukuPermissionGranted: Boolean,
     val shizukuUid: Int?,
     val shizukuDetail: String,
+    val imeEnabled: Boolean,
+    val imeSelected: Boolean,
+    val imeDetail: String,
     val clipboardReadAppOp: String,
     val clipboardWriteAppOp: String,
 )
@@ -38,6 +42,7 @@ object PermissionStatusHelper {
     fun read(context: Context): PermissionStatus {
         val shizukuState = ShizukuPermissionHelper.read(context)
         val accessibilityStatus = readAccessibilityStatus(context)
+        val imeStatus = readInputMethodStatus(context)
         return PermissionStatus(
             notificationsEnabled = NotificationManagerCompat.from(context).areNotificationsEnabled(),
             overlayEnabled = Settings.canDrawOverlays(context),
@@ -49,6 +54,9 @@ object PermissionStatusHelper {
             shizukuPermissionGranted = shizukuState.granted,
             shizukuUid = shizukuState.uid,
             shizukuDetail = shizukuState.detail,
+            imeEnabled = imeStatus.enabled,
+            imeSelected = imeStatus.selected,
+            imeDetail = imeStatus.detail,
             clipboardReadAppOp = clipboardAppOpMode(context, OPSTR_READ_CLIPBOARD),
             clipboardWriteAppOp = clipboardAppOpMode(context, OPSTR_WRITE_CLIPBOARD),
         )
@@ -61,10 +69,26 @@ object PermissionStatusHelper {
         ).orEmpty()
         val target = ComponentName(context, ClipboardAccessAccessibilityService::class.java).flattenToString()
         val enabledInSetting = isAccessibilityServiceEnabledInSetting(enabledServices, target)
-        val enabledInManager = if (enabledInSetting) false else isAccessibilityServiceEnabledInManager(context, target)
+        val enabledInManager = isAccessibilityServiceEnabledInManager(context, target)
         return AccessibilityStatus(
-            enabled = enabledInSetting || enabledInManager,
+            enabled = enabledInManager,
             detail = accessibilityStateLabel(enabledInSetting, enabledInManager),
+        )
+    }
+
+    private fun readInputMethodStatus(context: Context): InputMethodStatus {
+        val target = ComponentName(context, ClipboardInputMethodService::class.java).flattenToString()
+        val enabledMethods = readEnabledInputMethods(context)
+        val enabled = isInputMethodEnabled(enabledMethods, target)
+        val selectedMethod = Settings.Secure.getString(
+            context.contentResolver,
+            Settings.Secure.DEFAULT_INPUT_METHOD,
+        ).orEmpty()
+        val selected = selectedMethod.trim().equals(target, ignoreCase = true)
+        return InputMethodStatus(
+            enabled = enabled,
+            selected = selected,
+            detail = inputMethodStateLabel(enabled, selected),
         )
     }
 
@@ -96,9 +120,30 @@ object PermissionStatusHelper {
     }
 
     internal fun accessibilityStateLabel(enabledInSetting: Boolean, enabledInManager: Boolean): String = when {
-        enabledInSetting -> "已开启（系统设置）"
+        enabledInSetting && enabledInManager -> "已开启（系统设置 + 服务已生效）"
         enabledInManager -> "已开启（系统服务枚举）"
+        enabledInSetting -> "待系统重新绑定（设置已勾选）"
         else -> "未开启"
+    }
+
+    internal fun isInputMethodEnabled(enabledMethods: List<String>, target: String): Boolean {
+        val normalizedTarget = target.trim()
+        if (normalizedTarget.isBlank()) return false
+        return enabledMethods.any { it.trim().equals(normalizedTarget, ignoreCase = true) }
+    }
+
+    internal fun inputMethodStateLabel(enabled: Boolean, selected: Boolean): String = when {
+        enabled && selected -> "已启用并设为当前输入法"
+        enabled -> "已启用，尚未切换为当前输入法"
+        else -> "未启用"
+    }
+
+    private fun readEnabledInputMethods(context: Context): List<String> {
+        val manager = context.getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager ?: return emptyList()
+        val methods = runCatching { manager.enabledInputMethodList }.getOrDefault(emptyList())
+        return methods.mapNotNull { info ->
+            ComponentName(info.packageName, info.serviceName).flattenToString()
+        }
     }
 
     private fun isIgnoringBatteryOptimizations(context: Context): Boolean {
@@ -121,4 +166,9 @@ object PermissionStatusHelper {
         }
     }
 
+    private data class InputMethodStatus(
+        val enabled: Boolean,
+        val selected: Boolean,
+        val detail: String,
+    )
 }
