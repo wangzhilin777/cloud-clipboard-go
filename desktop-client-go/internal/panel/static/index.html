@@ -225,6 +225,15 @@
       font-size: 13px;
       line-height: 1.6;
     }
+    .helper.warning {
+      color: #b54708;
+      font-weight: 600;
+    }
+    .field.conflict input {
+      border-color: rgba(217, 119, 6, 0.65);
+      background: #fff9ef;
+      box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.12);
+    }
     .field-actions {
       display: flex;
       gap: 8px;
@@ -534,45 +543,50 @@
         <div>
           <h2 class="form-title">快捷键与右键</h2>
           <div class="form-grid">
-            <label class="field">
+            <label class="field hotkey-field" data-hotkey-field="openPanelHotkey">
               <span class="label">打开控制面板热键</span>
               <input id="openPanelHotkey" placeholder="Ctrl+Alt+P">
               <span class="field-actions">
                 <button class="ghost" type="button" data-hotkey-open="openPanelHotkey">录入</button>
                 <button class="ghost" type="button" data-hotkey-clear="openPanelHotkey">清空</button>
               </span>
+              <span class="helper" data-hotkey-helper="openPanelHotkey"></span>
             </label>
-            <label class="field">
+            <label class="field hotkey-field" data-hotkey-field="sendClipboardHotkey">
               <span class="label">发送剪贴板文本热键</span>
               <input id="sendClipboardHotkey" placeholder="Ctrl+Alt+C">
               <span class="field-actions">
                 <button class="ghost" type="button" data-hotkey-open="sendClipboardHotkey">录入</button>
                 <button class="ghost" type="button" data-hotkey-clear="sendClipboardHotkey">清空</button>
               </span>
+              <span class="helper" data-hotkey-helper="sendClipboardHotkey"></span>
             </label>
-            <label class="field">
+            <label class="field hotkey-field" data-hotkey-field="fetchLatestHotkey">
               <span class="label">拉取最新文本热键</span>
               <input id="fetchLatestHotkey" placeholder="Ctrl+Alt+T">
               <span class="field-actions">
                 <button class="ghost" type="button" data-hotkey-open="fetchLatestHotkey">录入</button>
                 <button class="ghost" type="button" data-hotkey-clear="fetchLatestHotkey">清空</button>
               </span>
+              <span class="helper" data-hotkey-helper="fetchLatestHotkey"></span>
             </label>
-            <label class="field">
+            <label class="field hotkey-field" data-hotkey-field="fetchLatestFileHotkey">
               <span class="label">拉取最新文件到剪贴板热键</span>
               <input id="fetchLatestFileHotkey" placeholder="Ctrl+Alt+G">
               <span class="field-actions">
                 <button class="ghost" type="button" data-hotkey-open="fetchLatestFileHotkey">录入</button>
                 <button class="ghost" type="button" data-hotkey-clear="fetchLatestFileHotkey">清空</button>
               </span>
+              <span class="helper" data-hotkey-helper="fetchLatestFileHotkey"></span>
             </label>
-            <label class="field">
+            <label class="field hotkey-field" data-hotkey-field="downloadLatestHotkey">
               <span class="label">下载最新文件热键</span>
               <input id="downloadLatestHotkey" placeholder="Ctrl+Alt+B">
               <span class="field-actions">
                 <button class="ghost" type="button" data-hotkey-open="downloadLatestHotkey">录入</button>
                 <button class="ghost" type="button" data-hotkey-clear="downloadLatestHotkey">清空</button>
               </span>
+              <span class="helper" data-hotkey-helper="downloadLatestHotkey"></span>
             </label>
             <label class="field">
               <span class="label">Windows 右键菜单</span>
@@ -612,6 +626,7 @@
               </select>
             </label>
           </div>
+          <div class="helper" id="hotkeyConflictText">快捷键会在这里提示冲突与建议。</div>
         </div>
 
         <details class="group" open>
@@ -728,6 +743,19 @@
     const tabPanels = Array.from(document.querySelectorAll('[data-tab-panel]'));
     const hotkeyOpenButtons = Array.from(document.querySelectorAll('[data-hotkey-open]'));
     const hotkeyClearButtons = Array.from(document.querySelectorAll('[data-hotkey-clear]'));
+    const hotkeyFieldEntries = [
+      { key: 'openPanelHotkey', label: '打开控制面板' },
+      { key: 'sendClipboardHotkey', label: '发送剪贴板文本' },
+      { key: 'fetchLatestHotkey', label: '拉取最新文本' },
+      { key: 'fetchLatestFileHotkey', label: '拉取最新文件到剪贴板' },
+      { key: 'downloadLatestHotkey', label: '下载最新文件' },
+    ].map((entry) => ({
+      ...entry,
+      input: fields[entry.key],
+      field: document.querySelector(`[data-hotkey-field="${entry.key}"]`),
+      helper: document.querySelector(`[data-hotkey-helper="${entry.key}"]`),
+    }));
+    const hotkeyConflictText = document.getElementById('hotkeyConflictText');
     const hotkeyCaptureModal = document.getElementById('hotkeyCaptureModal');
     const hotkeyCapturePreview = document.getElementById('hotkeyCapturePreview');
     const hotkeyCaptureHint = document.getElementById('hotkeyCaptureHint');
@@ -785,6 +813,7 @@
       deviceNameText.textContent = cfg.deviceName || '-';
       window.__latestConfig = cfg || {};
       hotkeyText.textContent = formatHotkeySummary(cfg);
+      refreshHotkeyConflictState();
       connectionDiagnosisText.textContent = formatConnectionDiagnosis(cfg, window.__latestState || {});
       nextStepText.textContent = formatNextStep(cfg, window.__latestState || {}, window.__latestCapabilities || {});
       cachePolicyText.textContent = formatCachePolicy(cfg, window.__latestState || {});
@@ -873,6 +902,7 @@
 
     function formatHotkeySummary(cfg) {
       const items = [];
+      const conflicts = detectHotkeyConflictsFromConfig(cfg || {});
       if (cfg.openPanelHotkey) items.push(`面板：${cfg.openPanelHotkey}`);
       if (cfg.sendClipboardHotkey) items.push(`发送文本：${cfg.sendClipboardHotkey}`);
       if (cfg.fetchLatestHotkey) items.push(`拉取文本：${cfg.fetchLatestHotkey}`);
@@ -883,6 +913,7 @@
       if (cfg.noticeMode === 'tip') items.push(`右下角提示：${cfg.tipWidth || 0}x${cfg.tipHeight || 0} / ${cfg.tipTheme === 'light' ? '浅色' : '深色'}`);
       if (cfg.noticeMode === 'tip' && Number(cfg.tipLeft) >= 0 && Number(cfg.tipTop) >= 0) items.push(`提示位置：${cfg.tipLeft},${cfg.tipTop}`);
       if (cfg.successNoticeEnabled) items.push('成功提示：已开启');
+      if (conflicts.length) items.push(`快捷键冲突：${conflicts.length} 组`);
       return items.length ? items.join(' / ') : '未配置';
     }
 
@@ -1099,6 +1130,76 @@
       return values.join('+');
     }
 
+    function normalizeHotkeyValue(value) {
+      return String(value || '')
+        .split('+')
+        .map((part) => String(part || '').trim())
+        .filter(Boolean)
+        .map((part) => {
+          const lower = part.toLowerCase();
+          if (lower === 'ctrl' || lower === 'control') return 'Ctrl';
+          if (lower === 'alt') return 'Alt';
+          if (lower === 'shift') return 'Shift';
+          if (lower === 'win' || lower === 'meta' || lower === 'cmd') return 'Win';
+          return part.length === 1 ? part.toUpperCase() : part;
+        })
+        .join('+');
+    }
+
+    function detectHotkeyConflictsFromConfig(cfg) {
+      const buckets = new Map();
+      hotkeyFieldEntries.forEach((entry) => {
+        const normalized = normalizeHotkeyValue(cfg && cfg[entry.key]);
+        if (!normalized) return;
+        const items = buckets.get(normalized) || [];
+        items.push(entry);
+        buckets.set(normalized, items);
+      });
+      return Array.from(buckets.entries())
+        .filter(([, entries]) => entries.length > 1)
+        .map(([hotkey, entries]) => ({ hotkey, entries }));
+    }
+
+    function detectHotkeyConflicts() {
+      const cfg = {};
+      hotkeyFieldEntries.forEach((entry) => {
+        cfg[entry.key] = entry.input ? entry.input.value : '';
+      });
+      return detectHotkeyConflictsFromConfig(cfg);
+    }
+
+    function refreshHotkeyConflictState() {
+      const conflicts = detectHotkeyConflicts();
+      const conflictMap = new Map();
+      conflicts.forEach((item) => {
+        item.entries.forEach((entry) => conflictMap.set(entry.key, item));
+      });
+      hotkeyFieldEntries.forEach((entry) => {
+        if (!entry.field || !entry.helper) return;
+        const conflict = conflictMap.get(entry.key);
+        entry.field.classList.toggle('conflict', Boolean(conflict));
+        entry.helper.classList.toggle('warning', Boolean(conflict));
+        if (conflict) {
+          const otherLabels = conflict.entries
+            .filter((item) => item.key !== entry.key)
+            .map((item) => item.label)
+            .join('、');
+          entry.helper.textContent = `当前与“${otherLabels}”重复使用 ${conflict.hotkey}。`;
+        } else {
+          entry.helper.textContent = '';
+        }
+      });
+      if (!hotkeyConflictText) return conflicts;
+      if (!conflicts.length) {
+        hotkeyConflictText.textContent = '当前快捷键没有发现重复，保存时会继续做一次拦截检查。';
+        hotkeyConflictText.classList.remove('warning');
+        return conflicts;
+      }
+      hotkeyConflictText.textContent = `检测到 ${conflicts.length} 组快捷键冲突：${conflicts.map((item) => `${item.hotkey} 被 ${item.entries.map((entry) => entry.label).join('、')} 同时使用`).join('；')}`;
+      hotkeyConflictText.classList.add('warning');
+      return conflicts;
+    }
+
     function normalizeCapturedKey(event) {
       const key = String(event.key || '').trim();
       if (!key) return '';
@@ -1156,6 +1257,7 @@
       const target = fields[targetId];
       if (!target) return;
       target.value = '';
+      refreshHotkeyConflictState();
       if (hotkeyCaptureTarget === target) {
         hotkeyCapturePreview.textContent = '已清空';
       }
@@ -1176,6 +1278,13 @@
     }
 
     async function saveConfig() {
+      const conflicts = refreshHotkeyConflictState();
+      if (conflicts.length) {
+        message.classList.add('error');
+        message.textContent = `保存前请先处理快捷键冲突：${conflicts.map((item) => `${item.hotkey} 同时用于 ${item.entries.map((entry) => entry.label).join('、')}`).join('；')}`;
+        return;
+      }
+      message.classList.remove('error');
       message.textContent = '正在保存配置...';
       const payload = {
         serverBase: fields.serverBase.value,
@@ -1216,8 +1325,10 @@
         const data = JSON.parse(text);
         fillConfig(data.config || {});
         fillState(data.state || {});
+        message.classList.remove('error');
         message.textContent = '配置已保存，客户端正在重连。';
       } catch (err) {
+        message.classList.add('error');
         message.textContent = `保存失败：${normalizeErrorMessage(err)}`;
       }
     }
@@ -1480,7 +1591,19 @@
     hotkeyCaptureClearButton.addEventListener('click', () => {
       if (!hotkeyCaptureTarget) return;
       hotkeyCaptureTarget.value = '';
+      refreshHotkeyConflictState();
       closeHotkeyCapture();
+    });
+    hotkeyFieldEntries.forEach((entry) => {
+      if (!entry.input) return;
+      entry.input.addEventListener('input', () => {
+        entry.input.value = normalizeHotkeyValue(entry.input.value);
+        refreshHotkeyConflictState();
+      });
+      entry.input.addEventListener('blur', () => {
+        entry.input.value = normalizeHotkeyValue(entry.input.value);
+        refreshHotkeyConflictState();
+      });
     });
     hotkeyCaptureModal.addEventListener('click', (event) => {
       if (event.target === hotkeyCaptureModal) closeHotkeyCapture();
@@ -1545,6 +1668,7 @@
       }, key);
       hotkeyCaptureTarget.value = value;
       hotkeyCapturePreview.textContent = value;
+      refreshHotkeyConflictState();
       closeHotkeyCapture();
     });
 
@@ -1556,6 +1680,7 @@
     if (storedTab && tabPanels.some((panel) => panel.dataset.tabPanel === storedTab)) {
       switchTab(storedTab);
     }
+    refreshHotkeyConflictState();
     loadStatus();
     setActionMessage('动作结果会显示在这里。');
     refreshTimer = setInterval(() => loadStatus(true), 2000);
