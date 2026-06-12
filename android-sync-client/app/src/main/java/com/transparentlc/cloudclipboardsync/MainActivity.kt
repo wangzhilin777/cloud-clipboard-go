@@ -14,6 +14,7 @@ import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.view.View
+import android.view.ViewGroup
 import android.widget.Button
 import android.widget.CheckBox
 import android.widget.EditText
@@ -49,12 +50,17 @@ class MainActivity : AppCompatActivity() {
     private lateinit var rootLayout: View
     private lateinit var homeHeaderShell: FrameLayout
     private lateinit var contentScrollView: ScrollView
+    private lateinit var contentContainer: View
     private lateinit var settingsBottomNav: BottomNavigationView
     private lateinit var homeHeaderCard: View
     private lateinit var connectionSection: View
+    private lateinit var connectionBottomSpacer: View
     private lateinit var runtimeSection: View
     private lateinit var permissionSection: View
     private lateinit var receiveSection: View
+    private lateinit var runtimeSectionContent: View
+    private lateinit var permissionSectionContent: View
+    private lateinit var receiveSectionContent: View
     private lateinit var receiveFloatingSettingsGroup: View
     private lateinit var receiveCacheSettingsGroup: View
     private lateinit var receiveFloatingSettingsToggleButton: Button
@@ -66,9 +72,9 @@ class MainActivity : AppCompatActivity() {
     private lateinit var roomInput: EditText
     private lateinit var roomPasswordInput: EditText
     private lateinit var deviceNameInput: EditText
+    private lateinit var connectionSummaryText: TextView
     private lateinit var clipboardModeGroup: RadioGroup
     private lateinit var clipboardModeForeground: RadioButton
-    private lateinit var clipboardModeIme: RadioButton
     private lateinit var clipboardModeFloating: RadioButton
     private lateinit var autoConnectSwitch: CheckBox
     private lateinit var startOnBootSwitch: CheckBox
@@ -168,12 +174,17 @@ class MainActivity : AppCompatActivity() {
         rootLayout = findViewById(R.id.rootLayout)
         homeHeaderShell = findViewById(R.id.homeHeaderShell)
         contentScrollView = findViewById(R.id.contentScrollView)
+        contentContainer = findViewById(R.id.contentContainer)
         settingsBottomNav = findViewById(R.id.settingsBottomNav)
         homeHeaderCard = findViewById(R.id.homeHeaderCard)
         connectionSection = findViewById(R.id.connectionSection)
+        connectionBottomSpacer = findViewById(R.id.connectionBottomSpacer)
         runtimeSection = findViewById(R.id.runtimeSection)
         permissionSection = findViewById(R.id.permissionSection)
         receiveSection = findViewById(R.id.receiveSection)
+        runtimeSectionContent = findViewById(R.id.runtimeSectionContent)
+        permissionSectionContent = findViewById(R.id.permissionSectionContent)
+        receiveSectionContent = findViewById(R.id.receiveSectionContent)
         receiveFloatingSettingsGroup = findViewById(R.id.receiveFloatingSettingsGroup)
         receiveCacheSettingsGroup = findViewById(R.id.receiveCacheSettingsGroup)
         receiveFloatingSettingsToggleButton = findViewById(R.id.receiveFloatingSettingsToggleButton)
@@ -185,9 +196,9 @@ class MainActivity : AppCompatActivity() {
         roomInput = findViewById(R.id.roomInput)
         roomPasswordInput = findViewById(R.id.roomPasswordInput)
         deviceNameInput = findViewById(R.id.deviceNameInput)
+        connectionSummaryText = findViewById(R.id.connectionSummaryText)
         clipboardModeGroup = findViewById(R.id.clipboardModeGroup)
         clipboardModeForeground = findViewById(R.id.clipboardModeForeground)
-        clipboardModeIme = findViewById(R.id.clipboardModeIme)
         clipboardModeFloating = findViewById(R.id.clipboardModeFloating)
         autoConnectSwitch = findViewById(R.id.autoConnectSwitch)
         startOnBootSwitch = findViewById(R.id.startOnBootSwitch)
@@ -474,7 +485,6 @@ class MainActivity : AppCompatActivity() {
         roomPasswordInput.setText(config.roomPassword)
         deviceNameInput.setText(config.deviceName)
         when (config.clipboardMode) {
-            SettingsStore.CLIPBOARD_MODE_IME -> clipboardModeIme.isChecked = true
             SettingsStore.CLIPBOARD_MODE_FLOATING -> clipboardModeFloating.isChecked = true
             else -> clipboardModeForeground.isChecked = true
         }
@@ -556,6 +566,7 @@ class MainActivity : AppCompatActivity() {
         runtimeSection.visibility = if (selectedTabIndex == TAB_RUNTIME) View.VISIBLE else View.GONE
         permissionSection.visibility = if (selectedTabIndex == TAB_PERMISSIONS) View.VISIBLE else View.GONE
         receiveSection.visibility = if (selectedTabIndex == TAB_RECEIVE) View.VISIBLE else View.GONE
+        contentScrollView.post { syncVisibleSectionViewportHeight() }
     }
 
     private fun saveConfig(): SettingsStore.Config {
@@ -587,7 +598,6 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun selectedClipboardMode(): String = when (clipboardModeGroup.checkedRadioButtonId) {
-        R.id.clipboardModeIme -> SettingsStore.CLIPBOARD_MODE_IME
         R.id.clipboardModeFloating -> SettingsStore.CLIPBOARD_MODE_FLOATING
         else -> SettingsStore.CLIPBOARD_MODE_FOREGROUND
     }
@@ -611,6 +621,26 @@ class MainActivity : AppCompatActivity() {
             layoutParams.topMargin = dpToPx(4)
             homeHeaderCard.layoutParams = layoutParams
 
+            val immersiveTopPadding = systemBars.top + dpToPx(20)
+            runtimeSectionContent.setPadding(
+                runtimeSectionContent.paddingLeft,
+                immersiveTopPadding,
+                runtimeSectionContent.paddingRight,
+                runtimeSectionContent.paddingBottom,
+            )
+            permissionSectionContent.setPadding(
+                permissionSectionContent.paddingLeft,
+                immersiveTopPadding,
+                permissionSectionContent.paddingRight,
+                permissionSectionContent.paddingBottom,
+            )
+            receiveSectionContent.setPadding(
+                receiveSectionContent.paddingLeft,
+                immersiveTopPadding,
+                receiveSectionContent.paddingRight,
+                receiveSectionContent.paddingBottom,
+            )
+
             contentScrollView.setPadding(
                 contentScrollView.paddingLeft,
                 contentScrollView.paddingTop,
@@ -623,7 +653,51 @@ class MainActivity : AppCompatActivity() {
                 settingsBottomNav.paddingRight,
                 systemBars.bottom + dpToPx(10),
             )
+            contentScrollView.post { syncVisibleSectionViewportHeight() }
             WindowInsetsCompat.CONSUMED
+        }
+    }
+
+    private fun syncVisibleSectionViewportHeight() {
+        val viewportHeight = contentScrollView.height
+        if (viewportHeight <= 0) return
+        val target = when (selectedTabIndex) {
+            TAB_CONNECTION -> connectionSection
+            TAB_RUNTIME -> runtimeSection
+            TAB_PERMISSIONS -> permissionSection
+            TAB_RECEIVE -> receiveSection
+            else -> connectionSection
+        }
+        if (selectedTabIndex == TAB_CONNECTION) {
+            val spacerLayoutParams = connectionBottomSpacer.layoutParams
+            val spacerHeight = dpToPx(8)
+            if (spacerLayoutParams.height != spacerHeight) {
+                spacerLayoutParams.height = spacerHeight
+                connectionBottomSpacer.layoutParams = spacerLayoutParams
+            }
+            if (target.minimumHeight != 0) {
+                target.minimumHeight = 0
+            }
+            val connectionLayoutParams = target.layoutParams
+            if (connectionLayoutParams.height != ViewGroup.LayoutParams.WRAP_CONTENT) {
+                connectionLayoutParams.height = ViewGroup.LayoutParams.WRAP_CONTENT
+                target.layoutParams = connectionLayoutParams
+            }
+            return
+        }
+        val layoutParams = target.layoutParams
+        val spacerLayoutParams = connectionBottomSpacer.layoutParams
+        if (spacerLayoutParams.height != 0) {
+            spacerLayoutParams.height = 0
+            connectionBottomSpacer.layoutParams = spacerLayoutParams
+        }
+        val targetHeight = viewportHeight.coerceAtLeast(0)
+        if (target.minimumHeight != 0) {
+            target.minimumHeight = 0
+        }
+        if (layoutParams.height != targetHeight) {
+            layoutParams.height = targetHeight
+            target.layoutParams = layoutParams
         }
     }
 
@@ -699,22 +773,29 @@ class MainActivity : AppCompatActivity() {
         runtimeImplementationText.text = buildRuntimeImplementationSummary(config, status, support)
         runtimeModeActionButton.text = runtimeModeActionLabel(config, status)
         when {
-            config.clipboardMode == SettingsStore.CLIPBOARD_MODE_IME -> {
-                runtimeImeSendButton.visibility = View.VISIBLE
-                runtimeImeSendButton.text = getString(R.string.runtime_mode_action_ime_send)
-            }
             config.clipboardMode == SettingsStore.CLIPBOARD_MODE_FLOATING && status.overlayEnabled -> {
                 runtimeImeSendButton.visibility = View.VISIBLE
                 runtimeImeSendButton.text = getString(R.string.runtime_mode_action_floating_send)
             }
             else -> {
-                runtimeImeSendButton.visibility = View.GONE
+                runtimeImeSendButton.visibility = View.VISIBLE
+                runtimeImeSendButton.text = getString(R.string.runtime_mode_action_ime_send)
+            }
+        }
+        when {
+            config.clipboardMode == SettingsStore.CLIPBOARD_MODE_FLOATING && !status.overlayEnabled -> {
+                runtimeImeSendButton.visibility = View.VISIBLE
+                runtimeImeSendButton.text = getString(R.string.runtime_mode_action_ime_send)
+            }
+            else -> {
+                Unit
             }
         }
         autoResumeSummaryText.text = buildAutoResumeSummary(config, status)
         runtimeClipboardReadinessText.text = buildClipboardReadinessSummary(config, status, validation)
         runtimeClipboardTroubleshootButton.text = clipboardTroubleshootActionLabel(config, status, validation)
         runtimeClipboardDebugText.text = buildClipboardDebugSummary(config, status, validation)
+        connectionSummaryText.text = buildConnectionSummary(config)
         floatingLayoutSummaryText.text = getString(
             R.string.floating_layout_summary_format,
             config.floatingPosX,
@@ -746,6 +827,12 @@ class MainActivity : AppCompatActivity() {
         receiveCacheSummaryText.text = buildReceiveCacheSummary()
         refreshFloatingDraftSummary()
         updateHomeHeaderSummary()
+    }
+
+    private fun buildConnectionSummary(config: SettingsStore.Config): String {
+        val roomLabel = config.room.ifBlank { "默认房间" }
+        val deviceLabel = config.deviceName.ifBlank { "当前设备" }
+        return getString(R.string.connection_summary_format, deviceLabel, roomLabel)
     }
 
     private fun refreshFloatingDraftSummary() {
@@ -889,9 +976,6 @@ class MainActivity : AppCompatActivity() {
             !validation.ready -> openRuntimeModeAction(validation.action)
             !status.notificationsEnabled -> openNotificationSettings()
             config.clipboardMode == SettingsStore.CLIPBOARD_MODE_FOREGROUND && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q -> {
-                clipboardModeIme.isChecked = true
-                saveConfig()
-                refreshRuntimeHints()
                 Toast.makeText(this, R.string.runtime_mode_action_ime_ready_toast, Toast.LENGTH_LONG).show()
             }
             config.clipboardMode == SettingsStore.CLIPBOARD_MODE_FLOATING && !status.overlayEnabled -> openOverlaySettings()
@@ -1101,11 +1185,6 @@ class MainActivity : AppCompatActivity() {
             },
         )
 
-        SettingsStore.CLIPBOARD_MODE_IME -> when {
-            !status.notificationsEnabled -> getString(R.string.open_notification_settings_button)
-            else -> getString(R.string.runtime_mode_action_ime_ready)
-        }
-
         SettingsStore.CLIPBOARD_MODE_FLOATING -> when {
             !status.overlayEnabled -> getString(R.string.runtime_mode_action_floating)
             !status.notificationsEnabled -> getString(R.string.open_notification_settings_button)
@@ -1157,15 +1236,6 @@ class MainActivity : AppCompatActivity() {
                         readyItems += "已纳入系统授权与剪贴板 AppOps 诊断"
                         pendingItems += "建议改用前台服务、显式发送或悬浮窗模式"
                     }
-                }
-            }
-
-            SettingsStore.CLIPBOARD_MODE_IME -> {
-                readyItems += "系统分享发送可用"
-                readyItems += "选中文本后可直接发送到云剪同步"
-                readyItems += "运行页可手动发送当前剪贴板文本"
-                if (status.imeEnabled || status.imeSelected) {
-                    pendingItems += "系统里仍保留历史专用输入助手${status.imeDetail}，但它只是探索残留，不再是正式必选项"
                 }
             }
 
@@ -1274,18 +1344,6 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        SettingsStore.CLIPBOARD_MODE_IME -> {
-            buildString {
-                append("当前模式：显式发送模式（不替换原键盘）\n")
-                append("启动状态：可直接启动同步\n")
-                append("系统限制：${clipboardRestrictionSummary()}\n")
-                append("说明：这条路线优先复用系统分享、选中文本后的“发送到云剪同步”，以及本页“发送当前剪贴板文本”按钮做兜底，不要求切换系统默认输入法。")
-                if (status.imeEnabled || status.imeSelected) {
-                    append("\n历史探索状态：专用输入助手${status.imeDetail}，仅保留给旧验证与兼容排查。")
-                }
-            }
-        }
-
         SettingsStore.CLIPBOARD_MODE_FLOATING -> {
             if (status.overlayEnabled) {
                 "当前模式：悬浮窗模式\n启动状态：可直接启动同步\n系统限制：${clipboardRestrictionSummary()}\n悬浮窗状态：已允许显示\n说明：当前先把悬浮窗模式作为复制后快速发送助手的正式入口，后续会继续补更轻量的发送浮标。"
@@ -1345,7 +1403,6 @@ class MainActivity : AppCompatActivity() {
         val readiness = when {
             config.clipboardMode == SettingsStore.CLIPBOARD_MODE_SHIZUKU && status.shizukuPermissionGranted -> "后台复制就绪度：已授权，当前为辅助诊断模式"
             config.clipboardMode == SettingsStore.CLIPBOARD_MODE_SHIZUKU -> "后台复制就绪度：等待 Shizuku 授权"
-            config.clipboardMode == SettingsStore.CLIPBOARD_MODE_IME -> "后台复制就绪度：显式发送入口已就绪"
             config.clipboardMode == SettingsStore.CLIPBOARD_MODE_FLOATING && status.overlayEnabled -> "后台复制就绪度：助手入口已就绪"
             config.clipboardMode == SettingsStore.CLIPBOARD_MODE_FLOATING -> "后台复制就绪度：等待悬浮窗权限"
             !validation.ready -> "后台复制就绪度：当前被拦截"
@@ -1358,8 +1415,6 @@ class MainActivity : AppCompatActivity() {
         val reason = when {
             config.clipboardMode == SettingsStore.CLIPBOARD_MODE_SHIZUKU ->
                 "原因：${status.shizukuDetail}；剪贴板 AppOps 为读取 ${PermissionStatusHelper.clipboardAppOpLabel(status.clipboardReadAppOp)} / 写入 ${PermissionStatusHelper.clipboardAppOpLabel(status.clipboardWriteAppOp)}。${PermissionStatusHelper.clipboardReadRestrictionLabel(status.clipboardReadAppOp)}当前 Shizuku 只作为系统授权与诊断模式，不承诺绕过后台剪贴板限制。"
-            config.clipboardMode == SettingsStore.CLIPBOARD_MODE_IME ->
-                "原因：显式发送模式依赖你主动执行“选中文本后发送”“系统分享发送”或“发送当前剪贴板文本”；它更适合作为后台复制受限时的稳定兜底，而不是自动读取后台系统剪贴板。"
             config.clipboardMode == SettingsStore.CLIPBOARD_MODE_FLOATING ->
                 "原因：悬浮窗模式当前先提供复制后快速发送助手入口，依赖悬浮窗权限，不承诺绕过后台系统剪贴板限制。"
             !validation.ready -> "原因：${validation.message}"
@@ -1385,8 +1440,6 @@ class MainActivity : AppCompatActivity() {
                 "下一步：可以启动同步并做一次前台/后台复制对照；如果后台复制仍没回传，这是系统限制下的预期现象，正式使用请优先改用前台服务、显式发送或悬浮窗模式。"
             config.clipboardMode == SettingsStore.CLIPBOARD_MODE_SHIZUKU ->
                 "下一步：先启动 Shizuku 服务并完成授权；如果要继续日常同步，正式推荐仍是前台服务、显式发送或悬浮窗模式。"
-            config.clipboardMode == SettingsStore.CLIPBOARD_MODE_IME ->
-                "下一步：先在任意 App 里试一次“选中文本 -> 云剪同步”或“系统分享 -> 云剪同步”，再回到本页点一次“发送当前剪贴板文本”，确认不替换原键盘也能完成发送兜底。"
             config.clipboardMode == SettingsStore.CLIPBOARD_MODE_FLOATING && status.overlayEnabled ->
                 "下一步：保持当前模式，后续继续结合悬浮助手入口做联调；当前先确认悬浮窗权限和通知链路正常。"
             config.clipboardMode == SettingsStore.CLIPBOARD_MODE_FLOATING ->
@@ -1434,9 +1487,6 @@ class MainActivity : AppCompatActivity() {
             SettingsStore.CLIPBOARD_MODE_SHIZUKU ->
                 "当前监听策略：${status.shizukuDetail}；剪贴板 AppOps 为读取 ${PermissionStatusHelper.clipboardAppOpLabel(status.clipboardReadAppOp)} / 写入 ${PermissionStatusHelper.clipboardAppOpLabel(status.clipboardWriteAppOp)}。${PermissionStatusHelper.clipboardReadRestrictionLabel(status.clipboardReadAppOp)}当前仅保留系统剪贴板回调，并把 Shizuku 状态作为诊断信息展示，不再额外轮询系统剪贴板。"
 
-            SettingsStore.CLIPBOARD_MODE_IME ->
-                "当前监听策略：当前主要依赖系统分享、选中文本处理入口和本页手动发送按钮作为稳定兜底，不要求替换默认输入法，也不承诺自动绕过系统后台剪贴板限制。"
-
             SettingsStore.CLIPBOARD_MODE_FLOATING ->
                 "当前监听策略：当前主要依赖悬浮窗权限和后续快速发送助手入口，暂时不把它描述成自动后台读取方案。"
 
@@ -1453,8 +1503,6 @@ class MainActivity : AppCompatActivity() {
                 "下一步建议：Shizuku 授权已经通过，可以启动同步并观察最近结果；如果后台复制仍没回传，正式使用请优先改用前台服务、显式发送或悬浮窗模式。"
             config.clipboardMode == SettingsStore.CLIPBOARD_MODE_SHIZUKU ->
                 "下一步建议：先启动 Shizuku 服务并完成授权；日常同步正式推荐仍是前台服务、显式发送或悬浮窗模式。"
-            config.clipboardMode == SettingsStore.CLIPBOARD_MODE_IME ->
-                "下一步建议：先试一次“选中文本 -> 云剪同步”或“系统分享 -> 云剪同步”，再用本页按钮发送当前剪贴板文本，确认不替换原键盘也能闭环。"
             config.clipboardMode == SettingsStore.CLIPBOARD_MODE_FLOATING && !status.overlayEnabled ->
                 "下一步建议：先补开悬浮窗权限，再继续联调复制后快速发送助手。"
             !validation.ready -> "下一步建议：先按上面的模式引导补齐授权，再重新启动同步。"
@@ -1548,13 +1596,6 @@ class MainActivity : AppCompatActivity() {
                     !status.shizukuRunning -> blockers += "当前仍落在 Shizuku 辅助诊断链路，但 Shizuku 服务还没运行。"
                     !status.shizukuPermissionGranted -> blockers += "当前仍落在 Shizuku 辅助诊断链路，但云剪同步还没有获得 Shizuku 授权。"
                     else -> suggestions += "Shizuku 已授权；当前只作为系统授权与剪贴板 AppOps 诊断辅助保留，正式推荐模式请改用前台服务、显式发送或悬浮窗。"
-                }
-            }
-
-            SettingsStore.CLIPBOARD_MODE_IME -> {
-                suggestions += "显式发送模式不要求切换默认输入法；可通过选中文本菜单、系统分享或运行页按钮发送文本。"
-                if (status.imeEnabled || status.imeSelected) {
-                    suggestions += "历史专用输入助手当前状态：${status.imeDetail}；这只是探索残留，不是正式必选项。"
                 }
             }
 

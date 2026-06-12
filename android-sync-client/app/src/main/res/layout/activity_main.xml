@@ -13,7 +13,7 @@
         android:layout_height="wrap_content"
         android:background="@drawable/home_header_background"
         android:clipToPadding="false"
-        android:paddingBottom="18dp">
+        android:paddingBottom="16dp">
 
         <LinearLayout
             android:id="@+id/homeHeaderCard"
@@ -172,24 +172,32 @@
         android:fillViewport="true">
 
         <LinearLayout
+            android:id="@+id/contentContainer"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:paddingStart="16dp"
-            android:paddingTop="10dp"
-            android:paddingEnd="16dp"
+            android:paddingStart="0dp"
+            android:paddingTop="0dp"
+            android:paddingEnd="0dp"
             android:paddingBottom="20dp">
 
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/connectionSection"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content">
+                android:layout_height="wrap_content"
+                android:translationY="-18dp"
+                app:cardBackgroundColor="@color/cc_panel"
+                app:cardCornerRadius="28dp"
+                app:cardElevation="10dp">
 
                 <LinearLayout
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
+                    android:layout_height="match_parent"
                     android:orientation="vertical"
-                    android:padding="20dp">
+                    android:paddingStart="20dp"
+                    android:paddingTop="24dp"
+                    android:paddingEnd="20dp"
+                    android:paddingBottom="18dp">
 
                     <TextView
                         android:layout_width="match_parent"
@@ -266,6 +274,21 @@
                             android:layout_height="wrap_content" />
                     </com.google.android.material.textfield.TextInputLayout>
 
+                    <TextView
+                        android:id="@+id/connectionSummaryText"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="16dp"
+                        android:background="@drawable/content_panel_background"
+                        android:padding="14dp"
+                        android:textAppearance="@style/TextAppearance.MaterialComponents.Body2"
+                        android:textColor="@color/cc_text_muted" />
+
+                    <View
+                        android:id="@+id/connectionBottomSpacer"
+                        android:layout_width="match_parent"
+                        android:layout_height="12dp" />
+
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
@@ -307,10 +330,10 @@
                 android:id="@+id/runtimeSection"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="14dp"
                 android:visibility="gone">
 
                 <LinearLayout
+                    android:id="@+id/runtimeSectionContent"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
@@ -368,16 +391,6 @@
                             android:background="@drawable/content_panel_background"
                             android:padding="14dp"
                             android:text="@string/clipboard_mode_foreground"
-                            android:textColor="@color/cc_text" />
-
-                        <RadioButton
-                            android:id="@+id/clipboardModeIme"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="10dp"
-                            android:background="@drawable/content_panel_background"
-                            android:padding="14dp"
-                            android:text="@string/clipboard_mode_ime"
                             android:textColor="@color/cc_text" />
 
                         <RadioButton
@@ -521,10 +534,10 @@
                 android:id="@+id/permissionSection"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="14dp"
                 android:visibility="gone">
 
                 <LinearLayout
+                    android:id="@+id/permissionSectionContent"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
@@ -682,10 +695,10 @@
                 android:id="@+id/receiveSection"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="14dp"
                 android:visibility="gone">
 
                 <LinearLayout
+                    android:id="@+id/receiveSectionContent"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"

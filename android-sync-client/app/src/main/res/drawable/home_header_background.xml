@@ -5,8 +5,8 @@
         android:endColor="@color/cc_hero_bottom"
         android:startColor="@color/cc_primary_deep" />
     <corners
-        android:bottomLeftRadius="34dp"
-        android:bottomRightRadius="34dp"
+        android:bottomLeftRadius="0dp"
+        android:bottomRightRadius="0dp"
         android:topLeftRadius="0dp"
         android:topRightRadius="0dp" />
 </shape>

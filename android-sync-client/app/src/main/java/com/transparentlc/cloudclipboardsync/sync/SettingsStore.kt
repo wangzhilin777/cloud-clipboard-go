@@ -86,7 +86,9 @@ object SettingsStore {
         val resolvedDeviceName = resolveStoredDeviceName(context, prefs)
         val rawClipboardMode = prefs.getString(KEY_CLIPBOARD_MODE, CLIPBOARD_MODE_FOREGROUND)
         val normalizedClipboardMode = normalizeClipboardMode(rawClipboardMode)
-        val migrated = rawClipboardMode == CLIPBOARD_MODE_ACCESSIBILITY || rawClipboardMode == CLIPBOARD_MODE_SHIZUKU
+        val migrated = rawClipboardMode == CLIPBOARD_MODE_ACCESSIBILITY ||
+            rawClipboardMode == CLIPBOARD_MODE_SHIZUKU ||
+            rawClipboardMode == CLIPBOARD_MODE_IME
         if (migrated) {
             prefs.edit().putString(KEY_CLIPBOARD_MODE, normalizedClipboardMode).apply()
         }
@@ -233,12 +235,11 @@ object SettingsStore {
         return trimmed
     }
 
-    private fun normalizeClipboardMode(rawMode: String?): String {
+    internal fun normalizeClipboardMode(rawMode: String?): String {
         return when (rawMode) {
-            CLIPBOARD_MODE_IME -> CLIPBOARD_MODE_IME
             CLIPBOARD_MODE_FLOATING -> CLIPBOARD_MODE_FLOATING
             CLIPBOARD_MODE_FOREGROUND -> CLIPBOARD_MODE_FOREGROUND
-            CLIPBOARD_MODE_ACCESSIBILITY, CLIPBOARD_MODE_SHIZUKU -> CLIPBOARD_MODE_FOREGROUND
+            CLIPBOARD_MODE_ACCESSIBILITY, CLIPBOARD_MODE_SHIZUKU, CLIPBOARD_MODE_IME -> CLIPBOARD_MODE_FOREGROUND
             else -> CLIPBOARD_MODE_FOREGROUND
         }
     }

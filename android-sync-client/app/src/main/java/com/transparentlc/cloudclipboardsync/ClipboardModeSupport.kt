@@ -60,14 +60,6 @@ object ClipboardModeSupportHelper {
             }
         }
 
-        SettingsStore.CLIPBOARD_MODE_IME -> {
-            ClipboardModeSupport(
-                canStart = true,
-                readyMessage = context.getString(R.string.runtime_mode_ime_ready),
-                implementationSummary = "显式发送模式当前不替换原键盘，优先复用系统分享、选中文本后“发送到云剪同步”和主界面手动发送按钮作为文本上行兜底入口。历史专用输入助手仍保留在仓库里，但只作为探索残留，不再属于正式产品路线。",
-            )
-        }
-
         SettingsStore.CLIPBOARD_MODE_FLOATING -> {
             if (status.overlayEnabled) {
                 ClipboardModeSupport(
