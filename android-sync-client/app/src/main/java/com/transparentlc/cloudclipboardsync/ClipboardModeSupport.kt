@@ -24,7 +24,7 @@ object ClipboardModeSupportHelper {
                     canStart = false,
                     readyMessage = "",
                     blockedMessage = context.getString(R.string.runtime_mode_accessibility_blocked),
-                    implementationSummary = "无障碍当前只作为兼容旧配置时的辅助能力保留；若历史配置仍落在这里，需要先开启系统无障碍服务。正式推荐模式请改用前台服务、输入法或悬浮窗。",
+                    implementationSummary = "无障碍当前只作为兼容旧配置时的辅助能力保留；若历史配置仍落在这里，需要先开启系统无障碍服务。正式推荐模式请改用前台服务、显式发送或悬浮窗。",
                 )
             }
         }
@@ -61,27 +61,11 @@ object ClipboardModeSupportHelper {
         }
 
         SettingsStore.CLIPBOARD_MODE_IME -> {
-            when {
-                !status.imeEnabled -> ClipboardModeSupport(
-                    canStart = false,
-                    readyMessage = "",
-                    blockedMessage = context.getString(R.string.runtime_mode_ime_blocked),
-                    implementationSummary = "输入法模式需要先在系统输入法列表中启用“云剪同步输入助手”；启用后可以在输入场景直接把当前剪贴板文本发送到服务端。",
-                )
-
-                !status.imeSelected -> ClipboardModeSupport(
-                    canStart = false,
-                    readyMessage = "",
-                    blockedMessage = context.getString(R.string.runtime_mode_ime_not_selected),
-                    implementationSummary = "输入法模式已经启用，但当前还没切到云剪同步输入助手；切换为当前输入法后，键盘面板里的发送按钮才能成为稳定兜底通道。",
-                )
-
-                else -> ClipboardModeSupport(
-                    canStart = true,
-                    readyMessage = context.getString(R.string.runtime_mode_ime_ready),
-                    implementationSummary = "输入法模式已就绪，会把“键盘已打开且用户主动发送”作为最稳定的文本上行兜底通道。它适合输入场景，不承诺绕过系统后台剪贴板限制。当前状态：${status.imeDetail}。",
-                )
-            }
+            ClipboardModeSupport(
+                canStart = true,
+                readyMessage = context.getString(R.string.runtime_mode_ime_ready),
+                implementationSummary = "显式发送模式当前不替换原键盘，优先复用系统分享、选中文本后“发送到云剪同步”和主界面手动发送按钮作为文本上行兜底入口。历史专用输入助手仍保留在仓库里，但只作为探索残留，不再属于正式产品路线。",
+            )
         }
 
         SettingsStore.CLIPBOARD_MODE_FLOATING -> {

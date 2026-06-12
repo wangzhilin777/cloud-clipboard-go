@@ -50,4 +50,20 @@ object ManualClipboardSender {
         onStatus(context.getString(R.string.clipboard_ime_sent))
         return true
     }
+
+    fun sendText(
+        context: Context,
+        text: String,
+        route: String,
+        onStatus: (String) -> Unit,
+    ): Boolean {
+        val normalized = text.trim()
+        if (normalized.isBlank()) {
+            onStatus(context.getString(R.string.manual_text_empty))
+            return false
+        }
+        SyncService.sendManualText(context, normalized, route)
+        onStatus(context.getString(R.string.manual_text_sent))
+        return true
+    }
 }

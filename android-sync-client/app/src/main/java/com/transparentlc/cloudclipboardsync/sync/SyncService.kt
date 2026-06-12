@@ -476,9 +476,15 @@ class SyncService : Service() {
     private fun queueManualPublish(intent: Intent) {
         val text = intent.getStringExtra(EXTRA_MANUAL_TEXT)?.trim().orEmpty()
         if (text.isBlank()) {
+            if ((applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0) {
+                android.util.Log.d("SyncService", "queueManualPublish ignored blank text")
+            }
             return
         }
         val route = intent.getStringExtra(EXTRA_MANUAL_ROUTE)?.trim().orEmpty().ifBlank { "manual" }
+        if ((applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0) {
+            android.util.Log.d("SyncService", "queueManualPublish route=$route textLength=${text.length}")
+        }
         enqueueManualPublish(text, route)
     }
 
@@ -488,6 +494,12 @@ class SyncService : Service() {
             return false
         }
         pendingManualPublishText = normalized
+        if ((applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0) {
+            android.util.Log.d(
+                "SyncService",
+                "enqueueManualPublish route=$route textLength=${normalized.length} serviceStarted=$serviceStarted trusted=$trusted clientNull=${client == null}",
+            )
+        }
         updateClipboardDiagnostic(route, "已接收手动发送请求，等待同步连接可用")
         if (serviceStarted && trusted && client != null) {
             flushPendingManualPublishText()
@@ -518,9 +530,15 @@ class SyncService : Service() {
     private fun flushPendingManualPublishText() {
         val text = pendingManualPublishText.trim()
         if (text.isBlank() || !trusted) {
+            if ((applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0) {
+                android.util.Log.d("SyncService", "flushPendingManualPublishText skipped textBlank=${text.isBlank()} trusted=$trusted")
+            }
             return
         }
         pendingManualPublishText = ""
+        if ((applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0) {
+            android.util.Log.d("SyncService", "flushPendingManualPublishText publishing textLength=${text.length}")
+        }
         val now = System.currentTimeMillis()
         lastObservedLocalText = text
         publishTextToServer(

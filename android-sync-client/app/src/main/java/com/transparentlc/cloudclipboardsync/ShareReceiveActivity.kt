@@ -1,9 +1,11 @@
 package com.transparentlc.cloudclipboardsync
 
 import android.content.Intent
+import android.content.pm.ApplicationInfo
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.util.Log
 import android.view.View
 import android.widget.Button
 import android.widget.TextView
@@ -13,6 +15,8 @@ import com.transparentlc.cloudclipboardsync.sync.SettingsStore
 import com.transparentlc.cloudclipboardsync.sync.ShareUploadClient
 
 class ShareReceiveActivity : AppCompatActivity() {
+    private val tag = "ShareReceiveActivity"
+    private val debuggable by lazy { (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0 }
     private lateinit var titleText: TextView
     private lateinit var summaryText: TextView
     private lateinit var detailText: TextView
@@ -23,6 +27,7 @@ class ShareReceiveActivity : AppCompatActivity() {
 
     private var sharedText: String? = null
     private var sharedItems: List<ShareUploadClient.SharedItem> = emptyList()
+    private var sharedTextRoute: String = "share-text"
     private var sending = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -39,6 +44,7 @@ class ShareReceiveActivity : AppCompatActivity() {
 
         loadSharedContent(intent)
         renderDraft()
+        maybeAutoSendForDebug(intent)
 
         sendButton.setOnClickListener { sendNow() }
         cancelButton.setOnClickListener { finish() }
@@ -52,15 +58,18 @@ class ShareReceiveActivity : AppCompatActivity() {
         setIntent(intent)
         loadSharedContent(intent)
         renderDraft()
+        maybeAutoSendForDebug(intent)
     }
 
     private fun loadSharedContent(intent: Intent?) {
         sharedText = null
         sharedItems = emptyList()
+        sharedTextRoute = "share-text"
         val action = intent?.action.orEmpty()
+        val debugTextFallback = intent?.getStringExtra(EXTRA_DEBUG_TEXT)?.trim().orEmpty()
         when (action) {
             Intent.ACTION_SEND -> {
-                val text = intent?.getStringExtra(Intent.EXTRA_TEXT)?.trim().orEmpty()
+                val text = intent?.getStringExtra(Intent.EXTRA_TEXT)?.trim().orEmpty().ifBlank { debugTextFallback }
                 val singleUri = intent?.getStreamUriExtra()
                 if (!singleUri.isNullOrBlank()) {
                     val resolvedUri = requireNotNull(singleUri)
@@ -68,6 +77,7 @@ class ShareReceiveActivity : AppCompatActivity() {
                     sharedItems = ShareUploadClient.resolveSharedItems(this, listOf(resolvedUri))
                 } else if (text.isNotBlank()) {
                     sharedText = text
+                    sharedTextRoute = "share-text"
                 }
             }
             Intent.ACTION_SEND_MULTIPLE -> {
@@ -77,6 +87,16 @@ class ShareReceiveActivity : AppCompatActivity() {
                 }
                 sharedItems = ShareUploadClient.resolveSharedItems(this, uris)
             }
+            Intent.ACTION_PROCESS_TEXT -> {
+                val text = intent?.getProcessTextExtra()?.toString().orEmpty().trim().ifBlank { debugTextFallback }
+                if (text.isNotBlank()) {
+                    sharedText = text
+                    sharedTextRoute = "process-text"
+                }
+            }
+        }
+        if (debuggable) {
+            Log.d(tag, "loadSharedContent action=$action route=$sharedTextRoute textLength=${sharedText?.length ?: 0} itemCount=${sharedItems.size} debugAuto=${intent?.getBooleanExtra(EXTRA_DEBUG_AUTO_SEND, false) == true}")
         }
     }
 
@@ -94,6 +114,13 @@ class ShareReceiveActivity : AppCompatActivity() {
     } else {
         @Suppress("DEPRECATION")
         getParcelableArrayListExtra<Uri>(Intent.EXTRA_STREAM).orEmpty()
+    }
+
+    private fun Intent.getProcessTextExtra(): CharSequence? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        getCharSequenceExtra(Intent.EXTRA_PROCESS_TEXT)
+    } else {
+        @Suppress("DEPRECATION")
+        getCharSequenceExtra(Intent.EXTRA_PROCESS_TEXT)
     }
 
     private fun renderDraft() {
@@ -148,9 +175,43 @@ class ShareReceiveActivity : AppCompatActivity() {
         updateSendingState()
     }
 
+    private fun maybeAutoSendForDebug(intent: Intent?) {
+        val shouldAutoSend = intent?.getBooleanExtra(EXTRA_DEBUG_AUTO_SEND, false) == true
+        if (!debuggable || !shouldAutoSend || sending) {
+            return
+        }
+        if (debuggable) {
+            Log.d(tag, "maybeAutoSendForDebug route=$sharedTextRoute textLength=${sharedText?.length ?: 0} itemCount=${sharedItems.size}")
+        }
+        when {
+            !sharedText.isNullOrBlank() -> {
+                ManualClipboardSender.sendText(
+                    context = this,
+                    text = sharedText.orEmpty(),
+                    route = sharedTextRoute,
+                ) { message ->
+                    updateSendingState(message)
+                    Toast.makeText(this, message, Toast.LENGTH_LONG).show()
+                }
+                finish()
+            }
+
+            sharedItems.isNotEmpty() -> {
+                sendButton.post { sendNow() }
+            }
+
+            else -> {
+                sendButton.post { sendNow() }
+            }
+        }
+    }
+
     private fun sendNow() {
         if (sending) return
         val config = SettingsStore.load(this)
+        if (debuggable) {
+            Log.d(tag, "sendNow route=$sharedTextRoute textLength=${sharedText?.length ?: 0} itemCount=${sharedItems.size} serverBase=${config.serverBase}")
+        }
         if (config.serverBase.isBlank()) {
             Toast.makeText(this, R.string.share_receive_missing_config, Toast.LENGTH_LONG).show()
             return
@@ -159,13 +220,26 @@ class ShareReceiveActivity : AppCompatActivity() {
             Toast.makeText(this, R.string.server_base_loopback_hint, Toast.LENGTH_LONG).show()
             return
         }
+        if (!sharedText.isNullOrBlank()) {
+            val sent = ManualClipboardSender.sendText(
+                context = this,
+                text = sharedText.orEmpty(),
+                route = sharedTextRoute,
+            ) { message ->
+                updateSendingState(message)
+                Toast.makeText(this, message, Toast.LENGTH_LONG).show()
+            }
+            if (sent) {
+                finish()
+            }
+            return
+        }
         sending = true
         updateSendingState()
         Thread {
             runCatching {
                 when {
                     sharedItems.isNotEmpty() -> ShareUploadClient.shareFiles(this, config, sharedItems)
-                    !sharedText.isNullOrBlank() -> ShareUploadClient.shareText(config, sharedText.orEmpty())
                     else -> error("没有可发送的内容")
                 }
             }.onSuccess { result ->
@@ -199,5 +273,10 @@ class ShareReceiveActivity : AppCompatActivity() {
         value >= 1024L * 1024L -> getString(R.string.receive_cache_size_mb, value / (1024f * 1024f))
         value >= 1024L -> getString(R.string.receive_cache_size_kb, value / 1024f)
         else -> getString(R.string.receive_cache_size_bytes, value)
+    }
+
+    companion object {
+        const val EXTRA_DEBUG_AUTO_SEND = "debug_auto_send"
+        const val EXTRA_DEBUG_TEXT = "debug_text"
     }
 }

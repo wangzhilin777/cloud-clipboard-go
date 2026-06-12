@@ -351,7 +351,7 @@ class MainActivity : AppCompatActivity() {
             handleRuntimeModeQuickAction()
         }
         runtimeImeSendButton.setOnClickListener {
-            handleImeManualSend()
+            handleExplicitSendManualAction()
         }
         runtimeClipboardTroubleshootButton.setOnClickListener {
             handleClipboardTroubleshootAction()
@@ -699,7 +699,7 @@ class MainActivity : AppCompatActivity() {
         runtimeImplementationText.text = buildRuntimeImplementationSummary(config, status, support)
         runtimeModeActionButton.text = runtimeModeActionLabel(config, status)
         when {
-            config.clipboardMode == SettingsStore.CLIPBOARD_MODE_IME && status.imeEnabled && status.imeSelected -> {
+            config.clipboardMode == SettingsStore.CLIPBOARD_MODE_IME -> {
                 runtimeImeSendButton.visibility = View.VISIBLE
                 runtimeImeSendButton.text = getString(R.string.runtime_mode_action_ime_send)
             }
@@ -843,8 +843,6 @@ class MainActivity : AppCompatActivity() {
 
             SettingsStore.CLIPBOARD_MODE_IME -> {
                 when {
-                    !status.imeEnabled -> openInputMethodSettings()
-                    !status.imeSelected -> showInputMethodPickerOrSettings()
                     !status.notificationsEnabled -> openNotificationSettings()
                     else -> Toast.makeText(this, R.string.runtime_mode_action_ime_ready_toast, Toast.LENGTH_LONG).show()
                 }
@@ -869,10 +867,10 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun handleImeManualSend() {
+    private fun handleExplicitSendManualAction() {
         val route = when (SettingsStore.load(this).clipboardMode) {
             SettingsStore.CLIPBOARD_MODE_FLOATING -> "floating-panel"
-            else -> SettingsStore.CLIPBOARD_MODE_IME
+            else -> "explicit-send-panel"
         }
         ManualClipboardSender.sendCurrentClipboardText(
             context = this,
@@ -894,10 +892,8 @@ class MainActivity : AppCompatActivity() {
                 clipboardModeIme.isChecked = true
                 saveConfig()
                 refreshRuntimeHints()
-                openInputMethodSettings()
+                Toast.makeText(this, R.string.runtime_mode_action_ime_ready_toast, Toast.LENGTH_LONG).show()
             }
-            config.clipboardMode == SettingsStore.CLIPBOARD_MODE_IME && !status.imeEnabled -> openInputMethodSettings()
-            config.clipboardMode == SettingsStore.CLIPBOARD_MODE_IME && !status.imeSelected -> showInputMethodPickerOrSettings()
             config.clipboardMode == SettingsStore.CLIPBOARD_MODE_FLOATING && !status.overlayEnabled -> openOverlaySettings()
             config.clipboardMode == SettingsStore.CLIPBOARD_MODE_ACCESSIBILITY && !status.accessibilityEnabled ->
                 startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
@@ -916,10 +912,6 @@ class MainActivity : AppCompatActivity() {
         !status.notificationsEnabled -> getString(R.string.open_notification_settings_button)
         config.clipboardMode == SettingsStore.CLIPBOARD_MODE_FOREGROUND && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q ->
             getString(R.string.runtime_clipboard_switch_accessibility_button)
-        config.clipboardMode == SettingsStore.CLIPBOARD_MODE_IME && !status.imeEnabled ->
-            getString(R.string.runtime_mode_action_ime)
-        config.clipboardMode == SettingsStore.CLIPBOARD_MODE_IME && !status.imeSelected ->
-            getString(R.string.runtime_mode_action_ime_switch)
         config.clipboardMode == SettingsStore.CLIPBOARD_MODE_FLOATING && !status.overlayEnabled ->
             getString(R.string.runtime_mode_action_floating)
         config.clipboardMode == SettingsStore.CLIPBOARD_MODE_ACCESSIBILITY && !status.accessibilityEnabled ->
@@ -935,13 +927,8 @@ class MainActivity : AppCompatActivity() {
                 startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
             }
 
-            RuntimeModeAction.OPEN_INPUT_METHOD -> {
-                val status = PermissionStatusHelper.read(this)
-                if (!status.imeEnabled) {
-                    openInputMethodSettings()
-                } else {
-                    showInputMethodPickerOrSettings()
-                }
+            RuntimeModeAction.SHOW_EXPLICIT_SEND_GUIDE -> {
+                Toast.makeText(this, R.string.runtime_mode_action_ime_ready_toast, Toast.LENGTH_LONG).show()
             }
 
             RuntimeModeAction.OPEN_FLOATING -> {
@@ -983,21 +970,6 @@ class MainActivity : AppCompatActivity() {
 
     private fun openOverlaySettings() {
         startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName")))
-    }
-
-    private fun openInputMethodSettings() {
-        startActivity(Intent(Settings.ACTION_INPUT_METHOD_SETTINGS))
-    }
-
-    private fun showInputMethodPickerOrSettings() {
-        val manager = getSystemService(Context.INPUT_METHOD_SERVICE) as? android.view.inputmethod.InputMethodManager
-        val shown = runCatching {
-            manager?.showInputMethodPicker()
-            manager != null
-        }.getOrDefault(false)
-        if (!shown) {
-            openInputMethodSettings()
-        }
     }
 
     private fun openBatteryOptimizationSettings() {
@@ -1130,8 +1102,6 @@ class MainActivity : AppCompatActivity() {
         )
 
         SettingsStore.CLIPBOARD_MODE_IME -> when {
-            !status.imeEnabled -> getString(R.string.runtime_mode_action_ime)
-            !status.imeSelected -> getString(R.string.runtime_mode_action_ime_switch)
             !status.notificationsEnabled -> getString(R.string.open_notification_settings_button)
             else -> getString(R.string.runtime_mode_action_ime_ready)
         }
@@ -1165,7 +1135,7 @@ class MainActivity : AppCompatActivity() {
                     readyItems += "仅兼容旧配置保留"
                 } else {
                     pendingItems += "旧配置仍指向无障碍辅助能力，需要先开启无障碍服务"
-                    pendingItems += "建议改用前台服务、输入法或悬浮窗模式"
+                    pendingItems += "建议改用前台服务、显式发送或悬浮窗模式"
                 }
             }
 
@@ -1185,22 +1155,17 @@ class MainActivity : AppCompatActivity() {
                     else -> {
                         readyItems += "Shizuku 已授权${status.shizukuUid?.let { "（UID $it）" }.orEmpty()}"
                         readyItems += "已纳入系统授权与剪贴板 AppOps 诊断"
-                        pendingItems += "建议改用前台服务、输入法或悬浮窗模式"
+                        pendingItems += "建议改用前台服务、显式发送或悬浮窗模式"
                     }
                 }
             }
 
             SettingsStore.CLIPBOARD_MODE_IME -> {
-                when {
-                    !status.imeEnabled -> pendingItems += "需要先启用云剪同步输入助手"
-                    !status.imeSelected -> {
-                        readyItems += "输入法已启用"
-                        pendingItems += "需要切换为当前输入法"
-                    }
-                    else -> {
-                        readyItems += "输入法已启用并切到当前"
-                        readyItems += "可直接在键盘面板手动发送当前剪贴板文本"
-                    }
+                readyItems += "系统分享发送可用"
+                readyItems += "选中文本后可直接发送到云剪同步"
+                readyItems += "运行页可手动发送当前剪贴板文本"
+                if (status.imeEnabled || status.imeSelected) {
+                    pendingItems += "系统里仍保留历史专用输入助手${status.imeDetail}，但它只是探索残留，不再是正式必选项"
                 }
             }
 
@@ -1296,7 +1261,7 @@ class MainActivity : AppCompatActivity() {
             if (status.accessibilityEnabled) {
                 "当前模式：无障碍辅助能力（兼容旧配置）\n启动状态：可直接启动同步\n授权状态：${status.accessibilityDetail}\n系统限制：${clipboardRestrictionSummary()}\n说明：除了系统剪贴板回调，还会在界面交互时主动触发补检查；但这条路线现在只作为兼容旧配置与辅助授权保留，不再作为正式推荐主模式。"
             } else {
-                "当前模式：无障碍辅助能力（兼容旧配置）\n启动状态：需要处理\n原因：${validation.message}\n系统限制：${clipboardRestrictionSummary()}\n说明：这条路线只作为兼容旧配置与辅助授权保留，不再作为正式推荐主模式；建议改用前台服务、输入法或悬浮窗模式。"
+                "当前模式：无障碍辅助能力（兼容旧配置）\n启动状态：需要处理\n原因：${validation.message}\n系统限制：${clipboardRestrictionSummary()}\n说明：这条路线只作为兼容旧配置与辅助授权保留，不再作为正式推荐主模式；建议改用前台服务、显式发送或悬浮窗模式。"
             }
         }
 
@@ -1305,15 +1270,19 @@ class MainActivity : AppCompatActivity() {
                 !status.shizukuInstalled -> "当前模式：Shizuku\n启动状态：需要处理\n原因：${validation.message}\n系统限制：${clipboardRestrictionSummary()}\n说明：先安装 Shizuku，再用 root 或 adb 启动服务。"
                 !status.shizukuRunning -> "当前模式：Shizuku\n启动状态：需要处理\n原因：${validation.message}\n系统限制：${clipboardRestrictionSummary()}\n说明：当前已安装 Shizuku，但服务还没运行；root 启动后回到这里刷新状态。"
                 !status.shizukuPermissionGranted -> "当前模式：Shizuku\n启动状态：需要处理\n原因：${validation.message}\n系统限制：${clipboardRestrictionSummary()}\n说明：Shizuku 服务已运行，点快捷处理按钮授权云剪同步。"
-                else -> "当前模式：Shizuku 辅助诊断\n启动状态：可直接启动同步\n系统限制：${clipboardRestrictionSummary()}\nAppOps：读取 ${PermissionStatusHelper.clipboardAppOpLabel(status.clipboardReadAppOp)} / 写入 ${PermissionStatusHelper.clipboardAppOpLabel(status.clipboardWriteAppOp)}\n说明：Shizuku 已授权${status.shizukuUid?.let { "（UID $it）" }.orEmpty()}；${PermissionStatusHelper.clipboardReadRestrictionLabel(status.clipboardReadAppOp)}当前只作为系统授权和剪贴板 AppOps 诊断辅助，不再额外轮询系统剪贴板，也不承诺绕过后台剪贴板限制。正式推荐模式请改用前台服务、输入法或悬浮窗。"
+                else -> "当前模式：Shizuku 辅助诊断\n启动状态：可直接启动同步\n系统限制：${clipboardRestrictionSummary()}\nAppOps：读取 ${PermissionStatusHelper.clipboardAppOpLabel(status.clipboardReadAppOp)} / 写入 ${PermissionStatusHelper.clipboardAppOpLabel(status.clipboardWriteAppOp)}\n说明：Shizuku 已授权${status.shizukuUid?.let { "（UID $it）" }.orEmpty()}；${PermissionStatusHelper.clipboardReadRestrictionLabel(status.clipboardReadAppOp)}当前只作为系统授权和剪贴板 AppOps 诊断辅助，不再额外轮询系统剪贴板，也不承诺绕过后台剪贴板限制。正式推荐模式请改用前台服务、显式发送或悬浮窗。"
             }
         }
 
         SettingsStore.CLIPBOARD_MODE_IME -> {
-            when {
-                !status.imeEnabled -> "当前模式：输入法模式\n启动状态：需要处理\n原因：${validation.message}\n系统限制：${clipboardRestrictionSummary()}\n说明：先在系统输入法设置里启用云剪同步输入助手，再把它作为手动发送兜底入口使用。"
-                !status.imeSelected -> "当前模式：输入法模式\n启动状态：需要处理\n原因：${validation.message}\n系统限制：${clipboardRestrictionSummary()}\n说明：输入助手已经启用，但还没切为当前输入法；切过去后可以直接从键盘面板发送当前剪贴板文本。"
-                else -> "当前模式：输入法模式\n启动状态：可直接启动同步\n系统限制：${clipboardRestrictionSummary()}\n输入法状态：${status.imeDetail}\n说明：它把“用户明确打开键盘并手动发送”作为稳定兜底通道，适合后台复制受系统限制时补链路。"
+            buildString {
+                append("当前模式：显式发送模式（不替换原键盘）\n")
+                append("启动状态：可直接启动同步\n")
+                append("系统限制：${clipboardRestrictionSummary()}\n")
+                append("说明：这条路线优先复用系统分享、选中文本后的“发送到云剪同步”，以及本页“发送当前剪贴板文本”按钮做兜底，不要求切换系统默认输入法。")
+                if (status.imeEnabled || status.imeSelected) {
+                    append("\n历史探索状态：专用输入助手${status.imeDetail}，仅保留给旧验证与兼容排查。")
+                }
             }
         }
 
@@ -1336,7 +1305,7 @@ class MainActivity : AppCompatActivity() {
             } else {
                 "通知策略：前台服务提示链路已就绪。"
             }
-            "当前模式：前台服务\n启动状态：可直接启动同步\n系统限制：${clipboardRestrictionSummary()}\n$batteryLine\n$notificationLine\n说明：这是当前默认、最省心的正式模式；如果后台复制经常丢失，优先改用输入法或悬浮窗模式做兜底。"
+            "当前模式：前台服务\n启动状态：可直接启动同步\n系统限制：${clipboardRestrictionSummary()}\n$batteryLine\n$notificationLine\n说明：这是当前默认、最省心的正式模式；如果后台复制经常丢失，优先改用显式发送或悬浮窗模式做兜底。"
         }
     }
 
@@ -1376,8 +1345,7 @@ class MainActivity : AppCompatActivity() {
         val readiness = when {
             config.clipboardMode == SettingsStore.CLIPBOARD_MODE_SHIZUKU && status.shizukuPermissionGranted -> "后台复制就绪度：已授权，当前为辅助诊断模式"
             config.clipboardMode == SettingsStore.CLIPBOARD_MODE_SHIZUKU -> "后台复制就绪度：等待 Shizuku 授权"
-            config.clipboardMode == SettingsStore.CLIPBOARD_MODE_IME && status.imeEnabled && status.imeSelected -> "后台复制就绪度：手动兜底已就绪"
-            config.clipboardMode == SettingsStore.CLIPBOARD_MODE_IME -> "后台复制就绪度：等待输入法切换"
+            config.clipboardMode == SettingsStore.CLIPBOARD_MODE_IME -> "后台复制就绪度：显式发送入口已就绪"
             config.clipboardMode == SettingsStore.CLIPBOARD_MODE_FLOATING && status.overlayEnabled -> "后台复制就绪度：助手入口已就绪"
             config.clipboardMode == SettingsStore.CLIPBOARD_MODE_FLOATING -> "后台复制就绪度：等待悬浮窗权限"
             !validation.ready -> "后台复制就绪度：当前被拦截"
@@ -1391,7 +1359,7 @@ class MainActivity : AppCompatActivity() {
             config.clipboardMode == SettingsStore.CLIPBOARD_MODE_SHIZUKU ->
                 "原因：${status.shizukuDetail}；剪贴板 AppOps 为读取 ${PermissionStatusHelper.clipboardAppOpLabel(status.clipboardReadAppOp)} / 写入 ${PermissionStatusHelper.clipboardAppOpLabel(status.clipboardWriteAppOp)}。${PermissionStatusHelper.clipboardReadRestrictionLabel(status.clipboardReadAppOp)}当前 Shizuku 只作为系统授权与诊断模式，不承诺绕过后台剪贴板限制。"
             config.clipboardMode == SettingsStore.CLIPBOARD_MODE_IME ->
-                "原因：输入法模式依赖你主动打开键盘并点击发送按钮；它更适合作为后台复制受限时的稳定兜底，而不是自动读取后台系统剪贴板。当前状态：${status.imeDetail}。"
+                "原因：显式发送模式依赖你主动执行“选中文本后发送”“系统分享发送”或“发送当前剪贴板文本”；它更适合作为后台复制受限时的稳定兜底，而不是自动读取后台系统剪贴板。"
             config.clipboardMode == SettingsStore.CLIPBOARD_MODE_FLOATING ->
                 "原因：悬浮窗模式当前先提供复制后快速发送助手入口，依赖悬浮窗权限，不承诺绕过后台系统剪贴板限制。"
             !validation.ready -> "原因：${validation.message}"
@@ -1414,20 +1382,18 @@ class MainActivity : AppCompatActivity() {
 
         val nextStep = when {
             config.clipboardMode == SettingsStore.CLIPBOARD_MODE_SHIZUKU && status.shizukuPermissionGranted ->
-                "下一步：可以启动同步并做一次前台/后台复制对照；如果后台复制仍没回传，这是系统限制下的预期现象，正式使用请优先改用前台服务、输入法或悬浮窗模式。"
+                "下一步：可以启动同步并做一次前台/后台复制对照；如果后台复制仍没回传，这是系统限制下的预期现象，正式使用请优先改用前台服务、显式发送或悬浮窗模式。"
             config.clipboardMode == SettingsStore.CLIPBOARD_MODE_SHIZUKU ->
-                "下一步：先启动 Shizuku 服务并完成授权；如果要继续日常同步，正式推荐仍是前台服务、输入法或悬浮窗模式。"
-            config.clipboardMode == SettingsStore.CLIPBOARD_MODE_IME && status.imeEnabled && status.imeSelected ->
-                "下一步：启动同步后切到云剪同步输入助手，点一次“发送当前剪贴板文本”，验证手动兜底链路。"
+                "下一步：先启动 Shizuku 服务并完成授权；如果要继续日常同步，正式推荐仍是前台服务、显式发送或悬浮窗模式。"
             config.clipboardMode == SettingsStore.CLIPBOARD_MODE_IME ->
-                "下一步：先启用并切换到云剪同步输入助手，再用键盘面板发送一次当前剪贴板文本。"
+                "下一步：先在任意 App 里试一次“选中文本 -> 云剪同步”或“系统分享 -> 云剪同步”，再回到本页点一次“发送当前剪贴板文本”，确认不替换原键盘也能完成发送兜底。"
             config.clipboardMode == SettingsStore.CLIPBOARD_MODE_FLOATING && status.overlayEnabled ->
                 "下一步：保持当前模式，后续继续结合悬浮助手入口做联调；当前先确认悬浮窗权限和通知链路正常。"
             config.clipboardMode == SettingsStore.CLIPBOARD_MODE_FLOATING ->
                 "下一步：先补开悬浮窗权限，再继续联调复制后快速发送助手入口。"
             !validation.ready -> "下一步：先点上面的快捷处理按钮补齐当前模式所需授权。"
             config.clipboardMode == SettingsStore.CLIPBOARD_MODE_FOREGROUND && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q ->
-                "下一步：先做一次前台复制和一次后台复制；如果后台经常没回传，优先改用输入法或悬浮窗模式做兜底。"
+                "下一步：先做一次前台复制和一次后台复制；如果后台经常没回传，优先改用显式发送或悬浮窗模式做兜底。"
             config.clipboardMode == SettingsStore.CLIPBOARD_MODE_ACCESSIBILITY && !status.batteryOptimizationIgnored ->
                 "下一步：补开忽略电池优化，再测一次锁屏或切后台后的复制回传。"
             config.clipboardMode == SettingsStore.CLIPBOARD_MODE_ACCESSIBILITY && shouldSuggestVendorBackgroundSettings() ->
@@ -1469,14 +1435,14 @@ class MainActivity : AppCompatActivity() {
                 "当前监听策略：${status.shizukuDetail}；剪贴板 AppOps 为读取 ${PermissionStatusHelper.clipboardAppOpLabel(status.clipboardReadAppOp)} / 写入 ${PermissionStatusHelper.clipboardAppOpLabel(status.clipboardWriteAppOp)}。${PermissionStatusHelper.clipboardReadRestrictionLabel(status.clipboardReadAppOp)}当前仅保留系统剪贴板回调，并把 Shizuku 状态作为诊断信息展示，不再额外轮询系统剪贴板。"
 
             SettingsStore.CLIPBOARD_MODE_IME ->
-                "当前监听策略：当前主要依赖键盘面板里的手动发送按钮作为稳定兜底，不会承诺自动绕过系统后台剪贴板限制。"
+                "当前监听策略：当前主要依赖系统分享、选中文本处理入口和本页手动发送按钮作为稳定兜底，不要求替换默认输入法，也不承诺自动绕过系统后台剪贴板限制。"
 
             SettingsStore.CLIPBOARD_MODE_FLOATING ->
                 "当前监听策略：当前主要依赖悬浮窗权限和后续快速发送助手入口，暂时不把它描述成自动后台读取方案。"
 
             else -> when {
                 status.accessibilityEnabled ->
-                    "当前监听策略：主通道仍是前台服务；当前设备上无障碍辅助能力也已就绪，但正式推荐的兜底路线优先是输入法或悬浮窗模式。"
+                    "当前监听策略：主通道仍是前台服务；当前设备上无障碍辅助能力也已就绪，但正式推荐的兜底路线优先是显式发送或悬浮窗模式。"
                 else ->
                     "当前监听策略：当前只依赖系统剪贴板回调和轮询，Android 10 以上后台限制会更明显。"
             }
@@ -1484,18 +1450,16 @@ class MainActivity : AppCompatActivity() {
 
         val nextStepLine = when {
             config.clipboardMode == SettingsStore.CLIPBOARD_MODE_SHIZUKU && status.shizukuPermissionGranted ->
-                "下一步建议：Shizuku 授权已经通过，可以启动同步并观察最近结果；如果后台复制仍没回传，正式使用请优先改用前台服务、输入法或悬浮窗模式。"
+                "下一步建议：Shizuku 授权已经通过，可以启动同步并观察最近结果；如果后台复制仍没回传，正式使用请优先改用前台服务、显式发送或悬浮窗模式。"
             config.clipboardMode == SettingsStore.CLIPBOARD_MODE_SHIZUKU ->
-                "下一步建议：先启动 Shizuku 服务并完成授权；日常同步正式推荐仍是前台服务、输入法或悬浮窗模式。"
-            config.clipboardMode == SettingsStore.CLIPBOARD_MODE_IME && !status.imeEnabled ->
-                "下一步建议：先去系统输入法设置启用云剪同步输入助手。"
-            config.clipboardMode == SettingsStore.CLIPBOARD_MODE_IME && !status.imeSelected ->
-                "下一步建议：先切到云剪同步输入助手，再测试一次键盘面板发送当前剪贴板文本。"
+                "下一步建议：先启动 Shizuku 服务并完成授权；日常同步正式推荐仍是前台服务、显式发送或悬浮窗模式。"
+            config.clipboardMode == SettingsStore.CLIPBOARD_MODE_IME ->
+                "下一步建议：先试一次“选中文本 -> 云剪同步”或“系统分享 -> 云剪同步”，再用本页按钮发送当前剪贴板文本，确认不替换原键盘也能闭环。"
             config.clipboardMode == SettingsStore.CLIPBOARD_MODE_FLOATING && !status.overlayEnabled ->
                 "下一步建议：先补开悬浮窗权限，再继续联调复制后快速发送助手。"
             !validation.ready -> "下一步建议：先按上面的模式引导补齐授权，再重新启动同步。"
             config.clipboardMode == SettingsStore.CLIPBOARD_MODE_FOREGROUND && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q ->
-                "下一步建议：如果后台复制还是经常没有回传，优先改用输入法或悬浮窗模式。"
+                "下一步建议：如果后台复制还是经常没有回传，优先改用显式发送或悬浮窗模式。"
             config.clipboardMode == SettingsStore.CLIPBOARD_MODE_ACCESSIBILITY && !status.accessibilityEnabled ->
                 "下一步建议：打开无障碍后再试一次后台复制。"
             latestClipboardRoute.startsWith("skip-") ->
@@ -1574,7 +1538,7 @@ class MainActivity : AppCompatActivity() {
                 if (!status.accessibilityEnabled) {
                     blockers += "历史配置仍停在无障碍辅助能力，但系统无障碍服务还没开启。"
                 } else {
-                    suggestions += "当前只是兼容旧配置保留的无障碍辅助能力；正式推荐模式请改用前台服务、输入法或悬浮窗。"
+                    suggestions += "当前只是兼容旧配置保留的无障碍辅助能力；正式推荐模式请改用前台服务、显式发送或悬浮窗。"
                 }
             }
 
@@ -1583,15 +1547,14 @@ class MainActivity : AppCompatActivity() {
                     !status.shizukuInstalled -> blockers += "当前仍落在 Shizuku 辅助诊断链路，但设备还没有安装 Shizuku。"
                     !status.shizukuRunning -> blockers += "当前仍落在 Shizuku 辅助诊断链路，但 Shizuku 服务还没运行。"
                     !status.shizukuPermissionGranted -> blockers += "当前仍落在 Shizuku 辅助诊断链路，但云剪同步还没有获得 Shizuku 授权。"
-                    else -> suggestions += "Shizuku 已授权；当前只作为系统授权与剪贴板 AppOps 诊断辅助保留，正式推荐模式请改用前台服务、输入法或悬浮窗。"
+                    else -> suggestions += "Shizuku 已授权；当前只作为系统授权与剪贴板 AppOps 诊断辅助保留，正式推荐模式请改用前台服务、显式发送或悬浮窗。"
                 }
             }
 
             SettingsStore.CLIPBOARD_MODE_IME -> {
-                when {
-                    !status.imeEnabled -> blockers += "当前选择输入法模式，但云剪同步输入助手还没启用。"
-                    !status.imeSelected -> blockers += "当前选择输入法模式，但云剪同步输入助手还没切成当前输入法。"
-                    else -> suggestions += "输入法模式已就绪，适合作为后台复制受限时的手动发送兜底。"
+                suggestions += "显式发送模式不要求切换默认输入法；可通过选中文本菜单、系统分享或运行页按钮发送文本。"
+                if (status.imeEnabled || status.imeSelected) {
+                    suggestions += "历史专用输入助手当前状态：${status.imeDetail}；这只是探索残留，不是正式必选项。"
                 }
             }
 
@@ -1615,10 +1578,10 @@ class MainActivity : AppCompatActivity() {
             suggestions += "已启用悬浮确认，但系统还没允许悬浮窗显示，图片/文件会回退到通知确认。"
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && config.clipboardMode == SettingsStore.CLIPBOARD_MODE_FOREGROUND) {
-            suggestions += "Android 10 及以上系统会明显收紧后台剪贴板读取；如果你主要依赖后台复制回传，建议优先改用输入法或悬浮窗模式。"
+            suggestions += "Android 10 及以上系统会明显收紧后台剪贴板读取；如果你主要依赖后台复制回传，建议优先改用显式发送或悬浮窗模式。"
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE && config.clipboardMode == SettingsStore.CLIPBOARD_MODE_FOREGROUND) {
-            suggestions += "Android 14 及以上系统对后台读取剪贴板更严格，前台服务模式更适合前台使用；需要更稳的兜底发送时，建议改用输入法或悬浮窗模式。"
+            suggestions += "Android 14 及以上系统对后台读取剪贴板更严格，前台服务模式更适合前台使用；需要更稳的兜底发送时，建议改用显式发送或悬浮窗模式。"
         }
         if (!status.shizukuInstalled) {
             suggestions += "如需查看系统授权与剪贴板 AppOps 诊断信息，可按需安装 Shizuku；日常同步不再依赖它。"
