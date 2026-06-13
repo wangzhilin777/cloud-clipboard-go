@@ -402,6 +402,16 @@
                             android:padding="14dp"
                             android:text="@string/clipboard_mode_floating"
                             android:textColor="@color/cc_text" />
+
+                        <RadioButton
+                            android:id="@+id/clipboardModeImeBackground"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="10dp"
+                            android:background="@drawable/content_panel_background"
+                            android:padding="14dp"
+                            android:text="@string/clipboard_mode_ime_background"
+                            android:textColor="@color/cc_text" />
                     </RadioGroup>
 
                     <LinearLayout

@@ -35,6 +35,7 @@ object SettingsStore {
     const val CLIPBOARD_MODE_SHIZUKU = "shizuku"
     const val CLIPBOARD_MODE_IME = "ime"
     const val CLIPBOARD_MODE_FLOATING = "floating"
+    const val CLIPBOARD_MODE_IME_BACKGROUND = "ime_background"  // 新增：原键盘后台发送模式
     const val RUNNING_STATE_STOPPED = "stopped"
     const val RUNNING_STATE_RUNNING = "running"
     private const val LEGACY_DEFAULT_DEVICE_NAME = "Android 同步端"
@@ -239,6 +240,7 @@ object SettingsStore {
         return when (rawMode) {
             CLIPBOARD_MODE_FLOATING -> CLIPBOARD_MODE_FLOATING
             CLIPBOARD_MODE_FOREGROUND -> CLIPBOARD_MODE_FOREGROUND
+            CLIPBOARD_MODE_IME_BACKGROUND -> CLIPBOARD_MODE_IME_BACKGROUND
             CLIPBOARD_MODE_ACCESSIBILITY, CLIPBOARD_MODE_SHIZUKU, CLIPBOARD_MODE_IME -> CLIPBOARD_MODE_FOREGROUND
             else -> CLIPBOARD_MODE_FOREGROUND
         }

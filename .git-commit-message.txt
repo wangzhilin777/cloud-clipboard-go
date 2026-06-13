@@ -1,0 +1,10 @@
+整理和精简项目文档
+
+- 创建精简版计划摘要 docs/01-current-plan-summary-v2.md
+- 创建精简版对话纪要 docs/02-dialogue-and-completed-summary-v2.md
+- 创建核心待办清单 docs/04-current-todos.md
+- 创建 floating 模式验证报告 docs/05-floating-mode-verification.md
+- 完成代码审查：floating 模式、旧模式清理、快捷键实现
+- 记录 2026-06-13 进展：代码审查、文档整理、真机配置验证
+
+Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>

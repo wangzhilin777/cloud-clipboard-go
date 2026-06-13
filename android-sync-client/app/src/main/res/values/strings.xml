@@ -66,6 +66,7 @@
     <string name="clipboard_mode_label">同步运行模式</string>
     <string name="clipboard_mode_foreground">前台服务模式（最省事，但后台限制最明显）</string>
     <string name="clipboard_mode_floating">悬浮窗模式（复制后快速发送助手）</string>
+    <string name="clipboard_mode_ime_background">原键盘后台发送（启用输入法权限后自动获取后台剪贴板，不需切换默认键盘）</string>
     <string name="clipboard_mode_migrated_to_foreground">检测到历史模式“%1$s”已自动迁移到前台服务模式；当前正式入口只保留前台服务和悬浮窗，文本兜底请使用原键盘发送卡片、系统分享或选中文本处理。</string>
     <string name="clipboard_mode_legacy_accessibility">无障碍辅助（历史兼容）</string>
     <string name="clipboard_mode_legacy_shizuku">Shizuku 诊断（历史兼容）</string>
@@ -138,6 +139,8 @@
     <string name="runtime_mode_accessibility_blocked">检测到历史配置仍停在无障碍辅助能力，但系统无障碍服务列表里还没启用“云剪同步”。请到无障碍设置中打开云剪同步，或直接改用前台服务、原键盘发送或悬浮窗模式；仅系统授权或 AppOps 显示允许，不等于无障碍服务已经生效。</string>
     <string name="runtime_mode_floating_blocked">当前选的是悬浮窗模式，但系统还没允许悬浮窗显示。请先补开悬浮窗权限后再启动。</string>
     <string name="runtime_mode_floating_ready">悬浮窗模式已就绪。</string>
+    <string name="runtime_mode_ime_background_blocked">当前选的是原键盘后台发送模式，但系统输入法列表中还没启用"云剪同步"。请先到输入法设置中启用（无需切换默认键盘）。</string>
+    <string name="runtime_mode_ime_background_ready">原键盘后台发送模式已就绪（已启用输入法权限，可后台读取剪贴板）。</string>
     <string name="runtime_mode_shizuku_blocked">当前落在 Shizuku 辅助诊断链路，但设备还没有可用的 Shizuku 环境，请先安装或授权后再继续查看诊断信息。</string>
     <string name="runtime_mode_shizuku_not_running">当前落在 Shizuku 辅助诊断链路，但 Shizuku 服务还没运行，请先用 root 或 adb 启动 Shizuku 服务。</string>
     <string name="runtime_mode_shizuku_permission_required">当前落在 Shizuku 辅助诊断链路，但云剪同步还没有获得 Shizuku 授权，请先授权后再继续。</string>

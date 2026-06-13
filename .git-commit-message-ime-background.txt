@@ -1,0 +1,19 @@
+新增原键盘后台发送模式（ime_background）
+
+新增 clipboard_mode_ime_background 模式，利用输入法权限获取后台剪贴板访问能力，但无需用户切换默认键盘。
+
+核心改动：
+- SettingsStore：新增 CLIPBOARD_MODE_IME_BACKGROUND 常量
+- MainActivity：新增第三个模式选项（前台/悬浮窗/原键盘后台）
+- SyncService：ime_background 模式支持轮询剪贴板
+- RuntimeModeValidator：新增 OPEN_IME_SETTINGS 动作和验证逻辑
+- ClipboardModeSupport：新增模式支持检查（基于 imeEnabled）
+- 字符串资源：新增模式说明和运行时提示
+
+特点：
+- 启用输入法权限后即可后台读取剪贴板
+- 无需切换默认键盘，保持用户原有输入法
+- 与 foreground、floating 模式并列，供用户选择
+- 运行页自动检测输入法启用状态并提供快捷入口
+
+Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>

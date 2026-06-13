@@ -68,7 +68,8 @@ class SyncService : Service() {
 
     private val clipboardPollRunnable = object : Runnable {
         override fun run() {
-            if (config.clipboardMode == SettingsStore.CLIPBOARD_MODE_FOREGROUND) {
+            if (config.clipboardMode == SettingsStore.CLIPBOARD_MODE_FOREGROUND ||
+                config.clipboardMode == SettingsStore.CLIPBOARD_MODE_IME_BACKGROUND) {
                 publishLocalClipboardIfNeeded("poll")
             }
             handler.postDelayed(this, clipboardPollIntervalMs)

@@ -77,6 +77,23 @@ object ClipboardModeSupportHelper {
             }
         }
 
+        SettingsStore.CLIPBOARD_MODE_IME_BACKGROUND -> {
+            if (status.imeEnabled) {
+                ClipboardModeSupport(
+                    canStart = true,
+                    readyMessage = context.getString(R.string.runtime_mode_ime_background_ready),
+                    implementationSummary = "原键盘后台发送模式利用输入法权限获取后台剪贴板访问能力，但无需用户切换默认键盘。启用输入法后即可在后台自动监听剪贴板变化并同步。",
+                )
+            } else {
+                ClipboardModeSupport(
+                    canStart = false,
+                    readyMessage = "",
+                    blockedMessage = context.getString(R.string.runtime_mode_ime_background_blocked),
+                    implementationSummary = "原键盘后台发送模式需要先在系统输入法设置中启用\"云剪同步\"，但不需要切换为默认键盘。启用后即可获得后台剪贴板访问权限。",
+                )
+            }
+        }
+
         else -> {
             ClipboardModeSupport(
                 canStart = true,

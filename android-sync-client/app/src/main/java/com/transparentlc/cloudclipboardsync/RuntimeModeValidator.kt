@@ -14,6 +14,7 @@ enum class RuntimeModeAction {
     OPEN_ACCESSIBILITY,
     OPEN_FLOATING,
     OPEN_SHIZUKU,
+    OPEN_IME_SETTINGS,
 }
 
 object RuntimeModeValidator {
@@ -40,6 +41,12 @@ object RuntimeModeValidator {
                 ready = false,
                 message = support.blockedMessage ?: context.getString(R.string.runtime_mode_floating_blocked),
                 action = RuntimeModeAction.OPEN_FLOATING,
+            )
+
+            SettingsStore.CLIPBOARD_MODE_IME_BACKGROUND -> RuntimeModeValidation(
+                ready = false,
+                message = support.blockedMessage ?: context.getString(R.string.runtime_mode_ime_background_blocked),
+                action = RuntimeModeAction.OPEN_IME_SETTINGS,
             )
 
             else -> RuntimeModeValidation(true, support.readyMessage)

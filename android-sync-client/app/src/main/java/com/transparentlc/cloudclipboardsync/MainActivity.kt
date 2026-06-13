@@ -76,6 +76,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var clipboardModeGroup: RadioGroup
     private lateinit var clipboardModeForeground: RadioButton
     private lateinit var clipboardModeFloating: RadioButton
+    private lateinit var clipboardModeImeBackground: RadioButton
     private lateinit var autoConnectSwitch: CheckBox
     private lateinit var startOnBootSwitch: CheckBox
     private lateinit var closeAfterStartSwitch: CheckBox
@@ -203,6 +204,7 @@ class MainActivity : AppCompatActivity() {
         clipboardModeGroup = findViewById(R.id.clipboardModeGroup)
         clipboardModeForeground = findViewById(R.id.clipboardModeForeground)
         clipboardModeFloating = findViewById(R.id.clipboardModeFloating)
+        clipboardModeImeBackground = findViewById(R.id.clipboardModeImeBackground)
         autoConnectSwitch = findViewById(R.id.autoConnectSwitch)
         startOnBootSwitch = findViewById(R.id.startOnBootSwitch)
         closeAfterStartSwitch = findViewById(R.id.closeAfterStartSwitch)
@@ -495,6 +497,7 @@ class MainActivity : AppCompatActivity() {
         deviceNameInput.setText(config.deviceName)
         when (config.clipboardMode) {
             SettingsStore.CLIPBOARD_MODE_FLOATING -> clipboardModeFloating.isChecked = true
+            SettingsStore.CLIPBOARD_MODE_IME_BACKGROUND -> clipboardModeImeBackground.isChecked = true
             else -> clipboardModeForeground.isChecked = true
         }
         autoConnectSwitch.isChecked = config.autoConnectEnabled
@@ -618,6 +621,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun selectedClipboardMode(): String = when (clipboardModeGroup.checkedRadioButtonId) {
         R.id.clipboardModeFloating -> SettingsStore.CLIPBOARD_MODE_FLOATING
+        R.id.clipboardModeImeBackground -> SettingsStore.CLIPBOARD_MODE_IME_BACKGROUND
         else -> SettingsStore.CLIPBOARD_MODE_FOREGROUND
     }
 
@@ -994,6 +998,10 @@ class MainActivity : AppCompatActivity() {
                     status.shizukuRunning && !status.shizukuPermissionGranted -> requestShizukuPermission()
                     else -> openShizuku(status.shizukuInstalled)
                 }
+            }
+
+            RuntimeModeAction.OPEN_IME_SETTINGS -> {
+                startActivity(Intent(Settings.ACTION_INPUT_METHOD_SETTINGS))
             }
 
             RuntimeModeAction.NONE -> Unit
