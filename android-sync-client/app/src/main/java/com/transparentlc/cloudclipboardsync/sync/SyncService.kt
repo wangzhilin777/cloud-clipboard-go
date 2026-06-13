@@ -17,6 +17,7 @@ import android.os.Looper
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import com.transparentlc.cloudclipboardsync.ClipboardAccessAccessibilityService
+import com.transparentlc.cloudclipboardsync.FloatingClipboardOverlayService
 import com.transparentlc.cloudclipboardsync.FloatingConfirmService
 import com.transparentlc.cloudclipboardsync.ReceivedPayloadActivity
 import com.transparentlc.cloudclipboardsync.MainActivity
@@ -357,6 +358,17 @@ class SyncService : Service() {
         }
         if (isRecentlyPublishedText(text, now)) {
             updateClipboardDiagnostic(source, "短时间内已发送过相同文本，已跳过")
+            return false
+        }
+        if (config.clipboardMode == SettingsStore.CLIPBOARD_MODE_FLOATING) {
+            lastObservedLocalText = text
+            updateClipboardDiagnostic(source, "已检测到新的本地文本，准备弹出悬浮发送助手")
+            broadcastStatus(currentStatus(), "已检测到新的本地文本，悬浮发送助手已准备好")
+            if (PermissionStatusHelper.read(this).overlayEnabled) {
+                FloatingClipboardOverlayService.show(this)
+                updateClipboardDiagnostic(source, "已检测到新的本地文本，并弹出悬浮发送助手")
+                broadcastStatus(currentStatus(), "已检测到新的本地文本，并弹出悬浮发送助手")
+            }
             return false
         }
         lastObservedLocalText = text
