@@ -36,6 +36,10 @@
     <string name="connection_section_desc">服务地址、房间密码和设备名都在这里维护。</string>
     <string name="runtime_section_title">后台与续连</string>
     <string name="runtime_section_desc">控制剪贴板读取方式、自动恢复策略和后台常驻行为。</string>
+    <string name="runtime_explicit_send_title">原键盘发送兜底</string>
+    <string name="runtime_explicit_send_desc">不替换默认输入法时，这里保留一套显式发送入口，适合系统后台限制较严的场景。</string>
+    <string name="runtime_explicit_send_button">发送当前剪贴板文本</string>
+    <string name="runtime_explicit_guide_button">查看分享 / 选中文本发送说明</string>
     <string name="permission_section_desc">把通知、悬浮窗、无障碍和电池策略一次检查清楚。</string>
     <string name="receive_section_title">接收与缓存</string>
     <string name="receive_section_desc">管理图片/文件确认方式、本地缓存保留时长和接收页入口。</string>

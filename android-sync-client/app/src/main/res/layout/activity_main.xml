@@ -404,11 +404,72 @@
                             android:textColor="@color/cc_text" />
                     </RadioGroup>
 
+                    <LinearLayout
+                        android:id="@+id/runtimeExplicitSendCard"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="14dp"
+                        android:background="@drawable/content_panel_background"
+                        android:orientation="vertical"
+                        android:padding="14dp">
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="@string/runtime_explicit_send_title"
+                            android:textAppearance="@style/TextAppearance.MaterialComponents.Subtitle2"
+                            android:textColor="@color/cc_text"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="6dp"
+                            android:text="@string/runtime_explicit_send_desc"
+                            android:textAppearance="@style/TextAppearance.MaterialComponents.Body2"
+                            android:textColor="@color/cc_text_muted" />
+
+                        <TextView
+                            android:id="@+id/runtimeExplicitPreviewText"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="12dp"
+                            android:background="@drawable/app_background"
+                            android:padding="12dp"
+                            android:textAppearance="@style/TextAppearance.MaterialComponents.Body2"
+                            android:textColor="@color/cc_text" />
+
+                        <TextView
+                            android:id="@+id/runtimeExplicitSendSummaryText"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="12dp"
+                            android:textAppearance="@style/TextAppearance.MaterialComponents.Body2"
+                            android:textColor="@color/cc_text_muted" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/runtimeExplicitSendButton"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="12dp"
+                            android:backgroundTint="@color/cc_primary"
+                            android:text="@string/runtime_explicit_send_button" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/runtimeExplicitGuideButton"
+                            style="@style/Widget.MaterialComponents.Button.TextButton"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:gravity="start|center_vertical"
+                            android:text="@string/runtime_explicit_guide_button"
+                            android:textColor="@color/cc_primary" />
+                    </LinearLayout>
+
                     <TextView
                         android:id="@+id/runtimeAdviceText"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="14dp"
+                        android:layout_marginTop="12dp"
                         android:background="@drawable/content_panel_background"
                         android:padding="14dp"
                         android:textAppearance="@style/TextAppearance.MaterialComponents.Body2"
@@ -432,17 +493,6 @@
                         android:layout_marginTop="12dp"
                         android:text="@string/runtime_mode_action_battery"
                         android:textColor="@color/cc_primary"
-                        app:strokeColor="@color/cc_primary_soft" />
-
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/runtimeImeSendButton"
-                        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="10dp"
-                        android:text="@string/runtime_mode_action_ime_send"
-                        android:textColor="@color/cc_primary"
-                        android:visibility="gone"
                         app:strokeColor="@color/cc_primary_soft" />
 
                     <com.google.android.material.checkbox.MaterialCheckBox

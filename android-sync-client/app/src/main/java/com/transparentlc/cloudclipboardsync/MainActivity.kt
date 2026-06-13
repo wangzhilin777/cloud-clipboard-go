@@ -95,6 +95,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var permissionGuideText: TextView
     private lateinit var runtimeAdviceText: TextView
     private lateinit var runtimeImplementationText: TextView
+    private lateinit var runtimeExplicitPreviewText: TextView
+    private lateinit var runtimeExplicitSendSummaryText: TextView
     private lateinit var autoResumeSummaryText: TextView
     private lateinit var runtimeClipboardReadinessText: TextView
     private lateinit var runtimeClipboardTroubleshootButton: Button
@@ -102,7 +104,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var runtimeModeBadgeText: TextView
     private lateinit var permissionOverviewBadgeText: TextView
     private lateinit var runtimeModeActionButton: Button
-    private lateinit var runtimeImeSendButton: Button
+    private lateinit var runtimeExplicitSendButton: Button
+    private lateinit var runtimeExplicitGuideButton: Button
     private lateinit var statusText: TextView
     private lateinit var lastSyncText: TextView
 
@@ -219,6 +222,8 @@ class MainActivity : AppCompatActivity() {
         permissionGuideText = findViewById(R.id.permissionGuideText)
         runtimeAdviceText = findViewById(R.id.runtimeAdviceText)
         runtimeImplementationText = findViewById(R.id.runtimeImplementationText)
+        runtimeExplicitPreviewText = findViewById(R.id.runtimeExplicitPreviewText)
+        runtimeExplicitSendSummaryText = findViewById(R.id.runtimeExplicitSendSummaryText)
         autoResumeSummaryText = findViewById(R.id.autoResumeSummaryText)
         runtimeClipboardReadinessText = findViewById(R.id.runtimeClipboardReadinessText)
         runtimeClipboardTroubleshootButton = findViewById(R.id.runtimeClipboardTroubleshootButton)
@@ -226,7 +231,8 @@ class MainActivity : AppCompatActivity() {
         runtimeModeBadgeText = findViewById(R.id.runtimeModeBadgeText)
         permissionOverviewBadgeText = findViewById(R.id.permissionOverviewBadgeText)
         runtimeModeActionButton = findViewById(R.id.runtimeModeActionButton)
-        runtimeImeSendButton = findViewById(R.id.runtimeImeSendButton)
+        runtimeExplicitSendButton = findViewById(R.id.runtimeExplicitSendButton)
+        runtimeExplicitGuideButton = findViewById(R.id.runtimeExplicitGuideButton)
         statusText = findViewById(R.id.statusText)
         lastSyncText = findViewById(R.id.lastSyncText)
 
@@ -361,8 +367,11 @@ class MainActivity : AppCompatActivity() {
         runtimeModeActionButton.setOnClickListener {
             handleRuntimeModeQuickAction()
         }
-        runtimeImeSendButton.setOnClickListener {
+        runtimeExplicitSendButton.setOnClickListener {
             handleExplicitSendManualAction()
+        }
+        runtimeExplicitGuideButton.setOnClickListener {
+            showExplicitSendGuide()
         }
         runtimeClipboardTroubleshootButton.setOnClickListener {
             handleClipboardTroubleshootAction()
@@ -772,25 +781,10 @@ class MainActivity : AppCompatActivity() {
         runtimeAdviceText.text = buildClipboardModeAdvice(config, status, validation)
         runtimeImplementationText.text = buildRuntimeImplementationSummary(config, status, support)
         runtimeModeActionButton.text = runtimeModeActionLabel(config, status)
-        when {
-            config.clipboardMode == SettingsStore.CLIPBOARD_MODE_FLOATING && status.overlayEnabled -> {
-                runtimeImeSendButton.visibility = View.VISIBLE
-                runtimeImeSendButton.text = getString(R.string.runtime_mode_action_floating_send)
-            }
-            else -> {
-                runtimeImeSendButton.visibility = View.VISIBLE
-                runtimeImeSendButton.text = getString(R.string.runtime_mode_action_ime_send)
-            }
-        }
-        when {
-            config.clipboardMode == SettingsStore.CLIPBOARD_MODE_FLOATING && !status.overlayEnabled -> {
-                runtimeImeSendButton.visibility = View.VISIBLE
-                runtimeImeSendButton.text = getString(R.string.runtime_mode_action_ime_send)
-            }
-            else -> {
-                Unit
-            }
-        }
+        val preview = ManualClipboardSender.buildClipboardPreview(this)
+        runtimeExplicitPreviewText.text = preview.text
+        runtimeExplicitSendSummaryText.text = buildExplicitSendSummary(config, status, preview.empty)
+        runtimeExplicitSendButton.isEnabled = !preview.empty
         autoResumeSummaryText.text = buildAutoResumeSummary(config, status)
         runtimeClipboardReadinessText.text = buildClipboardReadinessSummary(config, status, validation)
         runtimeClipboardTroubleshootButton.text = clipboardTroubleshootActionLabel(config, status, validation)
@@ -968,6 +962,10 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun showExplicitSendGuide() {
+        Toast.makeText(this, R.string.runtime_mode_action_ime_ready_toast, Toast.LENGTH_LONG).show()
+    }
+
     private fun handleClipboardTroubleshootAction() {
         val config = SettingsStore.load(this)
         val status = PermissionStatusHelper.read(this)
@@ -976,7 +974,7 @@ class MainActivity : AppCompatActivity() {
             !validation.ready -> openRuntimeModeAction(validation.action)
             !status.notificationsEnabled -> openNotificationSettings()
             config.clipboardMode == SettingsStore.CLIPBOARD_MODE_FOREGROUND && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q -> {
-                Toast.makeText(this, R.string.runtime_mode_action_ime_ready_toast, Toast.LENGTH_LONG).show()
+                showExplicitSendGuide()
             }
             config.clipboardMode == SettingsStore.CLIPBOARD_MODE_FLOATING && !status.overlayEnabled -> openOverlaySettings()
             config.clipboardMode == SettingsStore.CLIPBOARD_MODE_ACCESSIBILITY && !status.accessibilityEnabled ->
@@ -1012,7 +1010,7 @@ class MainActivity : AppCompatActivity() {
             }
 
             RuntimeModeAction.SHOW_EXPLICIT_SEND_GUIDE -> {
-                Toast.makeText(this, R.string.runtime_mode_action_ime_ready_toast, Toast.LENGTH_LONG).show()
+                showExplicitSendGuide()
             }
 
             RuntimeModeAction.OPEN_FLOATING -> {
@@ -1279,6 +1277,31 @@ class MainActivity : AppCompatActivity() {
             append(nextAction)
             append("”。")
         }
+    }
+
+    private fun buildExplicitSendSummary(
+        config: SettingsStore.Config,
+        status: PermissionStatus,
+        clipboardEmpty: Boolean,
+    ): String {
+        val modeLine = when (config.clipboardMode) {
+            SettingsStore.CLIPBOARD_MODE_FLOATING ->
+                "当前正式模式：悬浮窗模式。它负责复制后的快速发送助手；这里这张卡片则负责随时手动发一次当前剪贴板文本。"
+            else ->
+                "当前正式模式：前台服务模式。后台复制如果受系统限制，可以直接在这里手动发送当前剪贴板文本。"
+        }
+        val clipboardLine = if (clipboardEmpty) {
+            "当前剪贴板：还没有可发送的文本；你可以先去别的应用复制一段文字，再回到这里发送。"
+        } else {
+            "当前剪贴板：已检测到可发送文本；点下面的按钮会直接复用正式文本发布主链路，不会要求切换默认输入法。"
+        }
+        val routeLine = "可用入口：1. 本页“发送当前剪贴板文本”；2. 系统分享里的“分享到云剪同步”；3. 选中文本后的系统处理菜单。"
+        val hintLine = if (!status.notificationsEnabled) {
+            "补充提示：建议把通知权限也打开，方便看前台服务状态和发送结果。"
+        } else {
+            "补充提示：这条显式发送能力会一直保留，作为不替换原键盘时的通用兜底。"
+        }
+        return "$modeLine\n$clipboardLine\n$routeLine\n$hintLine"
     }
 
     private fun shouldSuggestVendorBackgroundSettings(): Boolean {
