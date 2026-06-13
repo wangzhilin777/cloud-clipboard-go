@@ -39,41 +39,60 @@
 
 ### 收口工作
 
-✅ **Android 旧模式收口**
+✅ **Android 模式体系**
 - `ime` 专用输入法 → 仅作历史探索记录
 - `accessibility` → 降为辅助能力
 - `shizuku` → 降为诊断辅助
-- 正式模式：`foreground` + `floating`
+- 正式模式：`foreground` + `floating` + `ime_background`（原键盘后台发送）
 
 ✅ **UI 完善**
 - Android 全面屏沉浸式适配
 - Windows 控制面板中文化
 - 错误提示优化
 - 快捷键冲突检测
+- Windows Tip 弹窗尺寸优化（420x170，中文长文本完整显示）
+
+### ime_background 模式（新增）
+
+利用输入法服务获取后台剪贴板权限，无需切换默认键盘：
+- ✅ 在输入法管理中启用"局域网同步"输入法（不设为默认）
+- ✅ ClipboardInputMethodService 注册 OnPrimaryClipChangedListener
+- ✅ 监听到剪贴板变化通过 ACTION_IME_CLIPBOARD_CHANGED 通知 SyncService
+- ⚠️ 已知限制：InputMethodService 仅在被使用时运行，纯启用不足以保证后台监听
+- 🔄 待验证：实际后台同步效果、与参考APK行为对比
 
 ## 当前待办（核心）
 
 ### 🔴 高优先级
 
-1. **Android floating 模式真机验证**
-   - 复制文本时自动弹出悬浮助手
-   - 点击发送按钮后文本到达服务端
-   - 多场景测试（Chrome、微信、QQ 等）
+1. **Android floating 模式真机全场景验证**
+   - 在浏览器、微信、QQ等真实场景复制文本
+   - 验证悬浮助手自动弹出
+   - 测试点击发送后文本到达服务端和 Windows 端
+   - 确认不误发普通打字、不影响文件接收
 
-2. **Android 真实场景覆盖测试**
-   - 验证不误发普通打字
-   - 验证不影响文件接收悬浮卡片
-   - 覆盖常用 App（笔记、浏览器、聊天）
+2. **Windows 客户端优化与测试**
+   - ✅ Tip 弹窗尺寸优化完成（420x170）
+   - 托盘和快捷键功能完整性测试
+   - 推送接收、文件下载流程验证
+   - 长时间运行稳定性测试
+
+3. **Android → Windows 完整同步链路验证**
+   - Android 各模式（foreground/floating/ime_background）→ 服务端 → Windows
+   - 文本同步延迟测试
+   - 网络断线重连测试
 
 ### 🔧 中优先级
 
-3. **Android 旧模式清理**
-   - 移除 `accessibility/shizuku` 主模式入口
-   - 清理 README 中的旧说明
+4. **Android ime_background 模式深度验证**
+   - 确认输入法启用后的后台监听能力
+   - 对比参考 APK 的实际行为
+   - 必要时调整实现策略或文档说明
 
-4. **Windows 托盘稳定性验证**
-   - 真实环境长时间运行测试
-   - 右键菜单响应稳定性
+5. **文档和代码清理**
+   - 移除或归档旧模式残留代码
+   - 更新 README 至最新状态
+   - 整理提交历史和里程碑
 
 ### 📝 低优先级
 
@@ -105,6 +124,9 @@
 
 ## 最近提交（最新 10 条）
 
+- `7e1a823` 更新对话纪要：Windows Tip 弹窗优化完成
+- `e5571b5` 优化 Windows 桌面客户端 Tip 弹窗尺寸
+- `72c0aea` 新增原键盘后台发送模式（ime_background）
 - `fdaedd7` 修复安卓断链静默发送并补记真机联调
 - `229e7ea` 补齐安卓悬浮发送助手自动弹出
 - `e844945` 收口安卓旧模式诊断链路
@@ -112,8 +134,5 @@
 - `3f5bc4a` 收口安卓运行时旧模式主动作分支
 - `26f425f` 统一安卓原键盘发送正式文案口径
 - `f6083ec` 收口安卓历史模式迁移提示口径
-- `885a74c` 继续收口安卓显式发送历史 ime 口径
-- `ea8af97` 收口安卓原键盘发送正式入口
-- `8d9f2a2` 收口安卓首页沉浸式适配
 
 > 完整提交历史见 `docs/01-current-plan-summary.md`（备份）

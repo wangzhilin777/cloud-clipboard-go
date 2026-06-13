@@ -160,7 +160,15 @@
 - ✅ **运行模式确认**：真机当前运行 floating（原键盘悬浮发送）模式
 - ✅ **服务状态确认**：SyncService 前台服务运行正常（isForeground=true）
 - ✅ **无障碍服务启用**：已通过 adb 启用云剪同步的无障碍服务
-- ⚠️ **自动化测试受限**：UI 自动化复制操作复杂，需要更多调试时间
+- ✅ **悬浮窗权限确认**：SYSTEM_ALERT_WINDOW 已授权
+- ✅ **设备房间配置**：Android 和 Windows 都配置为 "default" 房间
+
+### 同步链路验证
+- ✅ **Android → 服务端**：手动发送测试成功（text: "rry"，messageId: e9135b93-...）
+- ✅ **Windows → 服务端**：自动同步测试成功（text: "android-windows-sync-test-032326"）
+- ✅ **服务端消息存储**：bootstrap API 可正常查询 recentMessages（共51条历史消息）
+- ⚠️ **Windows → Android**：消息已到达服务端，但 Android 端未观察到接收日志
+- ⚠️ **floating 自动触发**：UI 自动化复制操作复杂，需要更多调试时间或人工辅助验证
 
 ## 当前待继续推进
 
