@@ -908,30 +908,6 @@ class MainActivity : AppCompatActivity() {
         val config = SettingsStore.load(this)
         val status = PermissionStatusHelper.read(this)
         when (config.clipboardMode) {
-            SettingsStore.CLIPBOARD_MODE_ACCESSIBILITY -> {
-                when {
-                    !status.accessibilityEnabled -> startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
-                    !status.batteryOptimizationIgnored -> openBatteryOptimizationSettings()
-                    shouldSuggestVendorBackgroundSettings() -> openVendorBackgroundSettings()
-                    !status.notificationsEnabled -> openNotificationSettings()
-                    else -> Toast.makeText(this, R.string.runtime_mode_action_accessibility_ready_toast, Toast.LENGTH_LONG).show()
-                }
-            }
-
-            SettingsStore.CLIPBOARD_MODE_SHIZUKU -> {
-                if (!status.shizukuInstalled) {
-                    openShizuku(false)
-                } else if (!status.shizukuRunning) {
-                    openShizuku(true)
-                } else if (!status.shizukuPermissionGranted) {
-                    requestShizukuPermission()
-                } else if (!status.notificationsEnabled) {
-                    openNotificationSettings()
-                } else {
-                    Toast.makeText(this, R.string.runtime_mode_action_shizuku_ready_toast, Toast.LENGTH_LONG).show()
-                }
-            }
-
             SettingsStore.CLIPBOARD_MODE_FLOATING -> {
                 when {
                     !status.overlayEnabled -> openOverlaySettings()
@@ -980,8 +956,6 @@ class MainActivity : AppCompatActivity() {
                 showExplicitSendGuide()
             }
             config.clipboardMode == SettingsStore.CLIPBOARD_MODE_FLOATING && !status.overlayEnabled -> openOverlaySettings()
-            config.clipboardMode == SettingsStore.CLIPBOARD_MODE_ACCESSIBILITY && !status.accessibilityEnabled ->
-                startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
             !status.batteryOptimizationIgnored -> openBatteryOptimizationSettings()
             shouldSuggestVendorBackgroundSettings() -> openVendorBackgroundSettings()
             else -> Toast.makeText(this, R.string.runtime_clipboard_diagnosis_ready_toast, Toast.LENGTH_LONG).show()
@@ -999,8 +973,6 @@ class MainActivity : AppCompatActivity() {
             getString(R.string.runtime_clipboard_switch_accessibility_button)
         config.clipboardMode == SettingsStore.CLIPBOARD_MODE_FLOATING && !status.overlayEnabled ->
             getString(R.string.runtime_mode_action_floating)
-        config.clipboardMode == SettingsStore.CLIPBOARD_MODE_ACCESSIBILITY && !status.accessibilityEnabled ->
-            getString(R.string.runtime_mode_action_accessibility)
         !status.batteryOptimizationIgnored -> getString(R.string.runtime_mode_action_battery)
         shouldSuggestVendorBackgroundSettings() -> getString(R.string.open_vendor_background_settings_button)
         else -> getString(R.string.runtime_clipboard_troubleshoot_button)
