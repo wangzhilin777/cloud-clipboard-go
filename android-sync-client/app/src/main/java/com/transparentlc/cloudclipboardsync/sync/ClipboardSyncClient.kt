@@ -1,5 +1,6 @@
 package com.transparentlc.cloudclipboardsync.sync
 
+import android.util.Log
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
@@ -12,6 +13,10 @@ class ClipboardSyncClient(
     private val config: SettingsStore.Config,
     private val callbacks: Callbacks,
 ) {
+    private companion object {
+        private const val TAG = "ClipboardSyncClient"
+    }
+
     interface Callbacks {
         fun onConnected()
         fun onTrustedChanged(trusted: Boolean)
@@ -26,9 +31,14 @@ class ClipboardSyncClient(
     private var webSocket: WebSocket? = null
     private var trusted = false
     private var manualDisconnect = false
+    @Volatile
+    private var connected = false
+
+    fun isConnected(): Boolean = connected
 
     fun connect() {
         manualDisconnect = false
+        connected = false
         val wsUrl = SyncEndpointUrls.webSocketUrl(
             serverBase = config.serverBase,
             path = "sync/ws",
@@ -37,9 +47,12 @@ class ClipboardSyncClient(
                 "auth" to config.roomPassword,
             ),
         )
+        Log.d(TAG, "connect wsUrl=$wsUrl room=${config.room} deviceId=${config.deviceId}")
         val request = Request.Builder().url(wsUrl).build()
         webSocket = client.newWebSocket(request, object : WebSocketListener() {
             override fun onOpen(webSocket: WebSocket, response: Response) {
+                connected = true
+                Log.d(TAG, "onOpen code=${response.code} message=${response.message}")
                 callbacks.onConnected()
                 val hello = JSONObject()
                     .put("event", "hello")
@@ -86,10 +99,13 @@ class ClipboardSyncClient(
             }
 
             override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
+                Log.d(TAG, "onClosing code=$code reason=$reason")
                 webSocket.close(code, reason)
             }
 
             override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
+                connected = false
+                Log.d(TAG, "onClosed code=$code reason=$reason")
                 this@ClipboardSyncClient.webSocket = null
                 if (!manualDisconnect) {
                     callbacks.onDisconnected()
@@ -97,6 +113,8 @@ class ClipboardSyncClient(
             }
 
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
+                connected = false
+                Log.w(TAG, "onFailure message=${t.message} responseCode=${response?.code}", t)
                 this@ClipboardSyncClient.webSocket = null
                 callbacks.onLog("同步连接失败：${t.message}")
                 if (!manualDisconnect) {
@@ -108,6 +126,7 @@ class ClipboardSyncClient(
 
     fun disconnect() {
         manualDisconnect = true
+        connected = false
         webSocket?.close(1000, "bye")
         webSocket = null
     }
@@ -119,6 +138,10 @@ class ClipboardSyncClient(
 
     fun publishText(text: String) {
         if (!trusted || text.isBlank()) return
+        if (!connected || webSocket == null) {
+            Log.w(TAG, "publishText skipped because websocket is not connected")
+            return
+        }
         val payload = JSONObject()
             .put("event", "clipboardPublish")
             .put("data", JSONObject()

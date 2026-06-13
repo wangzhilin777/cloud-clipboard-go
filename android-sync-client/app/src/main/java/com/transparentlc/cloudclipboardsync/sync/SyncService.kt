@@ -482,16 +482,21 @@ class SyncService : Service() {
             )
         }
         updateClipboardDiagnostic(route, "已接收手动发送请求，等待同步连接可用")
-        if (serviceStarted && trusted && client != null) {
+        if (serviceStarted && trusted && client?.isConnected() == true) {
             flushPendingManualPublishText()
             return true
         }
-        if (serviceStarted && client == null) {
+        if (serviceStarted) {
+            if ((applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0) {
+                android.util.Log.d(
+                    "SyncService",
+                    "enqueueManualPublish reconnectNow route=$route connected=${client?.isConnected() == true} clientNull=${client == null}",
+                )
+            }
             reconnectNow("manual-send")
         }
         return false
     }
-
     private fun flushPendingDebugPublishText() {
         val text = pendingDebugPublishText.trim()
         if (text.isBlank() || !trusted) {
@@ -512,8 +517,15 @@ class SyncService : Service() {
         val text = pendingManualPublishText.trim()
         if (text.isBlank() || !trusted) {
             if ((applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0) {
-                android.util.Log.d("SyncService", "flushPendingManualPublishText skipped textBlank=${text.isBlank()} trusted=$trusted")
+                android.util.Log.d("SyncService", "flushPendingManualPublishText skipped textBlank=${text.isBlank()} trusted=$trusted connected=${client?.isConnected() == true}")
             }
+            return
+        }
+        if (client?.isConnected() != true) {
+            if ((applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0) {
+                android.util.Log.d("SyncService", "flushPendingManualPublishText delayed because websocket is not connected")
+            }
+            reconnectNow("manual-send")
             return
         }
         pendingManualPublishText = ""
@@ -529,7 +541,6 @@ class SyncService : Service() {
             "manual-send",
         )
     }
-
     private fun publishAccessibilitySnapshotFallback(source: String, fallbackReason: String): Boolean {
         val snapshot = ClipboardAccessAccessibilityService.consumeRecentSnapshot(sourcePackage = "") ?: return false
         val text = snapshot.text.trim()
