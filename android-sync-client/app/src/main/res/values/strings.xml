@@ -65,9 +65,12 @@
     <string name="device_name_hint">设备名称</string>
     <string name="clipboard_mode_label">同步运行模式</string>
     <string name="clipboard_mode_foreground">前台服务模式（最省事，但后台限制最明显）</string>
-    <string name="clipboard_mode_ime">显式发送模式（不替换原键盘）</string>
     <string name="clipboard_mode_floating">悬浮窗模式（复制后快速发送助手）</string>
-    <string name="clipboard_mode_migrated_to_foreground">检测到历史模式“%1$s”已自动迁移到前台服务模式；无障碍、Shizuku 和旧专用输入助手路线都不再作为正式模式入口，请改用前台、显式发送或悬浮窗方案。</string>
+    <string name="clipboard_mode_migrated_to_foreground">检测到历史模式“%1$s”已自动迁移到前台服务模式；当前正式入口只保留前台服务和悬浮窗，文本兜底请使用显式发送卡片、系统分享或选中文本处理。</string>
+    <string name="clipboard_mode_legacy_accessibility">无障碍辅助（历史兼容）</string>
+    <string name="clipboard_mode_legacy_shizuku">Shizuku 诊断（历史兼容）</string>
+    <string name="clipboard_mode_legacy_ime">旧专用输入助手（探索残留）</string>
+    <string name="clipboard_mode_legacy_unknown">旧模式</string>
     <string name="auto_connect_switch">启用自动续连（上次手动停止后不自动恢复）</string>
     <string name="start_on_boot_switch">开机或应用更新后按上次状态自动恢复</string>
     <string name="close_after_start_switch">启动同步后自动关闭设置页</string>
@@ -100,7 +103,7 @@
     <string name="clear_cache_button">立即清空本地缓存</string>
     <string name="permission_section_label">权限与系统配置检查</string>
     <string name="permission_summary_placeholder">正在读取当前权限状态…</string>
-    <string name="permission_summary_format">通知：%1$s\n悬浮窗：%2$s\n无障碍：%3$s\n历史输入助手状态：%4$s\n忽略电池优化：%5$s\nShizuku：%6$s\n剪贴板读取 AppOps：%7$s\n剪贴板写入 AppOps：%8$s</string>
+    <string name="permission_summary_format">通知：%1$s\n悬浮窗：%2$s\n无障碍辅助：%3$s\n历史输入助手：%4$s\n忽略电池优化：%5$s\nShizuku 诊断：%6$s\n剪贴板读取 AppOps：%7$s\n剪贴板写入 AppOps：%8$s</string>
     <string name="permission_blockers_none">无</string>
     <string name="permission_suggestions_none">无</string>
     <string name="permission_guide_placeholder">推荐先开通知和忽略电池优化；需要更稳的文本发送兜底时，再用显式发送或悬浮窗模式。</string>

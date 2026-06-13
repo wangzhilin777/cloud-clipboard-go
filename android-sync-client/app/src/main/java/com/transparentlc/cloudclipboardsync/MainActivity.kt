@@ -516,10 +516,20 @@ class MainActivity : AppCompatActivity() {
         refreshFloatingDraftSummary()
         updateHomeHeaderSummary()
         if (migration.modeMigrated) {
-            val message = getString(R.string.clipboard_mode_migrated_to_foreground, migration.previousMode.orEmpty())
+            val message = getString(
+                R.string.clipboard_mode_migrated_to_foreground,
+                legacyClipboardModeLabel(migration.previousMode),
+            )
             lastSyncText.text = message
             Toast.makeText(this, message, Toast.LENGTH_LONG).show()
         }
+    }
+
+    private fun legacyClipboardModeLabel(rawMode: String?): String = when (rawMode) {
+        SettingsStore.CLIPBOARD_MODE_ACCESSIBILITY -> getString(R.string.clipboard_mode_legacy_accessibility)
+        SettingsStore.CLIPBOARD_MODE_SHIZUKU -> getString(R.string.clipboard_mode_legacy_shizuku)
+        SettingsStore.CLIPBOARD_MODE_IME -> getString(R.string.clipboard_mode_legacy_ime)
+        else -> getString(R.string.clipboard_mode_legacy_unknown)
     }
 
     private fun maybeResumeSyncOnLaunch() {
