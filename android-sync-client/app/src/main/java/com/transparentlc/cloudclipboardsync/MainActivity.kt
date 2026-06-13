@@ -1323,18 +1323,18 @@ class MainActivity : AppCompatActivity() {
     ): String = when (config.clipboardMode) {
         SettingsStore.CLIPBOARD_MODE_ACCESSIBILITY -> {
             if (status.accessibilityEnabled) {
-                "当前模式：无障碍辅助能力（兼容旧配置）\n启动状态：可直接启动同步\n授权状态：${status.accessibilityDetail}\n系统限制：${clipboardRestrictionSummary()}\n说明：除了系统剪贴板回调，还会在界面交互时主动触发补检查；但这条路线现在只作为兼容旧配置与辅助授权保留，不再作为正式推荐主模式。"
+                "当前辅助状态：无障碍辅助能力（兼容旧配置）\n启动状态：可直接启动同步\n授权状态：${status.accessibilityDetail}\n系统限制：${clipboardRestrictionSummary()}\n说明：除了系统剪贴板回调，还会在界面交互时主动触发补检查；但这条路线现在只作为兼容旧配置与辅助授权保留，不再作为正式推荐主模式。"
             } else {
-                "当前模式：无障碍辅助能力（兼容旧配置）\n启动状态：需要处理\n原因：${validation.message}\n系统限制：${clipboardRestrictionSummary()}\n说明：这条路线只作为兼容旧配置与辅助授权保留，不再作为正式推荐主模式；建议改用前台服务、原键盘发送或悬浮窗模式。"
+                "当前辅助状态：无障碍辅助能力（兼容旧配置）\n启动状态：需要处理\n原因：${validation.message}\n系统限制：${clipboardRestrictionSummary()}\n说明：这条路线只作为兼容旧配置与辅助授权保留，不再作为正式推荐主模式；建议改用前台服务、原键盘发送或悬浮窗模式。"
             }
         }
 
         SettingsStore.CLIPBOARD_MODE_SHIZUKU -> {
             when {
-                !status.shizukuInstalled -> "当前模式：Shizuku\n启动状态：需要处理\n原因：${validation.message}\n系统限制：${clipboardRestrictionSummary()}\n说明：先安装 Shizuku，再用 root 或 adb 启动服务。"
-                !status.shizukuRunning -> "当前模式：Shizuku\n启动状态：需要处理\n原因：${validation.message}\n系统限制：${clipboardRestrictionSummary()}\n说明：当前已安装 Shizuku，但服务还没运行；root 启动后回到这里刷新状态。"
-                !status.shizukuPermissionGranted -> "当前模式：Shizuku\n启动状态：需要处理\n原因：${validation.message}\n系统限制：${clipboardRestrictionSummary()}\n说明：Shizuku 服务已运行，点快捷处理按钮授权云剪同步。"
-                else -> "当前模式：Shizuku 辅助诊断\n启动状态：可直接启动同步\n系统限制：${clipboardRestrictionSummary()}\nAppOps：读取 ${PermissionStatusHelper.clipboardAppOpLabel(status.clipboardReadAppOp)} / 写入 ${PermissionStatusHelper.clipboardAppOpLabel(status.clipboardWriteAppOp)}\n说明：Shizuku 已授权${status.shizukuUid?.let { "（UID $it）" }.orEmpty()}；${PermissionStatusHelper.clipboardReadRestrictionLabel(status.clipboardReadAppOp)}当前只作为系统授权和剪贴板 AppOps 诊断辅助，不再额外轮询系统剪贴板，也不承诺绕过后台剪贴板限制。正式推荐模式请改用前台服务、原键盘发送或悬浮窗。"
+                !status.shizukuInstalled -> "当前诊断状态：Shizuku\n启动状态：需要处理\n原因：${validation.message}\n系统限制：${clipboardRestrictionSummary()}\n说明：先安装 Shizuku，再用 root 或 adb 启动服务。"
+                !status.shizukuRunning -> "当前诊断状态：Shizuku\n启动状态：需要处理\n原因：${validation.message}\n系统限制：${clipboardRestrictionSummary()}\n说明：当前已安装 Shizuku，但服务还没运行；root 启动后回到这里刷新状态。"
+                !status.shizukuPermissionGranted -> "当前诊断状态：Shizuku\n启动状态：需要处理\n原因：${validation.message}\n系统限制：${clipboardRestrictionSummary()}\n说明：Shizuku 服务已运行，点快捷处理按钮授权云剪同步。"
+                else -> "当前诊断状态：Shizuku 辅助诊断\n启动状态：可直接启动同步\n系统限制：${clipboardRestrictionSummary()}\nAppOps：读取 ${PermissionStatusHelper.clipboardAppOpLabel(status.clipboardReadAppOp)} / 写入 ${PermissionStatusHelper.clipboardAppOpLabel(status.clipboardWriteAppOp)}\n说明：Shizuku 已授权${status.shizukuUid?.let { "（UID $it）" }.orEmpty()}；${PermissionStatusHelper.clipboardReadRestrictionLabel(status.clipboardReadAppOp)}当前只作为系统授权和剪贴板 AppOps 诊断辅助，不再额外轮询系统剪贴板，也不承诺绕过后台剪贴板限制。正式推荐模式请改用前台服务、原键盘发送或悬浮窗。"
             }
         }
 
@@ -1400,7 +1400,7 @@ class MainActivity : AppCompatActivity() {
             config.clipboardMode == SettingsStore.CLIPBOARD_MODE_FLOATING && status.overlayEnabled -> "后台复制就绪度：助手入口已就绪"
             config.clipboardMode == SettingsStore.CLIPBOARD_MODE_FLOATING -> "后台复制就绪度：等待悬浮窗权限"
             !validation.ready -> "后台复制就绪度：当前被拦截"
-            config.clipboardMode == SettingsStore.CLIPBOARD_MODE_ACCESSIBILITY && status.accessibilityEnabled -> "后台复制就绪度：较稳"
+            config.clipboardMode == SettingsStore.CLIPBOARD_MODE_ACCESSIBILITY && status.accessibilityEnabled -> "后台复制就绪度：辅助链路已就绪"
             config.clipboardMode == SettingsStore.CLIPBOARD_MODE_FOREGROUND && Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE -> "后台复制就绪度：受限"
             config.clipboardMode == SettingsStore.CLIPBOARD_MODE_FOREGROUND && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q -> "后台复制就绪度：一般"
             else -> "后台复制就绪度：可用"
