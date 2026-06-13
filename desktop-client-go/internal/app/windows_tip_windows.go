@@ -24,10 +24,10 @@ func showWindowsTip(title string, body string, primaryLabel string, primaryURL s
 		seconds = 5
 	}
 	if width <= 0 {
-		width = 348
+		width = 420
 	}
 	if height <= 0 {
-		height = 140
+		height = 170
 	}
 	if strings.TrimSpace(theme) == "" {
 		theme = "dark"

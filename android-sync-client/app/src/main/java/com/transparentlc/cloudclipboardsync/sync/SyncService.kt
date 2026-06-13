@@ -108,6 +108,7 @@ class SyncService : Service() {
             ACTION_ACCESSIBILITY_PULSE -> handleAccessibilityPulse(intent)
             ACTION_DEBUG_PUBLISH_TEXT -> queueDebugPublish(intent)
             ACTION_SEND_MANUAL_TEXT -> queueManualPublish(intent)
+            ACTION_IME_CLIPBOARD_CHANGED -> publishLocalClipboardIfNeeded("ime-listener")
         }
         if (!serviceStarted) {
             lastObservedLocalText = readCurrentClipboardText()
@@ -820,6 +821,7 @@ class SyncService : Service() {
         const val ACTION_PAYLOAD_UPDATED = "com.transparentlc.cloudclipboardsync.PAYLOAD_UPDATED"
         const val ACTION_DEBUG_PUBLISH_TEXT = "com.transparentlc.cloudclipboardsync.action.DEBUG_PUBLISH_TEXT"
         const val ACTION_SEND_MANUAL_TEXT = "com.transparentlc.cloudclipboardsync.action.SEND_MANUAL_TEXT"
+        const val ACTION_IME_CLIPBOARD_CHANGED = "com.transparentlc.cloudclipboardsync.action.IME_CLIPBOARD_CHANGED"
         const val EXTRA_STATUS = "extra_status"
         const val EXTRA_LAST_RESULT = "extra_last_result"
         const val EXTRA_CLIPBOARD_ROUTE = "extra_clipboard_route"
@@ -865,6 +867,14 @@ class SyncService : Service() {
                     .setAction(ACTION_ACCESSIBILITY_PULSE)
                     .putExtra(EXTRA_ACCESSIBILITY_PACKAGE, sourcePackage)
                     .putExtra(EXTRA_ACCESSIBILITY_REASON, reason),
+            )
+        }
+
+        fun notifyImeClipboardChanged(context: Context) {
+            ContextCompat.startForegroundService(
+                context,
+                Intent(context, SyncService::class.java)
+                    .setAction(ACTION_IME_CLIPBOARD_CHANGED),
             )
         }
 

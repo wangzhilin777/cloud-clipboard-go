@@ -1,5 +1,6 @@
 package com.transparentlc.cloudclipboardsync
 
+import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.inputmethodservice.InputMethodService
@@ -10,6 +11,8 @@ import android.view.View
 import android.widget.Button
 import android.widget.TextView
 import android.widget.Toast
+import com.transparentlc.cloudclipboardsync.sync.SettingsStore
+import com.transparentlc.cloudclipboardsync.sync.SyncService
 
 class ClipboardInputMethodService : InputMethodService() {
     private val handler = Handler(Looper.getMainLooper())
@@ -19,6 +22,27 @@ class ClipboardInputMethodService : InputMethodService() {
     private val resetStatusRunnable = Runnable {
         refreshClipboardPreview()
         applyStatus(getString(R.string.clipboard_ime_idle), success = false)
+    }
+
+    private val clipboardManager by lazy {
+        getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+    }
+
+    private val clipboardListener = ClipboardManager.OnPrimaryClipChangedListener {
+        // ime_background 模式：输入法后台自动监听剪贴板变化并同步
+        val config = SettingsStore.load(this)
+        if (config.clipboardMode == SettingsStore.CLIPBOARD_MODE_IME_BACKGROUND) {
+            if (SyncService.isRunning()) {
+                // 通知 SyncService 处理新的剪贴板内容
+                SyncService.notifyImeClipboardChanged(this)
+            }
+        }
+    }
+
+    override fun onCreate() {
+        super.onCreate()
+        // 注册剪贴板监听器，实现后台自动同步
+        clipboardManager.addPrimaryClipChangedListener(clipboardListener)
     }
 
     override fun onCreateInputView(): View {
@@ -49,6 +73,8 @@ class ClipboardInputMethodService : InputMethodService() {
     }
 
     override fun onDestroy() {
+        // 注销剪贴板监听器
+        clipboardManager.removePrimaryClipChangedListener(clipboardListener)
         handler.removeCallbacksAndMessages(null)
         super.onDestroy()
     }
