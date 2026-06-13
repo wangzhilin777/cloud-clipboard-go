@@ -1179,10 +1179,10 @@ class MainActivity : AppCompatActivity() {
         when (config.clipboardMode) {
             SettingsStore.CLIPBOARD_MODE_ACCESSIBILITY -> {
                 if (status.accessibilityEnabled) {
-                    readyItems += "无障碍辅助能力${status.accessibilityDetail}"
+                    readyItems += "无障碍辅助链路${status.accessibilityDetail}"
                     readyItems += "仅兼容旧配置保留"
                 } else {
-                    pendingItems += "旧配置仍指向无障碍辅助能力，需要先开启无障碍服务"
+                    pendingItems += "旧配置仍指向无障碍辅助链路，需要先开启无障碍服务"
                     pendingItems += "建议改用前台服务、原键盘发送或悬浮窗模式"
                 }
             }
@@ -1323,9 +1323,9 @@ class MainActivity : AppCompatActivity() {
     ): String = when (config.clipboardMode) {
         SettingsStore.CLIPBOARD_MODE_ACCESSIBILITY -> {
             if (status.accessibilityEnabled) {
-                "当前辅助状态：无障碍辅助能力（兼容旧配置）\n启动状态：可直接启动同步\n授权状态：${status.accessibilityDetail}\n系统限制：${clipboardRestrictionSummary()}\n说明：除了系统剪贴板回调，还会在界面交互时主动触发补检查；但这条路线现在只作为兼容旧配置与辅助授权保留，不再作为正式推荐主模式。"
+                "当前辅助状态：无障碍辅助链路（兼容旧配置）\n启动状态：可直接启动同步\n授权状态：${status.accessibilityDetail}\n系统限制：${clipboardRestrictionSummary()}\n说明：除了系统剪贴板回调，还会在界面交互时主动触发补检查；但这条路线现在只作为兼容旧配置与辅助授权保留，不再作为正式推荐主模式。"
             } else {
-                "当前辅助状态：无障碍辅助能力（兼容旧配置）\n启动状态：需要处理\n原因：${validation.message}\n系统限制：${clipboardRestrictionSummary()}\n说明：这条路线只作为兼容旧配置与辅助授权保留，不再作为正式推荐主模式；建议改用前台服务、原键盘发送或悬浮窗模式。"
+                "当前辅助状态：无障碍辅助链路（兼容旧配置）\n启动状态：需要处理\n原因：${validation.message}\n系统限制：${clipboardRestrictionSummary()}\n说明：这条路线只作为兼容旧配置与辅助授权保留，不再作为正式推荐主模式；建议改用前台服务、原键盘发送或悬浮窗模式。"
             }
         }
 
@@ -1408,12 +1408,12 @@ class MainActivity : AppCompatActivity() {
 
         val reason = when {
             config.clipboardMode == SettingsStore.CLIPBOARD_MODE_SHIZUKU ->
-                "原因：${status.shizukuDetail}；剪贴板 AppOps 为读取 ${PermissionStatusHelper.clipboardAppOpLabel(status.clipboardReadAppOp)} / 写入 ${PermissionStatusHelper.clipboardAppOpLabel(status.clipboardWriteAppOp)}。${PermissionStatusHelper.clipboardReadRestrictionLabel(status.clipboardReadAppOp)}当前 Shizuku 只作为系统授权与诊断模式，不承诺绕过后台剪贴板限制。"
+                "原因：${status.shizukuDetail}；剪贴板 AppOps 为读取 ${PermissionStatusHelper.clipboardAppOpLabel(status.clipboardReadAppOp)} / 写入 ${PermissionStatusHelper.clipboardAppOpLabel(status.clipboardWriteAppOp)}。${PermissionStatusHelper.clipboardReadRestrictionLabel(status.clipboardReadAppOp)}当前 Shizuku 只作为系统授权与诊断辅助链路，不承诺绕过后台剪贴板限制。"
             config.clipboardMode == SettingsStore.CLIPBOARD_MODE_FLOATING ->
                 "原因：悬浮窗模式当前先提供复制后快速发送助手入口，依赖悬浮窗权限，不承诺绕过后台系统剪贴板限制。"
             !validation.ready -> "原因：${validation.message}"
             config.clipboardMode == SettingsStore.CLIPBOARD_MODE_ACCESSIBILITY && status.accessibilityEnabled ->
-                "原因：当前仍命中兼容旧配置的无障碍辅助能力${status.accessibilityDetail}，系统剪贴板回调之外还会做界面事件补检查。"
+                "原因：当前仍命中兼容旧配置的无障碍辅助链路${status.accessibilityDetail}，系统剪贴板回调之外还会做界面事件补检查。"
             config.clipboardMode == SettingsStore.CLIPBOARD_MODE_FOREGROUND && Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE ->
                 "原因：Android 14 及以上对后台读取系统剪贴板限制更严，前台服务模式更适合你正在看着 App 的场景。"
             config.clipboardMode == SettingsStore.CLIPBOARD_MODE_FOREGROUND && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q ->
@@ -1442,9 +1442,9 @@ class MainActivity : AppCompatActivity() {
             config.clipboardMode == SettingsStore.CLIPBOARD_MODE_FOREGROUND && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q ->
                 "下一步：先做一次前台复制和一次后台复制；如果后台经常没回传，优先改用原键盘发送或悬浮窗模式做兜底。"
             config.clipboardMode == SettingsStore.CLIPBOARD_MODE_ACCESSIBILITY && !status.batteryOptimizationIgnored ->
-                "下一步：补开忽略电池优化，再测一次锁屏或切后台后的复制回传。"
+                "下一步：补开忽略电池优化，再测一次这条辅助链路在锁屏或切后台后的复制回传。"
             config.clipboardMode == SettingsStore.CLIPBOARD_MODE_ACCESSIBILITY && shouldSuggestVendorBackgroundSettings() ->
-                "下一步：去厂商后台保活页面补开自启动或无限制省电，再测一次后台复制。"
+                "下一步：去厂商后台保活页面补开自启动或无限制省电，再测一次这条辅助链路的后台复制表现。"
             else ->
                 "下一步：保持当前模式，分别做一次前台复制和后台复制，对照下面的诊断结果看是否被系统限制。"
         }
@@ -1472,21 +1472,21 @@ class MainActivity : AppCompatActivity() {
         val modeLine = when (config.clipboardMode) {
             SettingsStore.CLIPBOARD_MODE_ACCESSIBILITY -> {
                 if (status.accessibilityEnabled) {
-                    "当前监听策略：无障碍辅助能力${status.accessibilityDetail}，当前仅兼容旧配置保留；除了系统剪贴板回调，还会尝试用界面事件做补检查。"
+                    "当前监听策略：无障碍辅助链路${status.accessibilityDetail}，当前仅兼容旧配置保留；除了系统剪贴板回调，还会尝试用界面事件做补检查。"
                 } else {
-                    "当前监听策略：你当前落在旧的无障碍辅助配置，但系统无障碍还没打开，所以这条兼容链路还不会生效。"
+                    "当前监听策略：你当前落在旧的无障碍辅助配置，但系统无障碍还没打开，所以这条辅助链路还不会生效。"
                 }
             }
 
             SettingsStore.CLIPBOARD_MODE_SHIZUKU ->
-                "当前监听策略：${status.shizukuDetail}；剪贴板 AppOps 为读取 ${PermissionStatusHelper.clipboardAppOpLabel(status.clipboardReadAppOp)} / 写入 ${PermissionStatusHelper.clipboardAppOpLabel(status.clipboardWriteAppOp)}。${PermissionStatusHelper.clipboardReadRestrictionLabel(status.clipboardReadAppOp)}当前仅保留系统剪贴板回调，并把 Shizuku 状态作为诊断信息展示，不再额外轮询系统剪贴板。"
+                "当前监听策略：${status.shizukuDetail}；剪贴板 AppOps 为读取 ${PermissionStatusHelper.clipboardAppOpLabel(status.clipboardReadAppOp)} / 写入 ${PermissionStatusHelper.clipboardAppOpLabel(status.clipboardWriteAppOp)}。${PermissionStatusHelper.clipboardReadRestrictionLabel(status.clipboardReadAppOp)}当前仅保留系统剪贴板回调，并把 Shizuku 状态作为诊断辅助信息展示，不再额外轮询系统剪贴板。"
 
             SettingsStore.CLIPBOARD_MODE_FLOATING ->
                 "当前监听策略：当前主要依赖悬浮窗权限和后续快速发送助手入口，暂时不把它描述成自动后台读取方案。"
 
             else -> when {
                 status.accessibilityEnabled ->
-                    "当前监听策略：主通道仍是前台服务；当前设备上无障碍辅助能力也已就绪，但正式推荐的兜底路线优先是原键盘发送或悬浮窗模式。"
+                    "当前监听策略：主通道仍是前台服务；当前设备上无障碍辅助链路也已就绪，但正式推荐的兜底路线优先是原键盘发送或悬浮窗模式。"
                 else ->
                     "当前监听策略：当前只依赖系统剪贴板回调和轮询，Android 10 以上后台限制会更明显。"
             }
@@ -1578,9 +1578,9 @@ class MainActivity : AppCompatActivity() {
         when (config.clipboardMode) {
             SettingsStore.CLIPBOARD_MODE_ACCESSIBILITY -> {
                 if (!status.accessibilityEnabled) {
-                    blockers += "历史配置仍停在无障碍辅助能力，但系统无障碍服务还没开启。"
+                    blockers += "历史配置仍停在无障碍辅助链路，但系统无障碍服务还没开启。"
                 } else {
-                    suggestions += "当前只是兼容旧配置保留的无障碍辅助能力；正式推荐模式请改用前台服务、原键盘发送或悬浮窗。"
+                    suggestions += "当前只是兼容旧配置保留的无障碍辅助链路；正式推荐模式请改用前台服务、原键盘发送或悬浮窗。"
                 }
             }
 

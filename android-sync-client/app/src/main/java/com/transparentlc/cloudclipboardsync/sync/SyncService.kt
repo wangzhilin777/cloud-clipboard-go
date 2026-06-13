@@ -323,37 +323,6 @@ class SyncService : Service() {
             updateClipboardDiagnostic("skip-$source", "设备尚未获批准，已跳过本次本地剪贴板处理")
             return false
         }
-        if (config.clipboardMode == SettingsStore.CLIPBOARD_MODE_SHIZUKU) {
-            val result = ShizukuClipboardReader.readText(this)
-            if (!result.success) {
-                updateClipboardDiagnostic(source, result.detail)
-                return false
-            }
-            val text = result.text.trim()
-            if (text.isBlank()) {
-                updateClipboardDiagnostic(source, result.detail)
-                return false
-            }
-            val now = System.currentTimeMillis()
-            if (shouldSuppressRemoteEcho(text)) {
-                updateClipboardDiagnostic(source, "当前剪贴板仍是远端写入内容，已阻止回环发送")
-                return false
-            }
-            if (text == lastObservedLocalText) {
-                updateClipboardDiagnostic(source, "检测到的文本与上次一致，已忽略重复内容")
-                return false
-            }
-            if (isRecentlyPublishedText(text, now)) {
-                updateClipboardDiagnostic(source, "短时间内已发送过相同文本，已跳过")
-                return false
-            }
-            lastObservedLocalText = text
-            if (text == lastPublishedText && now - lastPublishedAt < 2_000) {
-                updateClipboardDiagnostic(source, "短时间内检测到重复发布，已跳过")
-                return false
-            }
-            return publishTextToServer(text, now, "已通过 Shizuku 读取系统剪贴板并推送到服务端", "shizuku-$source")
-        }
         val clip = runCatching { clipboardManager.primaryClip }.getOrNull()
         if (clip == null) {
             updateClipboardDiagnostic(source, "系统当前没有可读取的剪贴板内容")
@@ -584,10 +553,6 @@ class SyncService : Service() {
 
     private fun readCurrentClipboardText(): String {
         refreshConfig()
-        if (::config.isInitialized && config.clipboardMode == SettingsStore.CLIPBOARD_MODE_SHIZUKU) {
-            val result = ShizukuClipboardReader.readText(this)
-            return if (result.success) result.text.trim() else ""
-        }
         val clip = runCatching { clipboardManager.primaryClip }.getOrNull() ?: return ""
         if (clip.itemCount <= 0) return ""
         return clip.getItemAt(0).coerceToText(this)?.toString().orEmpty().trim()
