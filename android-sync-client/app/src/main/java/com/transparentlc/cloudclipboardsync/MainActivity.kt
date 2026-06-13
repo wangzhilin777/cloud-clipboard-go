@@ -1211,7 +1211,7 @@ class MainActivity : AppCompatActivity() {
                     readyItems += "仅兼容旧配置保留"
                 } else {
                     pendingItems += "旧配置仍指向无障碍辅助能力，需要先开启无障碍服务"
-                    pendingItems += "建议改用前台服务、显式发送或悬浮窗模式"
+                    pendingItems += "建议改用前台服务、原键盘发送或悬浮窗模式"
                 }
             }
 
@@ -1231,7 +1231,7 @@ class MainActivity : AppCompatActivity() {
                     else -> {
                         readyItems += "Shizuku 已授权${status.shizukuUid?.let { "（UID $it）" }.orEmpty()}"
                         readyItems += "已纳入系统授权与剪贴板 AppOps 诊断"
-                        pendingItems += "建议改用前台服务、显式发送或悬浮窗模式"
+                        pendingItems += "建议改用前台服务、原键盘发送或悬浮窗模式"
                     }
                 }
             }
@@ -1298,7 +1298,7 @@ class MainActivity : AppCompatActivity() {
         val hintLine = if (!status.notificationsEnabled) {
             "补充提示：建议把通知权限也打开，方便看前台服务状态和发送结果。"
         } else {
-            "补充提示：这条显式发送能力会一直保留，作为不替换原键盘时的通用兜底。"
+            "补充提示：这条原键盘发送能力会一直保留，作为不替换默认输入法时的通用兜底。"
         }
         return "$modeLine\n$clipboardLine\n$routeLine\n$hintLine"
     }
@@ -1353,7 +1353,7 @@ class MainActivity : AppCompatActivity() {
             if (status.accessibilityEnabled) {
                 "当前模式：无障碍辅助能力（兼容旧配置）\n启动状态：可直接启动同步\n授权状态：${status.accessibilityDetail}\n系统限制：${clipboardRestrictionSummary()}\n说明：除了系统剪贴板回调，还会在界面交互时主动触发补检查；但这条路线现在只作为兼容旧配置与辅助授权保留，不再作为正式推荐主模式。"
             } else {
-                "当前模式：无障碍辅助能力（兼容旧配置）\n启动状态：需要处理\n原因：${validation.message}\n系统限制：${clipboardRestrictionSummary()}\n说明：这条路线只作为兼容旧配置与辅助授权保留，不再作为正式推荐主模式；建议改用前台服务、显式发送或悬浮窗模式。"
+                "当前模式：无障碍辅助能力（兼容旧配置）\n启动状态：需要处理\n原因：${validation.message}\n系统限制：${clipboardRestrictionSummary()}\n说明：这条路线只作为兼容旧配置与辅助授权保留，不再作为正式推荐主模式；建议改用前台服务、原键盘发送或悬浮窗模式。"
             }
         }
 
@@ -1362,7 +1362,7 @@ class MainActivity : AppCompatActivity() {
                 !status.shizukuInstalled -> "当前模式：Shizuku\n启动状态：需要处理\n原因：${validation.message}\n系统限制：${clipboardRestrictionSummary()}\n说明：先安装 Shizuku，再用 root 或 adb 启动服务。"
                 !status.shizukuRunning -> "当前模式：Shizuku\n启动状态：需要处理\n原因：${validation.message}\n系统限制：${clipboardRestrictionSummary()}\n说明：当前已安装 Shizuku，但服务还没运行；root 启动后回到这里刷新状态。"
                 !status.shizukuPermissionGranted -> "当前模式：Shizuku\n启动状态：需要处理\n原因：${validation.message}\n系统限制：${clipboardRestrictionSummary()}\n说明：Shizuku 服务已运行，点快捷处理按钮授权云剪同步。"
-                else -> "当前模式：Shizuku 辅助诊断\n启动状态：可直接启动同步\n系统限制：${clipboardRestrictionSummary()}\nAppOps：读取 ${PermissionStatusHelper.clipboardAppOpLabel(status.clipboardReadAppOp)} / 写入 ${PermissionStatusHelper.clipboardAppOpLabel(status.clipboardWriteAppOp)}\n说明：Shizuku 已授权${status.shizukuUid?.let { "（UID $it）" }.orEmpty()}；${PermissionStatusHelper.clipboardReadRestrictionLabel(status.clipboardReadAppOp)}当前只作为系统授权和剪贴板 AppOps 诊断辅助，不再额外轮询系统剪贴板，也不承诺绕过后台剪贴板限制。正式推荐模式请改用前台服务、显式发送或悬浮窗。"
+                else -> "当前模式：Shizuku 辅助诊断\n启动状态：可直接启动同步\n系统限制：${clipboardRestrictionSummary()}\nAppOps：读取 ${PermissionStatusHelper.clipboardAppOpLabel(status.clipboardReadAppOp)} / 写入 ${PermissionStatusHelper.clipboardAppOpLabel(status.clipboardWriteAppOp)}\n说明：Shizuku 已授权${status.shizukuUid?.let { "（UID $it）" }.orEmpty()}；${PermissionStatusHelper.clipboardReadRestrictionLabel(status.clipboardReadAppOp)}当前只作为系统授权和剪贴板 AppOps 诊断辅助，不再额外轮询系统剪贴板，也不承诺绕过后台剪贴板限制。正式推荐模式请改用前台服务、原键盘发送或悬浮窗。"
             }
         }
 
@@ -1385,7 +1385,7 @@ class MainActivity : AppCompatActivity() {
             } else {
                 "通知策略：前台服务提示链路已就绪。"
             }
-            "当前模式：前台服务\n启动状态：可直接启动同步\n系统限制：${clipboardRestrictionSummary()}\n$batteryLine\n$notificationLine\n说明：这是当前默认、最省心的正式模式；如果后台复制经常丢失，优先改用显式发送或悬浮窗模式做兜底。"
+            "当前模式：前台服务\n启动状态：可直接启动同步\n系统限制：${clipboardRestrictionSummary()}\n$batteryLine\n$notificationLine\n说明：这是当前默认、最省心的正式模式；如果后台复制经常丢失，优先改用原键盘发送或悬浮窗模式做兜底。"
         }
     }
 
@@ -1459,16 +1459,16 @@ class MainActivity : AppCompatActivity() {
 
         val nextStep = when {
             config.clipboardMode == SettingsStore.CLIPBOARD_MODE_SHIZUKU && status.shizukuPermissionGranted ->
-                "下一步：可以启动同步并做一次前台/后台复制对照；如果后台复制仍没回传，这是系统限制下的预期现象，正式使用请优先改用前台服务、显式发送或悬浮窗模式。"
+                "下一步：可以启动同步并做一次前台/后台复制对照；如果后台复制仍没回传，这是系统限制下的预期现象，正式使用请优先改用前台服务、原键盘发送或悬浮窗模式。"
             config.clipboardMode == SettingsStore.CLIPBOARD_MODE_SHIZUKU ->
-                "下一步：先启动 Shizuku 服务并完成授权；如果要继续日常同步，正式推荐仍是前台服务、显式发送或悬浮窗模式。"
+                "下一步：先启动 Shizuku 服务并完成授权；如果要继续日常同步，正式推荐仍是前台服务、原键盘发送或悬浮窗模式。"
             config.clipboardMode == SettingsStore.CLIPBOARD_MODE_FLOATING && status.overlayEnabled ->
                 "下一步：保持当前模式，后续继续结合悬浮助手入口做联调；当前先确认悬浮窗权限和通知链路正常。"
             config.clipboardMode == SettingsStore.CLIPBOARD_MODE_FLOATING ->
                 "下一步：先补开悬浮窗权限，再继续联调复制后快速发送助手入口。"
             !validation.ready -> "下一步：先点上面的快捷处理按钮补齐当前模式所需授权。"
             config.clipboardMode == SettingsStore.CLIPBOARD_MODE_FOREGROUND && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q ->
-                "下一步：先做一次前台复制和一次后台复制；如果后台经常没回传，优先改用显式发送或悬浮窗模式做兜底。"
+                "下一步：先做一次前台复制和一次后台复制；如果后台经常没回传，优先改用原键盘发送或悬浮窗模式做兜底。"
             config.clipboardMode == SettingsStore.CLIPBOARD_MODE_ACCESSIBILITY && !status.batteryOptimizationIgnored ->
                 "下一步：补开忽略电池优化，再测一次锁屏或切后台后的复制回传。"
             config.clipboardMode == SettingsStore.CLIPBOARD_MODE_ACCESSIBILITY && shouldSuggestVendorBackgroundSettings() ->
@@ -1514,7 +1514,7 @@ class MainActivity : AppCompatActivity() {
 
             else -> when {
                 status.accessibilityEnabled ->
-                    "当前监听策略：主通道仍是前台服务；当前设备上无障碍辅助能力也已就绪，但正式推荐的兜底路线优先是显式发送或悬浮窗模式。"
+                    "当前监听策略：主通道仍是前台服务；当前设备上无障碍辅助能力也已就绪，但正式推荐的兜底路线优先是原键盘发送或悬浮窗模式。"
                 else ->
                     "当前监听策略：当前只依赖系统剪贴板回调和轮询，Android 10 以上后台限制会更明显。"
             }
@@ -1522,14 +1522,14 @@ class MainActivity : AppCompatActivity() {
 
         val nextStepLine = when {
             config.clipboardMode == SettingsStore.CLIPBOARD_MODE_SHIZUKU && status.shizukuPermissionGranted ->
-                "下一步建议：Shizuku 授权已经通过，可以启动同步并观察最近结果；如果后台复制仍没回传，正式使用请优先改用前台服务、显式发送或悬浮窗模式。"
+                "下一步建议：Shizuku 授权已经通过，可以启动同步并观察最近结果；如果后台复制仍没回传，正式使用请优先改用前台服务、原键盘发送或悬浮窗模式。"
             config.clipboardMode == SettingsStore.CLIPBOARD_MODE_SHIZUKU ->
-                "下一步建议：先启动 Shizuku 服务并完成授权；日常同步正式推荐仍是前台服务、显式发送或悬浮窗模式。"
+                "下一步建议：先启动 Shizuku 服务并完成授权；日常同步正式推荐仍是前台服务、原键盘发送或悬浮窗模式。"
             config.clipboardMode == SettingsStore.CLIPBOARD_MODE_FLOATING && !status.overlayEnabled ->
                 "下一步建议：先补开悬浮窗权限，再继续联调复制后快速发送助手。"
             !validation.ready -> "下一步建议：先按上面的模式引导补齐授权，再重新启动同步。"
             config.clipboardMode == SettingsStore.CLIPBOARD_MODE_FOREGROUND && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q ->
-                "下一步建议：如果后台复制还是经常没有回传，优先改用显式发送或悬浮窗模式。"
+                "下一步建议：如果后台复制还是经常没有回传，优先改用原键盘发送或悬浮窗模式。"
             config.clipboardMode == SettingsStore.CLIPBOARD_MODE_ACCESSIBILITY && !status.accessibilityEnabled ->
                 "下一步建议：打开无障碍后再试一次后台复制。"
             latestClipboardRoute.startsWith("skip-") ->
@@ -1608,7 +1608,7 @@ class MainActivity : AppCompatActivity() {
                 if (!status.accessibilityEnabled) {
                     blockers += "历史配置仍停在无障碍辅助能力，但系统无障碍服务还没开启。"
                 } else {
-                    suggestions += "当前只是兼容旧配置保留的无障碍辅助能力；正式推荐模式请改用前台服务、显式发送或悬浮窗。"
+                    suggestions += "当前只是兼容旧配置保留的无障碍辅助能力；正式推荐模式请改用前台服务、原键盘发送或悬浮窗。"
                 }
             }
 
@@ -1617,7 +1617,7 @@ class MainActivity : AppCompatActivity() {
                     !status.shizukuInstalled -> blockers += "当前仍落在 Shizuku 辅助诊断链路，但设备还没有安装 Shizuku。"
                     !status.shizukuRunning -> blockers += "当前仍落在 Shizuku 辅助诊断链路，但 Shizuku 服务还没运行。"
                     !status.shizukuPermissionGranted -> blockers += "当前仍落在 Shizuku 辅助诊断链路，但云剪同步还没有获得 Shizuku 授权。"
-                    else -> suggestions += "Shizuku 已授权；当前只作为系统授权与剪贴板 AppOps 诊断辅助保留，正式推荐模式请改用前台服务、显式发送或悬浮窗。"
+                    else -> suggestions += "Shizuku 已授权；当前只作为系统授权与剪贴板 AppOps 诊断辅助保留，正式推荐模式请改用前台服务、原键盘发送或悬浮窗。"
                 }
             }
 
@@ -1641,10 +1641,10 @@ class MainActivity : AppCompatActivity() {
             suggestions += "已启用悬浮确认，但系统还没允许悬浮窗显示，图片/文件会回退到通知确认。"
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && config.clipboardMode == SettingsStore.CLIPBOARD_MODE_FOREGROUND) {
-            suggestions += "Android 10 及以上系统会明显收紧后台剪贴板读取；如果你主要依赖后台复制回传，建议优先改用显式发送或悬浮窗模式。"
+            suggestions += "Android 10 及以上系统会明显收紧后台剪贴板读取；如果你主要依赖后台复制回传，建议优先改用原键盘发送或悬浮窗模式。"
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE && config.clipboardMode == SettingsStore.CLIPBOARD_MODE_FOREGROUND) {
-            suggestions += "Android 14 及以上系统对后台读取剪贴板更严格，前台服务模式更适合前台使用；需要更稳的兜底发送时，建议改用显式发送或悬浮窗模式。"
+            suggestions += "Android 14 及以上系统对后台读取剪贴板更严格，前台服务模式更适合前台使用；需要更稳的兜底发送时，建议改用原键盘发送或悬浮窗模式。"
         }
         if (!status.shizukuInstalled) {
             suggestions += "如需查看系统授权与剪贴板 AppOps 诊断信息，可按需安装 Shizuku；日常同步不再依赖它。"

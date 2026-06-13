@@ -24,7 +24,7 @@ object ClipboardModeSupportHelper {
                     canStart = false,
                     readyMessage = "",
                     blockedMessage = context.getString(R.string.runtime_mode_accessibility_blocked),
-                    implementationSummary = "无障碍当前只作为兼容旧配置时的辅助能力保留；若历史配置仍落在这里，需要先开启系统无障碍服务。正式推荐模式请改用前台服务、显式发送或悬浮窗。",
+                    implementationSummary = "无障碍当前只作为兼容旧配置时的辅助能力保留；若历史配置仍落在这里，需要先开启系统无障碍服务。正式推荐模式请改用前台服务、原键盘发送或悬浮窗。",
                 )
             }
         }
