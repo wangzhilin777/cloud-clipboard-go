@@ -80,7 +80,7 @@ class FloatingClipboardOverlayService : Service() {
                 route = SettingsStore.CLIPBOARD_MODE_FLOATING,
                 onStatus = { message ->
                     statusText.text = message
-                    updateStatusBadge(statusText, message == getString(R.string.clipboard_ime_sent))
+                    updateStatusBadge(statusText, message == getString(R.string.manual_clipboard_sent))
                 },
             )
             if (sent) {
@@ -124,7 +124,7 @@ class FloatingClipboardOverlayService : Service() {
     private fun bindClipboardPreview(statusText: TextView, previewText: TextView, hintText: TextView) {
         val clipboardText = ManualClipboardSender.readCurrentClipboardText(this)
         if (clipboardText.isBlank()) {
-            statusText.text = getString(R.string.clipboard_ime_empty_clipboard)
+            statusText.text = getString(R.string.manual_clipboard_empty_clipboard)
             updateStatusBadge(statusText, false)
             previewText.text = getString(R.string.floating_clipboard_preview_empty)
             hintText.text = getString(R.string.floating_clipboard_hint_empty)

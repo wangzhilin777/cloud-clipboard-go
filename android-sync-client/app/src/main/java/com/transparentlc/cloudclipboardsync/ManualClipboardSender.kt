@@ -23,7 +23,7 @@ object ManualClipboardSender {
         val text = readCurrentClipboardText(context)
         if (text.isBlank()) {
             return ClipboardPreview(
-                text = context.getString(R.string.clipboard_ime_preview_empty),
+                text = context.getString(R.string.manual_clipboard_preview_empty),
                 empty = true,
             )
         }
@@ -43,11 +43,11 @@ object ManualClipboardSender {
     ): Boolean {
         val text = readCurrentClipboardText(context)
         if (text.isBlank()) {
-            onStatus(context.getString(R.string.clipboard_ime_empty_clipboard))
+            onStatus(context.getString(R.string.manual_clipboard_empty_clipboard))
             return false
         }
         SyncService.sendManualText(context, text, route)
-        onStatus(context.getString(R.string.clipboard_ime_sent))
+        onStatus(context.getString(R.string.manual_clipboard_sent))
         return true
     }
 

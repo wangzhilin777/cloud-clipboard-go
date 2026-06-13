@@ -922,13 +922,6 @@ class MainActivity : AppCompatActivity() {
                 }
             }
 
-            SettingsStore.CLIPBOARD_MODE_IME -> {
-                when {
-                    !status.notificationsEnabled -> openNotificationSettings()
-                    else -> Toast.makeText(this, R.string.runtime_mode_action_ime_ready_toast, Toast.LENGTH_LONG).show()
-                }
-            }
-
             SettingsStore.CLIPBOARD_MODE_FLOATING -> {
                 when {
                     !status.overlayEnabled -> openOverlaySettings()
@@ -963,7 +956,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showExplicitSendGuide() {
-        Toast.makeText(this, R.string.runtime_mode_action_ime_ready_toast, Toast.LENGTH_LONG).show()
+        Toast.makeText(this, R.string.runtime_explicit_send_guide_toast, Toast.LENGTH_LONG).show()
     }
 
     private fun handleClipboardTroubleshootAction() {
@@ -1007,10 +1000,6 @@ class MainActivity : AppCompatActivity() {
         when (action) {
             RuntimeModeAction.OPEN_ACCESSIBILITY -> {
                 startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
-            }
-
-            RuntimeModeAction.SHOW_EXPLICIT_SEND_GUIDE -> {
-                showExplicitSendGuide()
             }
 
             RuntimeModeAction.OPEN_FLOATING -> {
