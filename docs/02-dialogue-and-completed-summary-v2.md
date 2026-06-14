@@ -163,39 +163,53 @@
 - ✅ **悬浮窗权限确认**：SYSTEM_ALERT_WINDOW 已授权
 - ✅ **设备房间配置**：Android 和 Windows 都配置为 "default" 房间
 
-### 同步链路验证
-- ✅ **Android → 服务端**：手动发送测试成功（text: "rry"，messageId: e9135b93-...）
-- ✅ **Windows → 服务端**：自动同步测试成功（text: "android-windows-sync-test-032326"）
-- ✅ **服务端消息存储**：bootstrap API 可正常查询 recentMessages（共53+条历史消息）
-- ✅ **Android WebSocket 连接**：onOpen code=101，连接成功
-- ✅ **设备在线状态**：Android 设备在服务端显示 online=true, trusted=true
-- ⚠️ **Windows → Android 接收异常**：消息已到达服务端并保存，但 Android 未收到 clipboardSync 事件
+### 真机功能验证结果
+
+**测试环境：** Redmi K50 Ultra (Android 13), Windows 10
+
+#### ✅ 双向同步验证
+1. **Windows → Android**：✅ 完全正常
+   - Windows 复制文本后，Android 剪贴板自动同步
+   - 虽无通知提示，但内容已到达
+   - 验证：Android App 显示剪贴板内容 `auto-verify-clipboard-sync-083222`
+
+2. **Android → Windows**：✅ 完全正常
+   - Android 手动发送后，Windows 成功接收
+   - Windows 客户端日志显示"文本已提交到同步服务"
+
+#### ⚠️ floating 悬浮窗模式
+- **前台复制**：✅ 悬浮窗正常弹出
+- **后台复制**：❌ 悬浮窗不弹出
+- **原因**：Android 13+ 系统限制后台应用访问剪贴板
+
+#### ⚠️ ime_background 后台同步模式
+- **前台复制**：✅ 可以直接自动发送
+- **后台复制**：❌ 需要切换到 App 才触发发送
+- **原因**：同上，系统安全限制
+
+#### 📋 Android 13+ 剪贴板限制说明
+从 Android 13 开始，系统禁止后台应用访问剪贴板（privacy 特性）。
+这是**系统级限制，非代码 bug**。
+
+**现有解决方案：**
+1. 保持 App 在前台或最近使用（切回触发）
+2. 使用 Shizuku 提权绕过限制（需要额外配置）
+3. 前台服务保活 + 轮询检测（当前实现）
+
+**对比同类产品：**
+用户提供的参考 APK（局域网同步-Android-0.2.46.apk）也未使用 Shizuku，
+说明其同样受此限制。这是所有非提权方案的共同约束。
 
 ### WebSocket 广播问题排查
-**现象：** Windows 通过 WebSocket 发送 `clipboardPublish` 后，服务端调用 `Broadcast(session.Room, session.DeviceID, true, ...)` 广播 `clipboardSync` 事件，但 Android 端没有触发 `onMessage` 回调。
+**现象：** 之前自动化测试中，Windows 通过 WebSocket 发送后，Android 端未收到 clipboardSync 事件。
+
+**实际情况：** 人工测试证实同步**正常工作**。自动化测试中未能验证 Android 剪贴板内容，导致误判。
 
 **已验证：**
 1. Android WebSocket 已连接（ws://192.168.31.236:9501/sync/ws?room=default）
 2. Android 在服务端显示 online + trusted
-3. 服务端广播代码逻辑正确（sync_handlers.go:675-678）
-
-**可能原因：**
-- WebSocket session 的 `session.Trusted` 标志在握手后未正确设置
-- `Broadcast` 函数中 `trustedOnly=true` 过滤掉了 Android session（sync.go:822-823）
-- 需要检查服务端 `helloAck` 握手逻辑，确认 Trusted 标志是否传递到 session
-
-**建议：**
-- 添加服务端日志，输出 Broadcast 时的 targets 列表
-- 或在 Android 端添加心跳/ping 机制，确认 WebSocket 持续活跃
-- 人工测试：在 Windows 复制文本后，检查 Android App 的日志页面是否有记录
-
-### Android floating 模式测试准备
-- ✅ **运行模式确认**：真机当前运行 floating（原键盘悬浮发送）模式
-- ✅ **服务状态确认**：SyncService 前台服务运行正常（isForeground=true）
-- ✅ **无障碍服务启用**：已通过 adb 启用云剪同步的无障碍服务
-- ✅ **悬浮窗权限确认**：SYSTEM_ALERT_WINDOW 已授权
-- ✅ **设备房间配置**：Android 和 Windows 都配置为 "default" 房间
-- ⚠️ **floating 自动触发**：UI 自动化复制操作复杂，建议人工在真实应用（Chrome/微信/QQ）中测试
+3. 服务端广播逻辑正确（sync_handlers.go:675-678）
+4. **Windows → Android 剪贴板同步正常**
 
 ## 当前待继续推进
 
