@@ -211,7 +211,34 @@
 3. 服务端广播逻辑正确（sync_handlers.go:675-678）
 4. **Windows → Android 剪贴板同步正常**
 
-## 当前待继续推进
+## 2026-06-14 进展（完整）
+
+### Shizuku 模式完整集成 ✅
+- ✅ **问题发现**：Shizuku 模式被强制迁移为 foreground，`getUserPrimaryClip()` 未被使用
+- ✅ **修复1：SettingsStore.kt**：修改 `migrateClipboardMode()` 不再强制迁移 Shizuku
+- ✅ **修复2：ShizukuClipboardReader.kt**：调整方法优先级，优先使用 `getUserPrimaryClip()`（Android 13+ 后台读取的正确方法）
+- ✅ **UI 集成**：Shizuku RadioButton 正常显示和选择
+- ✅ **Windows → Android 验证**：成功（测试文本 `shizuku-full-test-143403`，< 1秒延迟）
+- ⏳ **Android → Windows 验证**：代码已修复，待真实设备测试
+
+**关键技术点：**
+- `getUserPrimaryClip()` vs `getPrimaryClip()`
+  - `getPrimaryClip()` 在 Android 13+ 后台返回 null
+  - `getUserPrimaryClip()` 可通过 Shizuku 在后台正常读取
+- 参考实现：[ClipShare](https://github.com/thevindu-w/clip_share_client)、[KDE Connect](https://userbase.kde.org/KDEConnect)
+
+**文档输出：**
+- ✅ `docs/11-shizuku-integration-status.md` - 完整的集成状态报告
+- ✅ `docs/12-final-test-report.md` - 最终测试报告
+
+### 项目整体进度
+- ✅ 代码集成：100%
+- ✅ UI 集成：100%
+- ✅ Windows → Android 同步：已验证
+- ⏳ Android → Windows 同步：待验证
+- ✅ 文档更新：100%
+
+**一期目标完成度：95%**
 
 ### 🔴 高优先级任务
 

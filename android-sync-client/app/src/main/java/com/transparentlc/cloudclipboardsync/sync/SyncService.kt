@@ -68,8 +68,11 @@ class SyncService : Service() {
 
     private val clipboardPollRunnable = object : Runnable {
         override fun run() {
+            android.util.Log.d("SyncService", "clipboardPollRunnable triggered, mode=${config.clipboardMode}")
             if (config.clipboardMode == SettingsStore.CLIPBOARD_MODE_FOREGROUND ||
-                config.clipboardMode == SettingsStore.CLIPBOARD_MODE_IME_BACKGROUND) {
+                config.clipboardMode == SettingsStore.CLIPBOARD_MODE_IME_BACKGROUND ||
+                config.clipboardMode == SettingsStore.CLIPBOARD_MODE_SHIZUKU) {
+                android.util.Log.d("SyncService", "calling publishLocalClipboardIfNeeded from poll")
                 publishLocalClipboardIfNeeded("poll")
             }
             handler.postDelayed(this, clipboardPollIntervalMs)
@@ -321,7 +324,9 @@ class SyncService : Service() {
     }
 
     private fun publishLocalClipboardIfNeeded(source: String): Boolean {
+        android.util.Log.d("SyncService", "publishLocalClipboardIfNeeded called from source=$source")
         refreshConfig()
+        android.util.Log.d("SyncService", "applyingRemoteText=$applyingRemoteText trusted=$trusted")
         if (applyingRemoteText) {
             updateClipboardDiagnostic("skip-$source", "刚完成远端文本写回，已跳过本次本地回传，避免自激同步")
             return false
@@ -330,7 +335,29 @@ class SyncService : Service() {
             updateClipboardDiagnostic("skip-$source", "设备尚未获批准，已跳过本次本地剪贴板处理")
             return false
         }
+
+        // Shizuku 模式：使用 ShizukuClipboardReader 读取剪贴板
+        if (config.clipboardMode == SettingsStore.CLIPBOARD_MODE_SHIZUKU) {
+            android.util.Log.d("SyncService", "using ShizukuClipboardReader to read clipboard")
+            val result = ShizukuClipboardReader.readText(this)
+            if (!result.success) {
+                android.util.Log.d("SyncService", "ShizukuClipboardReader failed: ${result.detail}")
+                updateClipboardDiagnostic(source, "Shizuku 读取失败：${result.detail}")
+                return false
+            }
+            val text = result.text.trim()
+            android.util.Log.d("SyncService", "ShizukuClipboardReader success: text length=${text.length}")
+            if (text.isBlank()) {
+                updateClipboardDiagnostic(source, "Shizuku 读取到空文本，已跳过")
+                return false
+            }
+            return handleClipboardText(text, source)
+        }
+
+        // 标准模式：使用 ClipboardManager 读取剪贴板
+        android.util.Log.d("SyncService", "attempting to read primaryClip")
         val clip = runCatching { clipboardManager.primaryClip }.getOrNull()
+        android.util.Log.d("SyncService", "primaryClip result: clip=$clip itemCount=${clip?.itemCount}")
         if (clip == null) {
             updateClipboardDiagnostic(source, "系统当前没有可读取的剪贴板内容")
             if (shouldUseAccessibilitySnapshotFallback(source)) {
@@ -353,6 +380,10 @@ class SyncService : Service() {
             }
             return false
         }
+        return handleClipboardText(text, source)
+    }
+
+    private fun handleClipboardText(text: String, source: String): Boolean {
         val now = System.currentTimeMillis()
         if (shouldSuppressRemoteEcho(text)) {
             updateClipboardDiagnostic(source, "当前剪贴板仍是远端写入内容，已阻止回环发送")

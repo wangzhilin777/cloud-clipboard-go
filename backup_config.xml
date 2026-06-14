@@ -1,0 +1,23 @@
+<?xml version='1.0' encoding='utf-8' standalone='yes' ?>
+<map>
+    <boolean name="auto_connect_enabled" value="true" />
+    <string name="room_password"></string>
+    <int name="floating_snooze_minutes" value="10" />
+    <int name="floating_height_dp" value="110" />
+    <string name="device_id">421a220e-4448-4ef7-876a-a899f4d6d18f</string>
+    <string name="clipboard_mode">shizuku</string>
+    <boolean name="start_on_boot_enabled" value="false" />
+    <boolean name="floating_enabled" value="true" />
+    <boolean name="remove_task_from_recents" value="false" />
+    <string name="last_desired_running_state">stopped</string>
+    <string name="server_base"></string>
+    <string name="room"></string>
+    <string name="device_name">Redmi K50 Ultra</string>
+    <int name="floating_width_dp" value="280" />
+    <int name="cache_retention_hours" value="24" />
+    <boolean name="close_activity_after_start" value="false" />
+    <int name="floating_pos_x" value="48" />
+    <int name="floating_pos_y" value="220" />
+    <int name="floating_show_seconds" value="20" />
+    <boolean name="floating_compact_enabled" value="true" />
+</map>

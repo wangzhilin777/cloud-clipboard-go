@@ -77,6 +77,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var clipboardModeForeground: RadioButton
     private lateinit var clipboardModeFloating: RadioButton
     private lateinit var clipboardModeImeBackground: RadioButton
+    private lateinit var clipboardModeShizuku: RadioButton
     private lateinit var autoConnectSwitch: CheckBox
     private lateinit var startOnBootSwitch: CheckBox
     private lateinit var closeAfterStartSwitch: CheckBox
@@ -205,6 +206,7 @@ class MainActivity : AppCompatActivity() {
         clipboardModeForeground = findViewById(R.id.clipboardModeForeground)
         clipboardModeFloating = findViewById(R.id.clipboardModeFloating)
         clipboardModeImeBackground = findViewById(R.id.clipboardModeImeBackground)
+        clipboardModeShizuku = findViewById(R.id.clipboardModeShizuku)
         autoConnectSwitch = findViewById(R.id.autoConnectSwitch)
         startOnBootSwitch = findViewById(R.id.startOnBootSwitch)
         closeAfterStartSwitch = findViewById(R.id.closeAfterStartSwitch)
@@ -498,6 +500,7 @@ class MainActivity : AppCompatActivity() {
         when (config.clipboardMode) {
             SettingsStore.CLIPBOARD_MODE_FLOATING -> clipboardModeFloating.isChecked = true
             SettingsStore.CLIPBOARD_MODE_IME_BACKGROUND -> clipboardModeImeBackground.isChecked = true
+            SettingsStore.CLIPBOARD_MODE_SHIZUKU -> clipboardModeShizuku.isChecked = true
             else -> clipboardModeForeground.isChecked = true
         }
         autoConnectSwitch.isChecked = config.autoConnectEnabled
@@ -622,6 +625,7 @@ class MainActivity : AppCompatActivity() {
     private fun selectedClipboardMode(): String = when (clipboardModeGroup.checkedRadioButtonId) {
         R.id.clipboardModeFloating -> SettingsStore.CLIPBOARD_MODE_FLOATING
         R.id.clipboardModeImeBackground -> SettingsStore.CLIPBOARD_MODE_IME_BACKGROUND
+        R.id.clipboardModeShizuku -> SettingsStore.CLIPBOARD_MODE_SHIZUKU
         else -> SettingsStore.CLIPBOARD_MODE_FOREGROUND
     }
 

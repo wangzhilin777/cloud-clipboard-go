@@ -216,9 +216,10 @@ object ShizukuClipboardReader {
     }
 
     private fun methodNamePriority(name: String): Int = when (name) {
-        "getPrimaryClip" -> 0
-        "getPrimaryClipAsPackage" -> 1
-        else -> 2
+        "getUserPrimaryClip" -> 0  // Android 13+ 后台读取的正确方法
+        "getPrimaryClip" -> 1
+        "getPrimaryClipAsPackage" -> 2
+        else -> 3
     }
 
     private fun methodPenaltyScore(method: Method): Int {

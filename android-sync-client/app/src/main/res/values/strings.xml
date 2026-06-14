@@ -67,7 +67,8 @@
     <string name="clipboard_mode_foreground">前台服务模式（最省事，但后台限制最明显）</string>
     <string name="clipboard_mode_floating">悬浮窗模式（复制后快速发送助手）</string>
     <string name="clipboard_mode_ime_background">原键盘后台发送（启用输入法权限后自动获取后台剪贴板，不需切换默认键盘）</string>
-    <string name="clipboard_mode_migrated_to_foreground">检测到历史模式“%1$s”已自动迁移到前台服务模式；当前正式入口只保留前台服务和悬浮窗，文本兜底请使用原键盘发送卡片、系统分享或选中文本处理。</string>
+    <string name="clipboard_mode_shizuku">Shizuku 后台模式（系统级权限，真正的后台自动同步）</string>
+    <string name="clipboard_mode_migrated_to_foreground">检测到历史模式"%1$s"已自动迁移到前台服务模式；当前正式入口只保留前台服务和悬浮窗，文本兜底请使用原键盘发送卡片、系统分享或选中文本处理。</string>
     <string name="clipboard_mode_legacy_accessibility">无障碍辅助（历史兼容）</string>
     <string name="clipboard_mode_legacy_shizuku">Shizuku 诊断（历史兼容）</string>
     <string name="clipboard_mode_legacy_ime">旧专用输入助手（探索残留）</string>

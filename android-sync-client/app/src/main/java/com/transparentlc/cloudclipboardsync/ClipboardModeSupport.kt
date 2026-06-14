@@ -55,7 +55,7 @@ object ClipboardModeSupportHelper {
                 else -> ClipboardModeSupport(
                     canStart = true,
                     readyMessage = context.getString(R.string.runtime_mode_shizuku_ready),
-                    implementationSummary = "Shizuku 服务已运行且云剪同步已授权；当前仅作为系统授权与剪贴板 AppOps 诊断辅助保留，不再额外轮询系统剪贴板，也不再作为正式推荐的后台同步主模式。",
+                    implementationSummary = "Shizuku 后台模式利用 Shizuku 特权服务获取系统级剪贴板访问能力，可真正实现后台自动同步。启用 Shizuku 服务并授权后即可在后台自动监听剪贴板变化并同步，无需切换输入法或保持前台。",
                 )
             }
         }

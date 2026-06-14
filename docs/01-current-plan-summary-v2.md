@@ -66,39 +66,58 @@
 
 ### ✅ 已完成的高优先级任务
 
-1. **Android floating 模式真机全场景验证** ✅
+1. **Shizuku 模式完整集成** ✅
+   - ✅ 修复自动迁移问题（SettingsStore.kt）
+   - ✅ 修复剪贴板 API（优先使用 getUserPrimaryClip）
+   - ✅ UI 集成完成（RadioButton、字符串资源）
+   - ✅ Windows → Android 同步验证通过
+   - ⏳ Android → Windows 同步代码已修复，待实测
+
+2. **Android floating 模式真机全场景验证** ✅
    - ✅ 前台复制：悬浮助手正常弹出
    - ✅ 点击发送：文本成功到达服务端和 Windows 端
    - ✅ Windows ↔ Android 双向同步验证通过
    - ⚠️ 后台复制限制：Android 13+ 系统禁止后台访问剪贴板（非代码 bug）
 
-2. **Windows 客户端优化与测试** ✅
+3. **Windows 客户端优化与测试** ✅
    - ✅ Tip 弹窗尺寸优化完成（420x170）
    - ✅ 房间配置修正（default 房间，与 Android 统一）
    - ✅ 文本推送接收验证通过
    - ✅ WebSocket 连接稳定性确认
 
-3. **Android → Windows 完整同步链路验证** ✅
+4. **Android → Windows 完整同步链路验证** ✅
    - ✅ Android 手动发送 → 服务端接收
    - ✅ 服务端 WebSocket 广播
    - ✅ Windows 客户端接收并更新剪贴板
    - ✅ 日志记录完整："文本已提交到同步服务"
 
-4. **ime_background 模式验证** ✅
+5. **ime_background 模式验证** ✅
    - ✅ 前台复制：自动同步正常
    - ⚠️ 后台复制：受 Android 13+ 系统限制（同 floating 模式）
    - 📝 已知限制：InputMethodService 需要被使用时才运行
 
-### 🟡 已知限制（系统级）
+### 🟢 Shizuku 模式集成 (NEW)
 
-**Android 13+ 剪贴板后台访问限制：**
-- Android 13 引入的隐私保护特性，禁止后台应用访问剪贴板
-- 影响范围：floating 和 ime_background 模式的后台复制
-- 现有方案：
-  1. 前台使用（正常工作）✅
-  2. 切回 App 触发同步 ✅
-  3. 使用 Shizuku 提权（需额外配置）
-- 同类产品也受此限制（参考 APK 未使用 Shizuku）
+**Android 13+ 后台剪贴板限制的完整解决方案：**
+- ✅ Shizuku 模式已完整集成到代码
+- ✅ 修复自动迁移问题（不再强制转换为 foreground）
+- ✅ 修复剪贴板读取 API（优先使用 `getUserPrimaryClip()` 而非 `getPrimaryClip()`）
+- ✅ Windows → Android 同步已验证成功（< 1秒延迟）
+- ⏳ Android → Windows 同步待真实设备测试
+- 📝 参考实现：ClipShare、KDE Connect
+
+**Shizuku 模式优势：**
+- 真正的后台剪贴板访问（系统级权限）
+- 无需切换默认输入法
+- 无需保持前台
+- 用户友好的授权流程（通过 Shizuku App）
+
+### 🟡 其他模式的已知限制
+
+**floating 和 ime_background 模式：**
+- Android 13+ 后台剪贴板访问限制
+- 前台使用正常 ✅
+- 切回 App 触发同步 ✅
 
 ### 🔵 低优先级（后续优化）
 

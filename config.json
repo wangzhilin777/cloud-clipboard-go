@@ -1,0 +1,33 @@
+{
+  "server": {
+    "host": [
+      "0.0.0.0"
+    ],
+    "port": 9501,
+    "prefix": "",
+    "history": 100,
+    "historyFile": "history.json",
+    "storageDir": "./uploads",
+    "auth": false,
+    "roomAuth": {},
+    "cert": "",
+    "key": "",
+    "roomList": false,
+    "roomCleanup": 3600
+  },
+  "text": {
+    "limit": 4096
+  },
+  "file": {
+    "expire": 3600,
+    "chunk": 1048576,
+    "limit": 268435456
+  },
+  "sync": {
+    "stateCleanup": 600,
+    "messageExpire": 86400,
+    "payloadExpire": 86400,
+    "pendingDeviceExpire": 604800,
+    "trustedDeviceExpire": 0
+  }
+}

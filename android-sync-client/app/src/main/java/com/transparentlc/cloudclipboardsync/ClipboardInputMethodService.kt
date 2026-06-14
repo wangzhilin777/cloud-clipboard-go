@@ -30,17 +30,24 @@ class ClipboardInputMethodService : InputMethodService() {
 
     private val clipboardListener = ClipboardManager.OnPrimaryClipChangedListener {
         // ime_background 模式：输入法后台自动监听剪贴板变化并同步
+        android.util.Log.d("ClipboardInputMethodService", "clipboardListener triggered")
         val config = SettingsStore.load(this)
+        android.util.Log.d("ClipboardInputMethodService", "clipboardMode=${config.clipboardMode}")
         if (config.clipboardMode == SettingsStore.CLIPBOARD_MODE_IME_BACKGROUND) {
+            android.util.Log.d("ClipboardInputMethodService", "mode is ime_background, checking service")
             if (SyncService.isRunning()) {
                 // 通知 SyncService 处理新的剪贴板内容
+                android.util.Log.d("ClipboardInputMethodService", "calling notifyImeClipboardChanged")
                 SyncService.notifyImeClipboardChanged(this)
+            } else {
+                android.util.Log.d("ClipboardInputMethodService", "SyncService not running")
             }
         }
     }
 
     override fun onCreate() {
         super.onCreate()
+        android.util.Log.d("ClipboardInputMethodService", "onCreate called, registering clipboard listener")
         // 注册剪贴板监听器，实现后台自动同步
         clipboardManager.addPrimaryClipChangedListener(clipboardListener)
     }
