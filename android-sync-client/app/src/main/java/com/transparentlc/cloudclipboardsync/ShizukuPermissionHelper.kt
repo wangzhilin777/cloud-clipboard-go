@@ -18,7 +18,10 @@ object ShizukuPermissionHelper {
     private const val PACKAGE_NAME = "moe.shizuku.privileged.api"
 
     fun read(context: Context): ShizukuPermissionState {
+        android.util.Log.w("ShizukuPermissionHelper", "=== 开始 Shizuku 状态诊断 ===")
+
         val installed = isPackageInstalled(context, PACKAGE_NAME)
+        android.util.Log.w("ShizukuPermissionHelper", "isPackageInstalled($PACKAGE_NAME) = $installed")
         if (!installed) {
             return ShizukuPermissionState(
                 installed = false,
@@ -29,7 +32,9 @@ object ShizukuPermissionHelper {
             )
         }
 
-        val running = runCatching { Shizuku.pingBinder() }.getOrDefault(false)
+        val pingResult = runCatching { Shizuku.pingBinder() }
+        val running = pingResult.getOrDefault(false)
+        android.util.Log.w("ShizukuPermissionHelper", "Shizuku.pingBinder() = $running, exception = ${pingResult.exceptionOrNull()?.message}")
         if (!running) {
             return ShizukuPermissionState(
                 installed = true,
@@ -40,11 +45,18 @@ object ShizukuPermissionHelper {
             )
         }
 
-        val granted = runCatching {
-            Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED
-        }.getOrDefault(false)
-        val uid = if (granted) runCatching { Shizuku.getUid() }.getOrNull() else null
-        return ShizukuPermissionState(
+        val permResult = runCatching {
+            Shizuku.checkSelfPermission()
+        }
+        val permValue = permResult.getOrNull()
+        val granted = permValue == PackageManager.PERMISSION_GRANTED
+        android.util.Log.w("ShizukuPermissionHelper", "Shizuku.checkSelfPermission() = $permValue (GRANTED=${PackageManager.PERMISSION_GRANTED}, DENIED=${PackageManager.PERMISSION_DENIED}), result = $granted, exception = ${permResult.exceptionOrNull()?.message}")
+
+        val uidResult = if (granted) runCatching { Shizuku.getUid() } else null
+        val uid = uidResult?.getOrNull()
+        android.util.Log.w("ShizukuPermissionHelper", "Shizuku.getUid() = $uid, exception = ${uidResult?.exceptionOrNull()?.message}")
+
+        val finalState = ShizukuPermissionState(
             installed = true,
             running = true,
             granted = granted,
@@ -55,6 +67,9 @@ object ShizukuPermissionHelper {
                 "Shizuku 服务已运行，云剪同步尚未授权"
             },
         )
+        android.util.Log.w("ShizukuPermissionHelper", "最终状态: $finalState")
+        android.util.Log.w("ShizukuPermissionHelper", "=== Shizuku 状态诊断完成 ===")
+        return finalState
     }
 
     fun requestPermission(): Boolean {
