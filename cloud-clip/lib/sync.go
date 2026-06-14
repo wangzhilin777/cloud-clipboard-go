@@ -474,6 +474,12 @@ func (h *SyncHub) MarkDeviceOnline(conn *websocket.Conn, room string, deviceID s
 	h.sessions[conn].Ready = true
 	h.sessions[conn].AuthToken = authToken
 
+	// 调试日志：输出 session 状态
+	if h.logger != nil {
+		h.logger.Printf("[MarkDeviceOnline] deviceID=%s room=%s trusted=%v ready=%v",
+			deviceID, room, h.sessions[conn].Trusted, h.sessions[conn].Ready)
+	}
+
 	key := h.deviceKey(room, deviceID)
 	if h.onlineByDevice[key] == nil {
 		h.onlineByDevice[key] = map[*websocket.Conn]bool{}
@@ -812,19 +818,39 @@ func (h *SyncHub) WriteJSON(w http.ResponseWriter, status int, payload interface
 func (h *SyncHub) Broadcast(room string, sourceDeviceID string, trustedOnly bool, message syncOutgoingEnvelope) {
 	h.mu.RLock()
 	targets := make([]*websocket.Conn, 0)
+	totalSessions := 0
+	filteredByReady := 0
+	filteredByRoom := 0
+	filteredBySource := 0
+	filteredByTrust := 0
+
 	for conn, session := range h.sessions {
-		if session == nil || !session.Ready || session.Room != normalizeSyncRoom(room) {
+		totalSessions++
+		if session == nil || !session.Ready {
+			filteredByReady++
+			continue
+		}
+		if session.Room != normalizeSyncRoom(room) {
+			filteredByRoom++
 			continue
 		}
 		if sourceDeviceID != "" && session.DeviceID == sourceDeviceID {
+			filteredBySource++
 			continue
 		}
 		if trustedOnly && !session.Trusted {
+			filteredByTrust++
 			continue
 		}
 		targets = append(targets, conn)
 	}
 	h.mu.RUnlock()
+
+	// 调试日志：输出广播统计
+	if h.logger != nil && message.Event == "clipboardSync" {
+		h.logger.Printf("[Broadcast] room=%s event=%s totalSessions=%d targets=%d (filteredByReady=%d, filteredByRoom=%d, filteredBySource=%d, filteredByTrust=%d)",
+			room, message.Event, totalSessions, len(targets), filteredByReady, filteredByRoom, filteredBySource, filteredByTrust)
+	}
 
 	for _, conn := range targets {
 		if err := conn.WriteJSON(message); err != nil {
