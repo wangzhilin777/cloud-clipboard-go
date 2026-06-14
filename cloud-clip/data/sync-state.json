@@ -1,0 +1,104 @@
+{
+  "devices": [
+    {
+      "deviceId": "c1c65d39-d744-455f-91e4-af08251148bc",
+      "name": "Redmi K50 Ultra",
+      "room": "default",
+      "platform": "android",
+      "clientType": "android-app",
+      "trusted": true,
+      "createdAt": 1781399295465,
+      "lastSeenAt": 1781400687091,
+      "status": "trusted"
+    },
+    {
+      "deviceId": "50a76ac6-d5cb-40dd-a5b2-5af4a06ccf9e",
+      "name": "WingLin",
+      "room": "default",
+      "platform": "desktop",
+      "clientType": "go",
+      "trusted": true,
+      "createdAt": 1781399586582,
+      "lastSeenAt": 1781399701700,
+      "status": "trusted",
+      "meta": {
+        "os": "desktop-go"
+      }
+    }
+  ],
+  "messages": [
+    {
+      "messageId": "a1d428f6-358f-4044-9f15-72c2a4c95bd4",
+      "sourceDeviceId": "50a76ac6-d5cb-40dd-a5b2-5af4a06ccf9e",
+      "room": "default",
+      "mime": "text/plain",
+      "text": "Update Todos",
+      "createdAt": 1781399903300
+    },
+    {
+      "messageId": "7b229161-fae1-47bf-aed7-06b3e189da81",
+      "sourceDeviceId": "50a76ac6-d5cb-40dd-a5b2-5af4a06ccf9e",
+      "room": "default",
+      "mime": "text/plain",
+      "text": "win2android-092103",
+      "createdAt": 1781400064100
+    },
+    {
+      "messageId": "c6d960f8-6f32-460f-bb57-a8a09acda54a",
+      "sourceDeviceId": "50a76ac6-d5cb-40dd-a5b2-5af4a06ccf9e",
+      "room": "default",
+      "mime": "text/plain",
+      "text": "debug-test-092145",
+      "createdAt": 1781400106500
+    },
+    {
+      "messageId": "3a0e93c9-d206-4305-833e-6177be84720b",
+      "sourceDeviceId": "50a76ac6-d5cb-40dd-a5b2-5af4a06ccf9e",
+      "room": "default",
+      "mime": "text/plain",
+      "text": "auto-test-092248",
+      "createdAt": 1781400169701
+    },
+    {
+      "messageId": "05baa6bb-4ef9-4748-8002-f488e56dde92",
+      "sourceDeviceId": "50a76ac6-d5cb-40dd-a5b2-5af4a06ccf9e",
+      "room": "default",
+      "mime": "text/plain",
+      "text": "final-test-092418",
+      "createdAt": 1781400259300
+    },
+    {
+      "messageId": "0a2bf7ff-7684-4bfb-93bc-e8377900bcaf",
+      "sourceDeviceId": "50a76ac6-d5cb-40dd-a5b2-5af4a06ccf9e",
+      "room": "default",
+      "mime": "text/plain",
+      "text": "debug-with-log-092908",
+      "createdAt": 1781400548900
+    },
+    {
+      "messageId": "57301d1b-87e5-49c2-a6da-c7d2103e2c87",
+      "sourceDeviceId": "50a76ac6-d5cb-40dd-a5b2-5af4a06ccf9e",
+      "room": "default",
+      "mime": "text/plain",
+      "text": "full-debug-093148",
+      "createdAt": 1781400708900
+    },
+    {
+      "messageId": "2a2648da-97e9-453b-817e-78f457293b75",
+      "sourceDeviceId": "50a76ac6-d5cb-40dd-a5b2-5af4a06ccf9e",
+      "room": "default",
+      "mime": "text/plain",
+      "text": "powershell7",
+      "createdAt": 1781401036900
+    },
+    {
+      "messageId": "5cf910c1-d738-4132-9591-10efa9c3e224",
+      "sourceDeviceId": "50a76ac6-d5cb-40dd-a5b2-5af4a06ccf9e",
+      "room": "default",
+      "mime": "text/plain",
+      "text": "final-win2android-093930",
+      "createdAt": 1781401171301
+    }
+  ],
+  "payloads": []
+}

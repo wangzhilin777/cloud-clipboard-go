@@ -1,0 +1,12 @@
+2026/06/14 09:14:02 [desktop-go] 桌面同步客户端启动，服务端: http://127.0.0.1:9501 房间: default 设备: WingLin
+2026/06/14 09:14:02 [desktop-go] 本地控制面板已启动: http://127.0.0.1:9530/
+2026/06/14 09:14:02 [desktop-go] 设备已连接，等待网页端批准
+2026/06/14 09:14:57 [desktop-go] 同步连接断开: read tcp 127.0.0.1:65374->127.0.0.1:9501: wsarecv: An existing connection was forcibly closed by the remote host.
+2026/06/14 09:14:57 [desktop-go] 同步失败，1/3 次后将在 2s 后重试
+2026/06/14 09:14:59 [desktop-go] 同步连接断开: Get "http://127.0.0.1:9501/sync/server?room=default": dial tcp 127.0.0.1:9501: connectex: No connection could be made because the target machine actively refused it.
+2026/06/14 09:14:59 [desktop-go] 同步失败，2/3 次后将在 2s 后重试
+2026/06/14 09:15:01 [desktop-go] 设备已连接并获批
+2026/06/14 09:18:23 [desktop-go] 文本已提交到同步服务
+2026/06/14 09:21:04 [desktop-go] 文本已提交到同步服务
+2026/06/14 09:21:46 [desktop-go] 文本已提交到同步服务
+2026/06/14 09:22:49 [desktop-go] 文本已提交到同步服务

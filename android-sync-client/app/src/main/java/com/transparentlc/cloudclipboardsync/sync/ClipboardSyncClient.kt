@@ -66,8 +66,11 @@ class ClipboardSyncClient(
             }
 
             override fun onMessage(webSocket: WebSocket, text: String) {
+                Log.d(TAG, "onMessage: $text")
                 val event = JSONObject(text)
-                when (event.getString("event")) {
+                val eventName = event.getString("event")
+                Log.d(TAG, "onMessage event=$eventName")
+                when (eventName) {
                     "helloAck" -> {
                         val data = event.getJSONObject("data")
                         trusted = data.getJSONObject("device").optBoolean("trusted", false)
@@ -84,9 +87,17 @@ class ClipboardSyncClient(
                         callbacks.onLog(if (trusted) "安卓同步已连接" else "安卓设备等待批准")
                     }
                     "clipboardSync" -> {
+                        Log.d(TAG, "clipboardSync received")
                         val data = event.getJSONObject("data")
-                        if (data.optString("sourceDeviceId").trim() == config.deviceId) return
-                        callbacks.onRemoteText(data.optString("messageId"), data.getString("text"))
+                        val sourceDeviceId = data.optString("sourceDeviceId").trim()
+                        Log.d(TAG, "clipboardSync sourceDeviceId=$sourceDeviceId myDeviceId=${config.deviceId}")
+                        if (sourceDeviceId == config.deviceId) {
+                            Log.d(TAG, "clipboardSync ignored: same device")
+                            return
+                        }
+                        val messageText = data.getString("text")
+                        Log.d(TAG, "clipboardSync calling onRemoteText: $messageText")
+                        callbacks.onRemoteText(data.optString("messageId"), messageText)
                     }
                     "payloadNotice" -> {
                         callbacks.onPayloadNotice(PayloadNotice.fromJson(event.getJSONObject("data")))

@@ -2,9 +2,11 @@
   "connected": true,
   "trusted": true,
   "status": "trusted",
-  "lastCacheCleanupAt": 1781373246188,
+  "lastError": "Get \"http://127.0.0.1:9501/sync/server?room=default\": dial tcp 127.0.0.1:9501: connectex: No connection could be made because the target machine actively refused it.",
+  "lastErrorAt": 1781399699693,
+  "lastCacheCleanupAt": 1781399642960,
   "lastActionType": "open-panel",
   "lastActionDetail": "http://127.0.0.1:9530/",
-  "lastActionAt": 1781373247857,
-  "lastUpdatedAt": 1781373276214
+  "lastActionAt": 1781399645170,
+  "lastUpdatedAt": 1781399701739
 }

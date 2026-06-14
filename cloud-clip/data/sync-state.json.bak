@@ -1,0 +1,17 @@
+{
+  "devices": [
+    {
+      "deviceId": "c1c65d39-d744-455f-91e4-af08251148bc",
+      "name": "Redmi K50 Ultra",
+      "room": "default",
+      "platform": "android",
+      "clientType": "android-app",
+      "trusted": false,
+      "createdAt": 1781399295465,
+      "lastSeenAt": 1781399295466,
+      "status": "pending"
+    }
+  ],
+  "messages": [],
+  "payloads": []
+}

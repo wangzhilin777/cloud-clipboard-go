@@ -187,6 +187,7 @@ class SyncService : Service() {
             }
 
             override fun onRemoteText(messageId: String, text: String) {
+                android.util.Log.d("SyncService", "onRemoteText messageId=$messageId text=$text")
                 updateClipboardDiagnostic("remote", "已收到远端文本，准备写入系统剪贴板")
                 applyRemoteText(messageId, text, "已接收远端文本并写入剪贴板")
             }
@@ -300,6 +301,7 @@ class SyncService : Service() {
     }
 
     private fun applyRemoteText(messageId: String, text: String, resultText: String) {
+        android.util.Log.d("SyncService", "applyRemoteText messageId=$messageId text=$text")
         if (text.isBlank()) return
         if (messageId.isNotBlank() && messageId == lastRemoteMessageId) return
         applyingRemoteText = true
@@ -311,7 +313,9 @@ class SyncService : Service() {
         suppressedRemoteEchoText = text
         lastObservedLocalText = text
         updateClipboardDiagnostic("remote-apply", resultText)
+        android.util.Log.d("SyncService", "applyRemoteText setting clipboard: $text")
         clipboardManager.setPrimaryClip(ClipData.newPlainText("cloud-clipboard", text))
+        android.util.Log.d("SyncService", "applyRemoteText clipboard set successfully")
         broadcastStatus(getString(R.string.status_trusted), resultText)
         handler.postDelayed({ applyingRemoteText = false }, 1500)
     }
