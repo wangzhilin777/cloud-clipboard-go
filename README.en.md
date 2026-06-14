@@ -107,6 +107,16 @@ Usage steps and expected behavior: [Sync Usage and Effects Guide](./docs/03-sync
 - The runtime page provides clipboard readiness, background diagnostics, and a dynamic troubleshooting button. The permission page provides common vendor background-keepalive guidance.
 - Image/file receiving prefers floating confirmation. Downloads start only after user confirmation, then files can be previewed, opened, shared, saved as, or marked processed in the receive page.
 
+**⚠️ Android 13+ Background Clipboard Restrictions:**
+- Starting from Android 13 (API 33), the system prohibits background apps from accessing the clipboard (privacy protection feature)
+- **Affected**: floating and ime_background modes when copying in the background
+- **Behavior**: Text copied while the app is in the background requires switching back to the app to trigger sync
+- **Foreground usage**: All modes work normally when the app is in the foreground or recently used ✅
+- **Solutions**:
+  1. Recommended: Keep the app in recent tasks (switch back to trigger sync)
+  2. Advanced: Use [Shizuku](https://shizuku.rikka.app/) to bypass the restriction (requires additional setup)
+- **Note**: This is a system-level restriction; similar products are also affected
+
 ### Boundaries
 
 - Automatic clipboard sync is limited to plain text. Rich text is outside the current sync scope.
