@@ -126,6 +126,7 @@
                 <action android:name="com.transparentlc.cloudclipboardsync.action.DEBUG_INJECT_CLIPBOARD" />
                 <action android:name="com.transparentlc.cloudclipboardsync.action.DEBUG_SEND_CLIPBOARD" />
                 <action android:name="com.transparentlc.cloudclipboardsync.action.DEBUG_SHOW_FLOATING_CLIPBOARD" />
+                <action android:name="com.transparentlc.cloudclipboardsync.action.DEBUG_SHOW_FLOATING_RECEIVE" />
             </intent-filter>
         </receiver>
 

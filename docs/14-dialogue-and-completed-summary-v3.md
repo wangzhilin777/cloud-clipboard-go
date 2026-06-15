@@ -9,17 +9,22 @@
 - 新增“悬浮接收卡片显示后自动确认下载”开关
 - 两个开关独立保存，默认关闭
 - 自动确认仅作用于主按钮，不影响打开、稍后、全部稍后、关闭等次要操作
+- 接收侧新增 debug-only 调试广播，可生成测试 payload 并弹出悬浮接收卡片，便于自动化回归
 
 实现说明：
 - 悬浮发送助手显示并挂载后，若开关开启，会短延迟自动执行“发送文本”
 - 悬浮接收卡片显示并挂载后，若开关开启，会短延迟自动执行“确认下载”
 - 当前实现直接点击本应用悬浮按钮自身，不依赖系统级无障碍点击节点
+- `ACTION_CONFIRM_PAYLOAD` 已放行，不再被当前剪贴板运行模式校验误拦截
 
 涉及文件：
 - `android-sync-client/app/src/main/java/com/transparentlc/cloudclipboardsync/FloatingClipboardOverlayService.kt`
 - `android-sync-client/app/src/main/java/com/transparentlc/cloudclipboardsync/FloatingConfirmService.kt`
 - `android-sync-client/app/src/main/java/com/transparentlc/cloudclipboardsync/MainActivity.kt`
 - `android-sync-client/app/src/main/java/com/transparentlc/cloudclipboardsync/sync/SettingsStore.kt`
+- `android-sync-client/app/src/main/java/com/transparentlc/cloudclipboardsync/DebugClipboardInjectReceiver.kt`
+- `android-sync-client/app/src/main/java/com/transparentlc/cloudclipboardsync/sync/SyncService.kt`
+- `android-sync-client/app/src/main/AndroidManifest.xml`
 - `android-sync-client/app/src/main/res/layout/activity_main.xml`
 - `android-sync-client/app/src/main/res/values/strings.xml`
 
@@ -47,13 +52,29 @@
 ### 构建验证
 
 - `android-sync-client\\gradlew.bat assembleDebug` 已通过
-- 本轮代码未触碰用户当前未确认的 `AndroidManifest.xml` / `ShizukuPermissionHelper.kt` 内容
+- Debug APK 已通过 `adb install -r` 安装到真机
+
+### 真机联调验证
+
+- 已确认自动确认开关 `floating_auto_send_confirm_enabled` / `floating_auto_receive_confirm_enabled` 均可读取为开启状态
+- 悬浮发送自动确认此前已验证可触发 `SyncService.enqueueManualPublish route=floating`
+- 悬浮接收自动确认本轮已验证出现 `auto receive confirm performClick` 日志
+- 悬浮接收自动确认本轮已验证进入 `confirmPayloadDownload requested` 与 `confirmPayloadDownload start` 日志
+- 本轮接收调试 URL 使用不可用本地地址，仅验证动作链路是否进入下载函数，不代表真实服务端下载成功与否
+- 接收页底部按钮可达性此前已通过 UI dump 验证，能看到下载、打开、分享、另存为、标记已处理、清理已处理、恢复稍后提醒等按钮
 
 ### 已知未完成
 
-- 尚未做真机点验“开启自动确认后实际弹窗自动发送 / 自动确认下载”的实机闭环
 - 尚未处理“悬浮窗模式通过无障碍自动点系统确认弹窗”的更深层自动化
 - 尚未继续收口 Shizuku 当前阻塞提示的准确性问题
+- 尚未使用真实服务端 payload 完整验收 Android 接收侧“下载 / 打开 / 分享 / 另存为”后续动作
+
+### 清理结果
+
+- 已删除本轮 UI dump 临时文件
+- 已清理手机端仅包含 `debug-*` 的调试 payload 缓存
+- 已停止本轮测试拉起的 Android 应用进程
+- 未删除手机端非测试文件或用户数据
 
 ## 本轮新增文档
 

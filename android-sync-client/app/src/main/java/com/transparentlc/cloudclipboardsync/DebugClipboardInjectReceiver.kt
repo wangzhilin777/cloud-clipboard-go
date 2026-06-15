@@ -8,6 +8,9 @@ import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.util.Log
 import androidx.core.content.ContextCompat
+import com.transparentlc.cloudclipboardsync.sync.PayloadCacheStore
+import com.transparentlc.cloudclipboardsync.sync.PayloadNotice
+import java.util.UUID
 
 class DebugClipboardInjectReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
@@ -75,6 +78,31 @@ class DebugClipboardInjectReceiver : BroadcastReceiver() {
                 )
                 Log.i(TAG, "已请求弹出调试悬浮发送助手")
             }
+
+            ACTION_DEBUG_SHOW_FLOATING_RECEIVE -> {
+                val title = intent.getStringExtra(EXTRA_TITLE)?.trim().orEmpty().ifBlank { "调试图片.png" }
+                val kind = intent.getStringExtra(EXTRA_KIND)?.trim().orEmpty().ifBlank { "image" }
+                val mime = when {
+                    kind == "image" -> "image/png"
+                    else -> "application/octet-stream"
+                }
+                val payloadId = "debug-${UUID.randomUUID()}"
+                val notice = PayloadNotice(
+                    payloadId = payloadId,
+                    sourceDeviceId = "debug-device",
+                    room = "default",
+                    kind = kind,
+                    title = title,
+                    mime = mime,
+                    size = 1024L,
+                    actionUrl = null,
+                    downloadUrl = "http://127.0.0.1:9/debug/$payloadId",
+                    createdAt = System.currentTimeMillis(),
+                )
+                PayloadCacheStore.upsertNotice(context, notice)
+                FloatingConfirmService.show(context, payloadId)
+                Log.i(TAG, "已请求弹出调试悬浮接收卡片 payloadId=$payloadId title=$title")
+            }
         }
     }
 
@@ -100,10 +128,13 @@ class DebugClipboardInjectReceiver : BroadcastReceiver() {
         const val ACTION_DEBUG_INJECT_CLIPBOARD = "com.transparentlc.cloudclipboardsync.action.DEBUG_INJECT_CLIPBOARD"
         const val ACTION_DEBUG_SEND_CLIPBOARD = "com.transparentlc.cloudclipboardsync.action.DEBUG_SEND_CLIPBOARD"
         const val ACTION_DEBUG_SHOW_FLOATING_CLIPBOARD = "com.transparentlc.cloudclipboardsync.action.DEBUG_SHOW_FLOATING_CLIPBOARD"
+        const val ACTION_DEBUG_SHOW_FLOATING_RECEIVE = "com.transparentlc.cloudclipboardsync.action.DEBUG_SHOW_FLOATING_RECEIVE"
         private const val ACTION_DEBUG_PUBLISH_TEXT = "com.transparentlc.cloudclipboardsync.action.DEBUG_PUBLISH_TEXT"
         private const val ACTION_SEND_MANUAL_TEXT = "com.transparentlc.cloudclipboardsync.action.SEND_MANUAL_TEXT"
         const val EXTRA_TEXT = "extra_text"
         const val EXTRA_ROUTE = "extra_route"
+        const val EXTRA_TITLE = "extra_title"
+        const val EXTRA_KIND = "extra_kind"
         private const val EXTRA_DEBUG_TEXT = "extra_debug_text"
         private const val EXTRA_MANUAL_TEXT = "extra_manual_text"
         private const val EXTRA_MANUAL_ROUTE = "extra_manual_route"

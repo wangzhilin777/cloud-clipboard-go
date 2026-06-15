@@ -9,6 +9,7 @@ import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import android.provider.Settings
+import android.util.Log
 import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.MotionEvent
@@ -456,6 +457,7 @@ class FloatingConfirmService : Service() {
         if (!config.floatingAutoReceiveConfirmEnabled) return
         val runnable = Runnable {
             if (overlayView != null && confirmButton.isAttachedToWindow && confirmButton.isShown && confirmButton.isEnabled) {
+                Log.d(TAG, "auto receive confirm performClick payloadId=$currentPayloadId")
                 confirmButton.performClick()
             }
         }
@@ -526,6 +528,7 @@ class FloatingConfirmService : Service() {
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density).roundToInt()
 
     companion object {
+        private const val TAG = "FloatingConfirmService"
         private const val ACTION_DISMISS = "com.transparentlc.cloudclipboardsync.action.DISMISS_FLOATING_CONFIRM"
         private const val ACTION_SHOW_ALERT = "com.transparentlc.cloudclipboardsync.action.SHOW_ALERT"
         private const val ACTION_SHOW_PREVIEW = "com.transparentlc.cloudclipboardsync.action.SHOW_PREVIEW"

@@ -14,6 +14,7 @@ import android.os.Build
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import com.transparentlc.cloudclipboardsync.ClipboardAccessAccessibilityService
@@ -94,6 +95,7 @@ class SyncService : Service() {
         PayloadCacheStore.pruneExpired(this)
         val debugPublishIntent = intent?.action == ACTION_DEBUG_PUBLISH_TEXT
         val manualPublishIntent = intent?.action == ACTION_SEND_MANUAL_TEXT
+        val confirmPayloadIntent = intent?.action == ACTION_CONFIRM_PAYLOAD
         val serverBaseMessage = when {
             config.serverBase.isBlank() -> getString(R.string.server_base_missing_hint)
             SettingsStore.isLoopbackServerBase(config.serverBase) -> getString(R.string.server_base_loopback_hint)
@@ -103,7 +105,7 @@ class SyncService : Service() {
             return stopStartupWithMessage(serverBaseMessage)
         }
         val runtimeValidation = RuntimeModeValidator.validate(this, config)
-        if (!debugPublishIntent && !manualPublishIntent && !runtimeValidation.ready) {
+        if (!debugPublishIntent && !manualPublishIntent && !confirmPayloadIntent && !runtimeValidation.ready) {
             return stopStartupWithMessage(runtimeValidation.message)
         }
         when (intent?.action) {
@@ -682,18 +684,24 @@ class SyncService : Service() {
     }
 
     private fun confirmPayloadDownload(payloadId: String) {
-        if (downloadingPayloads.contains(payloadId)) return
+        Log.d("SyncService", "confirmPayloadDownload requested payloadId=$payloadId")
+        if (downloadingPayloads.contains(payloadId)) {
+            Log.d("SyncService", "confirmPayloadDownload skipped duplicate payloadId=$payloadId")
+            return
+        }
         downloadingPayloads += payloadId
         Thread {
             try {
                 PayloadCacheStore.pruneExpired(this)
                 val entry = PayloadCacheStore.get(this, payloadId) ?: error("未找到待接收内容")
+                Log.d("SyncService", "confirmPayloadDownload start title=${entry.title} url=${entry.downloadUrl ?: entry.actionUrl}")
                 broadcastStatus(currentStatus(), "开始下载 ${entry.title}")
                 val downloaded = PayloadDownloader.download(this, config, entry)
                 broadcastPayloadUpdated(downloaded.payloadId)
                 showPayloadReadyNotification(downloaded)
                 broadcastStatus(currentStatus(), "已下载到缓存：${downloaded.title}")
             } catch (error: Exception) {
+                Log.w("SyncService", "confirmPayloadDownload failed payloadId=$payloadId", error)
                 broadcastStatus(currentStatus(), "下载失败：${error.message ?: "未知错误"}")
             } finally {
                 downloadingPayloads -= payloadId
