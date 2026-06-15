@@ -28,6 +28,7 @@ class FloatingClipboardOverlayService : Service() {
     private val dismissRunnable = Runnable { dismiss() }
     private var countdownRunnable: Runnable? = null
     private var countdownTargetAt = 0L
+    private var autoConfirmRunnable: Runnable? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -60,6 +61,7 @@ class FloatingClipboardOverlayService : Service() {
     private fun showOverlay() {
         handler.removeCallbacks(dismissRunnable)
         countdownRunnable?.let(handler::removeCallbacks)
+        autoConfirmRunnable?.let(handler::removeCallbacks)
         overlayView?.let { windowManager?.removeViewImmediate(it) }
 
         val config = SettingsStore.load(this)
@@ -118,6 +120,7 @@ class FloatingClipboardOverlayService : Service() {
             return
         }
         applyClampedPosition(root, params, save = false)
+        scheduleAutoSendIfNeeded(config, sendButton)
         bindCountdown(root.findViewById(R.id.floatingClipboardCountdownText), config.floatingShowSeconds.coerceAtLeast(5))
     }
 
@@ -220,10 +223,26 @@ class FloatingClipboardOverlayService : Service() {
         handler.postDelayed(dismissRunnable, seconds * 1000L)
     }
 
+    private fun scheduleAutoSendIfNeeded(
+        config: SettingsStore.Config,
+        sendButton: Button,
+    ) {
+        if (!config.floatingAutoSendConfirmEnabled) return
+        val runnable = Runnable {
+            if (overlayView != null && sendButton.isAttachedToWindow && sendButton.isShown && sendButton.isEnabled) {
+                sendButton.performClick()
+            }
+        }
+        autoConfirmRunnable = runnable
+        handler.postDelayed(runnable, 220L)
+    }
+
     private fun dismiss() {
         handler.removeCallbacks(dismissRunnable)
         countdownRunnable?.let(handler::removeCallbacks)
         countdownRunnable = null
+        autoConfirmRunnable?.let(handler::removeCallbacks)
+        autoConfirmRunnable = null
         overlayView?.let { windowManager?.removeViewImmediate(it) }
         overlayView = null
         stopSelf()

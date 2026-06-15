@@ -34,6 +34,7 @@ class FloatingConfirmService : Service() {
     private var countdownRunnable: Runnable? = null
     private var countdownTargetAt = 0L
     private var alertMode = false
+    private var autoConfirmRunnable: Runnable? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -106,6 +107,7 @@ class FloatingConfirmService : Service() {
         FloatingClipboardOverlayService.dismiss(this)
         handler.removeCallbacks(hideRunnable)
         countdownRunnable?.let(handler::removeCallbacks)
+        autoConfirmRunnable?.let(handler::removeCallbacks)
         overlayView?.let { windowManager?.removeViewImmediate(it) }
 
         val config = SettingsStore.load(this)
@@ -213,6 +215,7 @@ class FloatingConfirmService : Service() {
             return
         }
         applyClampedPosition(root, params, save = false)
+        scheduleAutoReceiveIfNeeded(config, confirmButton)
         bindCountdown(root.findViewById(R.id.floatingCountdownText), config.floatingShowSeconds.coerceAtLeast(5))
     }
 
@@ -446,6 +449,20 @@ class FloatingConfirmService : Service() {
         handler.postDelayed(hideRunnable, seconds * 1000L)
     }
 
+    private fun scheduleAutoReceiveIfNeeded(
+        config: SettingsStore.Config,
+        confirmButton: Button,
+    ) {
+        if (!config.floatingAutoReceiveConfirmEnabled) return
+        val runnable = Runnable {
+            if (overlayView != null && confirmButton.isAttachedToWindow && confirmButton.isShown && confirmButton.isEnabled) {
+                confirmButton.performClick()
+            }
+        }
+        autoConfirmRunnable = runnable
+        handler.postDelayed(runnable, 220L)
+    }
+
     private fun pendingBadgeText(): String = if (pendingPayloadIds.isEmpty()) {
         getString(R.string.floating_queue_single)
     } else {
@@ -474,6 +491,8 @@ class FloatingConfirmService : Service() {
         handler.removeCallbacks(hideRunnable)
         countdownRunnable?.let(handler::removeCallbacks)
         countdownRunnable = null
+        autoConfirmRunnable?.let(handler::removeCallbacks)
+        autoConfirmRunnable = null
         overlayView?.let { windowManager?.removeViewImmediate(it) }
         overlayView = null
         currentPayloadId = null

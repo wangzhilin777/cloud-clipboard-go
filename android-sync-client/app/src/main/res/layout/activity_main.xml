@@ -329,15 +329,22 @@
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/runtimeSection"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
+                android:layout_height="match_parent"
                 android:visibility="gone">
 
-                <LinearLayout
-                    android:id="@+id/runtimeSectionContent"
+                <ScrollView
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:padding="20dp">
+                    android:layout_height="match_parent"
+                    android:fillViewport="true"
+                    android:overScrollMode="ifContentScrolls"
+                    android:scrollbars="vertical">
+
+                    <LinearLayout
+                        android:id="@+id/runtimeSectionContent"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="20dp">
 
                     <TextView
                         android:layout_width="match_parent"
@@ -597,21 +604,29 @@
                         android:text="@string/runtime_clipboard_debug_placeholder"
                         android:textAppearance="@style/TextAppearance.MaterialComponents.Body2"
                         android:textColor="@color/cc_text_muted" />
-                </LinearLayout>
+                    </LinearLayout>
+                </ScrollView>
             </com.google.android.material.card.MaterialCardView>
 
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/permissionSection"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
+                android:layout_height="match_parent"
                 android:visibility="gone">
 
-                <LinearLayout
-                    android:id="@+id/permissionSectionContent"
+                <ScrollView
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:padding="20dp">
+                    android:layout_height="match_parent"
+                    android:fillViewport="true"
+                    android:overScrollMode="ifContentScrolls"
+                    android:scrollbars="vertical">
+
+                    <LinearLayout
+                        android:id="@+id/permissionSectionContent"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="20dp">
 
                     <TextView
                         android:layout_width="match_parent"
@@ -758,21 +773,29 @@
                         android:text="@string/open_vendor_background_settings_button"
                         android:textColor="@color/cc_primary"
                         app:strokeColor="@color/cc_primary_soft" />
-                </LinearLayout>
+                    </LinearLayout>
+                </ScrollView>
             </com.google.android.material.card.MaterialCardView>
 
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/receiveSection"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
+                android:layout_height="match_parent"
                 android:visibility="gone">
 
-                <LinearLayout
-                    android:id="@+id/receiveSectionContent"
+                <ScrollView
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:padding="20dp">
+                    android:layout_height="match_parent"
+                    android:fillViewport="true"
+                    android:overScrollMode="ifContentScrolls"
+                    android:scrollbars="vertical">
+
+                    <LinearLayout
+                        android:id="@+id/receiveSectionContent"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="20dp">
 
                     <TextView
                         android:layout_width="match_parent"
@@ -830,6 +853,30 @@
                         android:layout_marginTop="8dp"
                         android:text="@string/floating_compact_switch"
                         android:textColor="@color/cc_text" />
+
+                    <com.google.android.material.checkbox.MaterialCheckBox
+                        android:id="@+id/floatingAutoSendConfirmSwitch"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:text="@string/floating_auto_send_confirm_switch"
+                        android:textColor="@color/cc_text" />
+
+                    <com.google.android.material.checkbox.MaterialCheckBox
+                        android:id="@+id/floatingAutoReceiveConfirmSwitch"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:text="@string/floating_auto_receive_confirm_switch"
+                        android:textColor="@color/cc_text" />
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="6dp"
+                        android:text="@string/floating_auto_confirm_desc"
+                        android:textAppearance="@style/TextAppearance.MaterialComponents.Caption"
+                        android:textColor="@color/cc_text_muted" />
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/openReceiveOverlaySettingsButton"
@@ -1103,7 +1150,8 @@
                             android:text="@string/restore_snoozed_button"
                             android:textColor="@color/cc_text_muted" />
                     </LinearLayout>
-                </LinearLayout>
+                    </LinearLayout>
+                </ScrollView>
             </com.google.android.material.card.MaterialCardView>
         </LinearLayout>
     </ScrollView>
@@ -1123,5 +1171,4 @@
         app:labelVisibilityMode="labeled"
         app:menu="@menu/main_sections" />
 </LinearLayout>
-
 

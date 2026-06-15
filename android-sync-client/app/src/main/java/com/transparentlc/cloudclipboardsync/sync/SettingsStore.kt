@@ -26,6 +26,8 @@ object SettingsStore {
     private const val KEY_FLOATING_SHOW_SECONDS = "floating_show_seconds"
     private const val KEY_FLOATING_SNOOZE_MINUTES = "floating_snooze_minutes"
     private const val KEY_FLOATING_COMPACT_ENABLED = "floating_compact_enabled"
+    private const val KEY_FLOATING_AUTO_SEND_CONFIRM_ENABLED = "floating_auto_send_confirm_enabled"
+    private const val KEY_FLOATING_AUTO_RECEIVE_CONFIRM_ENABLED = "floating_auto_receive_confirm_enabled"
     private const val KEY_CACHE_RETENTION_HOURS = "cache_retention_hours"
     private const val KEY_LAST_DESIRED_RUNNING_STATE = "last_desired_running_state"
     private const val KEY_CLIPBOARD_MODE = "clipboard_mode"
@@ -64,6 +66,8 @@ object SettingsStore {
         val floatingShowSeconds: Int,
         val floatingSnoozeMinutes: Int,
         val floatingCompactEnabled: Boolean,
+        val floatingAutoSendConfirmEnabled: Boolean,
+        val floatingAutoReceiveConfirmEnabled: Boolean,
         val cacheRetentionHours: Int,
         val clipboardMode: String,
         val lastDesiredRunningState: String,
@@ -112,6 +116,8 @@ object SettingsStore {
             floatingShowSeconds = prefs.getInt(KEY_FLOATING_SHOW_SECONDS, DEFAULT_FLOATING_SHOW_SECONDS),
             floatingSnoozeMinutes = prefs.getInt(KEY_FLOATING_SNOOZE_MINUTES, DEFAULT_FLOATING_SNOOZE_MINUTES),
             floatingCompactEnabled = prefs.getBoolean(KEY_FLOATING_COMPACT_ENABLED, true),
+            floatingAutoSendConfirmEnabled = prefs.getBoolean(KEY_FLOATING_AUTO_SEND_CONFIRM_ENABLED, false),
+            floatingAutoReceiveConfirmEnabled = prefs.getBoolean(KEY_FLOATING_AUTO_RECEIVE_CONFIRM_ENABLED, false),
             cacheRetentionHours = prefs.getInt(KEY_CACHE_RETENTION_HOURS, 24),
             clipboardMode = normalizedClipboardMode,
             lastDesiredRunningState = prefs.getString(KEY_LAST_DESIRED_RUNNING_STATE, RUNNING_STATE_STOPPED)
@@ -143,6 +149,8 @@ object SettingsStore {
             .putInt(KEY_FLOATING_SHOW_SECONDS, config.floatingShowSeconds)
             .putInt(KEY_FLOATING_SNOOZE_MINUTES, config.floatingSnoozeMinutes)
             .putBoolean(KEY_FLOATING_COMPACT_ENABLED, config.floatingCompactEnabled)
+            .putBoolean(KEY_FLOATING_AUTO_SEND_CONFIRM_ENABLED, config.floatingAutoSendConfirmEnabled)
+            .putBoolean(KEY_FLOATING_AUTO_RECEIVE_CONFIRM_ENABLED, config.floatingAutoReceiveConfirmEnabled)
             .putInt(KEY_CACHE_RETENTION_HOURS, config.cacheRetentionHours)
             .putString(KEY_CLIPBOARD_MODE, config.clipboardMode)
             .putString(KEY_LAST_DESIRED_RUNNING_STATE, config.lastDesiredRunningState)

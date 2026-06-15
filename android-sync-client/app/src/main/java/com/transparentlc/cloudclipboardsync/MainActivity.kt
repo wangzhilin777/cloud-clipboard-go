@@ -14,7 +14,6 @@ import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.view.View
-import android.view.ViewGroup
 import android.widget.Button
 import android.widget.CheckBox
 import android.widget.EditText
@@ -84,6 +83,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var removeTaskSwitch: CheckBox
     private lateinit var floatingConfirmSwitch: CheckBox
     private lateinit var floatingCompactSwitch: CheckBox
+    private lateinit var floatingAutoSendConfirmSwitch: CheckBox
+    private lateinit var floatingAutoReceiveConfirmSwitch: CheckBox
     private lateinit var floatingWidthInput: EditText
     private lateinit var floatingHeightInput: EditText
     private lateinit var floatingShowSecondsInput: EditText
@@ -213,6 +214,8 @@ class MainActivity : AppCompatActivity() {
         removeTaskSwitch = findViewById(R.id.removeTaskSwitch)
         floatingConfirmSwitch = findViewById(R.id.floatingConfirmSwitch)
         floatingCompactSwitch = findViewById(R.id.floatingCompactSwitch)
+        floatingAutoSendConfirmSwitch = findViewById(R.id.floatingAutoSendConfirmSwitch)
+        floatingAutoReceiveConfirmSwitch = findViewById(R.id.floatingAutoReceiveConfirmSwitch)
         floatingWidthInput = findViewById(R.id.floatingWidthInput)
         floatingHeightInput = findViewById(R.id.floatingHeightInput)
         floatingShowSecondsInput = findViewById(R.id.floatingShowSecondsInput)
@@ -404,6 +407,12 @@ class MainActivity : AppCompatActivity() {
         floatingCompactSwitch.setOnCheckedChangeListener { _, _ ->
             if (!suppressAutoSave) saveReceiveSettings()
         }
+        floatingAutoSendConfirmSwitch.setOnCheckedChangeListener { _, _ ->
+            if (!suppressAutoSave) saveReceiveSettings()
+        }
+        floatingAutoReceiveConfirmSwitch.setOnCheckedChangeListener { _, _ ->
+            if (!suppressAutoSave) saveReceiveSettings()
+        }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
@@ -509,6 +518,8 @@ class MainActivity : AppCompatActivity() {
         removeTaskSwitch.isChecked = config.removeTaskFromRecents
         floatingConfirmSwitch.isChecked = config.floatingEnabled
         floatingCompactSwitch.isChecked = config.floatingCompactEnabled
+        floatingAutoSendConfirmSwitch.isChecked = config.floatingAutoSendConfirmEnabled
+        floatingAutoReceiveConfirmSwitch.isChecked = config.floatingAutoReceiveConfirmEnabled
         floatingWidthInput.setText(config.floatingWidthDp.toString())
         floatingHeightInput.setText(config.floatingHeightDp.toString())
         floatingShowSecondsInput.setText(config.floatingShowSeconds.toString())
@@ -591,7 +602,7 @@ class MainActivity : AppCompatActivity() {
         runtimeSection.visibility = if (selectedTabIndex == TAB_RUNTIME) View.VISIBLE else View.GONE
         permissionSection.visibility = if (selectedTabIndex == TAB_PERMISSIONS) View.VISIBLE else View.GONE
         receiveSection.visibility = if (selectedTabIndex == TAB_RECEIVE) View.VISIBLE else View.GONE
-        contentScrollView.post { syncVisibleSectionViewportHeight() }
+        contentScrollView.post { contentScrollView.scrollTo(0, 0) }
     }
 
     private fun saveConfig(): SettingsStore.Config {
@@ -608,6 +619,8 @@ class MainActivity : AppCompatActivity() {
             removeTaskFromRecents = removeTaskSwitch.isChecked,
             floatingEnabled = floatingConfirmSwitch.isChecked,
             floatingCompactEnabled = floatingCompactSwitch.isChecked,
+            floatingAutoSendConfirmEnabled = floatingAutoSendConfirmSwitch.isChecked,
+            floatingAutoReceiveConfirmEnabled = floatingAutoReceiveConfirmSwitch.isChecked,
             floatingWidthDp = floatingWidthInput.text.toString().toIntOrNull()?.coerceIn(240, 420) ?: previous.floatingWidthDp,
             floatingHeightDp = floatingHeightInput.text.toString().toIntOrNull()?.coerceIn(100, 240) ?: previous.floatingHeightDp,
             floatingPosX = previous.floatingPosX,
@@ -680,51 +693,7 @@ class MainActivity : AppCompatActivity() {
                 settingsBottomNav.paddingRight,
                 systemBars.bottom + dpToPx(10),
             )
-            contentScrollView.post { syncVisibleSectionViewportHeight() }
             WindowInsetsCompat.CONSUMED
-        }
-    }
-
-    private fun syncVisibleSectionViewportHeight() {
-        val viewportHeight = contentScrollView.height
-        if (viewportHeight <= 0) return
-        val target = when (selectedTabIndex) {
-            TAB_CONNECTION -> connectionSection
-            TAB_RUNTIME -> runtimeSection
-            TAB_PERMISSIONS -> permissionSection
-            TAB_RECEIVE -> receiveSection
-            else -> connectionSection
-        }
-        if (selectedTabIndex == TAB_CONNECTION) {
-            val spacerLayoutParams = connectionBottomSpacer.layoutParams
-            val spacerHeight = dpToPx(8)
-            if (spacerLayoutParams.height != spacerHeight) {
-                spacerLayoutParams.height = spacerHeight
-                connectionBottomSpacer.layoutParams = spacerLayoutParams
-            }
-            if (target.minimumHeight != 0) {
-                target.minimumHeight = 0
-            }
-            val connectionLayoutParams = target.layoutParams
-            if (connectionLayoutParams.height != ViewGroup.LayoutParams.WRAP_CONTENT) {
-                connectionLayoutParams.height = ViewGroup.LayoutParams.WRAP_CONTENT
-                target.layoutParams = connectionLayoutParams
-            }
-            return
-        }
-        val layoutParams = target.layoutParams
-        val spacerLayoutParams = connectionBottomSpacer.layoutParams
-        if (spacerLayoutParams.height != 0) {
-            spacerLayoutParams.height = 0
-            connectionBottomSpacer.layoutParams = spacerLayoutParams
-        }
-        val targetHeight = viewportHeight.coerceAtLeast(0)
-        if (target.minimumHeight != 0) {
-            target.minimumHeight = 0
-        }
-        if (layoutParams.height != targetHeight) {
-            layoutParams.height = targetHeight
-            target.layoutParams = layoutParams
         }
     }
 
@@ -740,6 +709,8 @@ class MainActivity : AppCompatActivity() {
         val updated = previous.copy(
             floatingEnabled = floatingConfirmSwitch.isChecked,
             floatingCompactEnabled = floatingCompactSwitch.isChecked,
+            floatingAutoSendConfirmEnabled = floatingAutoSendConfirmSwitch.isChecked,
+            floatingAutoReceiveConfirmEnabled = floatingAutoReceiveConfirmSwitch.isChecked,
             floatingWidthDp = floatingWidthInput.text.toString().toIntOrNull()?.coerceIn(240, 420) ?: previous.floatingWidthDp,
             floatingHeightDp = floatingHeightInput.text.toString().toIntOrNull()?.coerceIn(100, 240) ?: previous.floatingHeightDp,
             floatingShowSeconds = floatingShowSecondsInput.text.toString().toIntOrNull()?.coerceIn(5, 60) ?: previous.floatingShowSeconds,
@@ -833,8 +804,25 @@ class MainActivity : AppCompatActivity() {
         receiveOverlaySummaryText.text = when {
             !config.floatingEnabled -> getString(R.string.receive_overlay_disabled_summary)
             !status.overlayEnabled -> getString(R.string.receive_overlay_permission_summary)
-            config.floatingCompactEnabled -> getString(R.string.receive_overlay_ready_summary) + "\n当前已启用紧凑卡片，会优先显示标题和操作按钮。"
-            else -> getString(R.string.receive_overlay_ready_summary) + "\n当前使用详细卡片，会显示来源、大小和操作提示。"
+            else -> buildString {
+                append(getString(R.string.receive_overlay_ready_summary))
+                if (config.floatingAutoSendConfirmEnabled) {
+                    append("\n")
+                    append(getString(R.string.receive_overlay_auto_send_ready_summary))
+                }
+                if (config.floatingAutoReceiveConfirmEnabled) {
+                    append("\n")
+                    append(getString(R.string.receive_overlay_auto_receive_ready_summary))
+                }
+                append("\n")
+                append(
+                    if (config.floatingCompactEnabled) {
+                        "当前已启用紧凑卡片，会优先显示标题和操作按钮。"
+                    } else {
+                        "当前使用详细卡片，会显示来源、大小和操作提示。"
+                    },
+                )
+            }
         }
         receiveCacheSummaryText.text = buildReceiveCacheSummary()
         refreshFloatingDraftSummary()
@@ -856,6 +844,10 @@ class MainActivity : AppCompatActivity() {
         val compactLabel = getString(
             if (floatingCompactSwitch.isChecked) R.string.floating_layout_compact_on else R.string.floating_layout_compact_off,
         )
+        val autoConfirmSummary = buildList {
+            if (floatingAutoSendConfirmSwitch.isChecked) add("发送自动确认已开")
+            if (floatingAutoReceiveConfirmSwitch.isChecked) add("接收自动确认已开")
+        }.joinToString(" · ").ifBlank { "自动确认均关闭" }
         floatingLayoutSummaryText.text = getString(
             R.string.floating_layout_summary_format,
             stored.floatingPosX,
@@ -864,7 +856,7 @@ class MainActivity : AppCompatActivity() {
             height,
             showSeconds,
             snoozeMinutes,
-        ) + "\n" + compactLabel
+        ) + "\n" + compactLabel + "\n" + autoConfirmSummary
     }
 
     private fun syncReceiveSectionToggles() {
