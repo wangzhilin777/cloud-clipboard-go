@@ -163,7 +163,7 @@ docker run -d \
   -e AUTH_PASSWORD='global-pass' \
   -e ROOM_AUTH_JSON='{"finance":"finance-pass","private":""}' \
   -v /path/to/data:/app/server-node/data \
-  jonnyan404/cloud-clipboard-go
+  ghcr.io/wangzhilin777/cloud-clipboard-go
 ```
 
 然后访问：`http://localhost:9501`
@@ -313,7 +313,7 @@ services:
       SYNC_TRUSTED_DEVICE_EXPIRE: ${SYNC_TRUSTED_DEVICE_EXPIRE:-} #trusted设备离线保留秒数,默认0表示不自动移除
     volumes:
       - /path/your/dir/data:/app/server-node/data #请注意修改为你自己的目录
-    image: jonnyan404/cloud-clipboard-go:latest
+    image: ghcr.io/wangzhilin777/cloud-clipboard-go:latest
 ```
 
 运行：
@@ -455,13 +455,12 @@ curl http://localhost:9501/content/latest?room=work
 
 | 来源 | 仓库 |
 |------|------|
-| Docker Hub | `jonnyan404/cloud-clipboard-go` |
-| GitHub Container Registry | `ghcr.io/jonnyan404/cloud-clipboard-go` |
+| GitHub Container Registry | `ghcr.io/wangzhilin777/cloud-clipboard-go` |
 
 ### 拉取最新镜像
 
 ```bash
-docker pull jonnyan404/cloud-clipboard-go:latest
+docker pull ghcr.io/wangzhilin777/cloud-clipboard-go:latest
 ```
 
 ---

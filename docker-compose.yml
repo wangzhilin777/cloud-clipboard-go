@@ -33,4 +33,4 @@ services:
             SYNC_TRUSTED_DEVICE_EXPIRE: ${SYNC_TRUSTED_DEVICE_EXPIRE:-} #trusted设备离线保留秒数,默认0表示不自动移除
         volumes:
             - /path/your/dir/data:/app/server-node/data #请注意修改为你自己的目录
-        image: jonnyan404/cloud-clipboard-go:latest
+        image: ghcr.io/wangzhilin777/cloud-clipboard-go:latest

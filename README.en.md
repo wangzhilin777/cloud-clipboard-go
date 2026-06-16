@@ -141,7 +141,7 @@ docker run -d \
   -e AUTH_PASSWORD='global-pass' \
   -e ROOM_AUTH_JSON='{"finance":"finance-pass","private":""}' \
   -v /path/to/data:/app/server-node/data \
-  jonnyan404/cloud-clipboard-go
+  ghcr.io/wangzhilin777/cloud-clipboard-go
 ```
 
 Then visit: `http://localhost:9501`
@@ -292,7 +292,7 @@ services:
       SYNC_TRUSTED_DEVICE_EXPIRE: ${SYNC_TRUSTED_DEVICE_EXPIRE:-} # Offline trusted device retention in seconds, default 0 disables auto-removal.
     volumes:
       - /path/your/dir/data:/app/server-node/data # Replace with your own directory
-    image: jonnyan404/cloud-clipboard-go:latest
+    image: ghcr.io/wangzhilin777/cloud-clipboard-go:latest
 ```
 
 Run:
@@ -432,13 +432,12 @@ API and configuration guide: [cloud-clip/config.md](./cloud-clip/config.md)
 
 | Source | Repository |
 |--------|------------|
-| Docker Hub | `jonnyan404/cloud-clipboard-go` |
-| GitHub Container Registry | `ghcr.io/jonnyan404/cloud-clipboard-go` |
+| GitHub Container Registry | `ghcr.io/wangzhilin777/cloud-clipboard-go` |
 
 ### Pull Latest Image
 
 ```bash
-docker pull jonnyan404/cloud-clipboard-go:latest
+docker pull ghcr.io/wangzhilin777/cloud-clipboard-go:latest
 ```
 
 ---
