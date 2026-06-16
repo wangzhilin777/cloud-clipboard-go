@@ -2,6 +2,8 @@
 
 这是当前电脑端主线客户端，已替代旧的 AHK 方案，围绕 Windows 桌面场景提供一期同步能力与本地控制面板。
 
+如果你想直接看更完整的使用说明、配置说明和常见问题，先读 [桌面端使用说明](../docs/15-desktop-client-guide.md)。
+
 ## 当前能力
 
 - 托盘常驻启动，左键优先唤起控制面板窗口，右键菜单可执行常用动作
@@ -13,6 +15,7 @@
 - 本地 `state.json` 持久化连接状态、最近远端内容、最近动作
 - 支持通知模式：`tip / popup / log / off`
 - `tip` 模式支持主题切换、尺寸设置、拖动定位、位置记忆
+- `tip` 模式支持右下角热角唤出、自动关闭时长、拖拽上传和位置记忆
 - 支持成功提示开关，默认开启；直接动作成功后会替换旧 Tip
 - 内置本地控制面板，按 `概览 / 连接 / 动作 / 高级` 分组收口配置
 - 控制面板概览页已补充“下一步建议 / 连接诊断 / 缓存与目录 / 平台能力 / 最近远端文本同步 / 最近远端文件通知 / 状态最近刷新”摘要，便于直接识别回环地址、待批准、自动重连暂停、文本是否回流、最近通知时间、下载缓存位置，以及当前平台支持的文件选择、文件剪贴板和右键菜单能力
@@ -104,6 +107,8 @@ go run ./cmd/cloud-clipboard-panel
 - `tipTheme`
 - `tipLeft`
 - `tipTop`
+- `tipAutoCloseSec`
+- `tipHotCornerEnabled`
 - `successNoticeEnabled`
 
 保存后会立即触发同步客户端重连。
@@ -139,4 +144,11 @@ go run ./cmd/cloud-clipboard-panel
 - Linux / macOS 已支持基础文件选择、文件上传和下载后写入文件剪贴板；Linux 桌面环境需要可用的 `zenity`、`kdialog` 或 `yad`，文件剪贴板需要 `wl-copy` 或 `xclip`
 - Android 同步客户端在仓库独立目录 `android-sync-client/`
 - Windows 打包图标统一使用 `desktop-client-go/internal/tray/assets/cloud-clipboard-desktop.ico`，重新打包时请保留并继续使用这份资源再生成 `rsrc_windows_amd64.syso`
+
+## 常见说明
+
+- 想控制右下角提示多久自动消失，就改 `tipAutoCloseSec`
+- 想关掉拖到右下角自动弹窗，就关 `tipHotCornerEnabled`
+- 不想要托盘时，直接运行 `cloud-clipboard-panel`
+- 想快速查配置字段、使用流程和常见问题，优先看 [桌面端使用说明](../docs/15-desktop-client-guide.md)
 

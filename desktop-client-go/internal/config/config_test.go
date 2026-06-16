@@ -41,6 +41,9 @@ func TestLoadNormalizesAndPersistsMissingGeneratedFields(t *testing.T) {
 	if cfg.TipLeft != -1 || cfg.TipTop != -1 {
 		t.Fatalf("tip position was not clamped: left=%d top=%d", cfg.TipLeft, cfg.TipTop)
 	}
+	if cfg.TipAutoCloseSec != 8 {
+		t.Fatalf("tip auto close sec = %d, want 8", cfg.TipAutoCloseSec)
+	}
 
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -52,6 +55,9 @@ func TestLoadNormalizesAndPersistsMissingGeneratedFields(t *testing.T) {
 	}
 	if persisted.DeviceName != cfg.DeviceName || persisted.DeviceID != cfg.DeviceID || persisted.DownloadDir != cfg.DownloadDir {
 		t.Fatalf("generated fields were not persisted: got name=%q id=%q dir=%q", persisted.DeviceName, persisted.DeviceID, persisted.DownloadDir)
+	}
+	if persisted.TipAutoCloseSec != cfg.TipAutoCloseSec {
+		t.Fatalf("tip auto close sec was not persisted: got %d want %d", persisted.TipAutoCloseSec, cfg.TipAutoCloseSec)
 	}
 }
 
@@ -177,5 +183,19 @@ func TestNormalizeHotkeyRequiresModifierAndMainKey(t *testing.T) {
 				t.Fatalf("normalizeHotkey(%q) = %q, want %q", tt.input, got, tt.want)
 			}
 		})
+	}
+}
+
+func TestDefaultEnablesTipHotCorner(t *testing.T) {
+	cfg := Default()
+	if !cfg.TipHotCornerEnabled {
+		t.Fatal("default tip hot corner should be enabled")
+	}
+}
+
+func TestDefaultTipAutoCloseSec(t *testing.T) {
+	cfg := Default()
+	if cfg.TipAutoCloseSec != 8 {
+		t.Fatalf("default tip auto close sec = %d, want 8", cfg.TipAutoCloseSec)
 	}
 }

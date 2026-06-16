@@ -21,6 +21,8 @@
 app/build/outputs/apk/debug/app-debug.apk
 ```
 
+GitHub Release 也会附带这个同步客户端 APK，便于直接下载安装到手机上。当前 workflow 先以 Debug APK 形式发布，后续如果补上正式签名，也可以再切到 release APK。
+
 ## 图标资源
 
 安卓启动图标当前采用自适应图标：
@@ -113,4 +115,8 @@ python scripts/generate_launcher_icon.py
 * 前台服务模式适合前台使用和基础同步
 * 无障碍增强模式已接入入口、校验、恢复流程，以及界面交互触发的剪贴板补检查
 * Shizuku 授权后可作为系统授权与剪贴板 AppOps 诊断辅助模式启动；后台复制是否稳定仍以系统实际限制为准
+
+## 发布包
+
+GitHub Release 中新增的同步客户端包通常会以 APK 形式提供，名称中会包含 `android-sync-client`，方便和原有 `android/` 服务器 APK 区分。
 

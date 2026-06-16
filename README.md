@@ -13,21 +13,23 @@
   </a>
 </p>
 
-<p align="center">
-  <strong>局域网云剪贴板，支持网页、Windows、Android 多端文本同步与文件中转。</strong>
-</p>
+  <p align="center">
+    <strong>局域网云剪贴板，支持网页、Windows、Android 多端文本同步与文件中转。</strong>
+  </p>
 
-<p align="center">
-  自建可控、房间隔离、支持密码访问，适合个人与家庭设备之间快速同步剪贴板内容。
-</p>
+  <p align="center">
+    自建可控、房间隔离、支持密码访问，适合个人与家庭设备之间快速同步剪贴板内容。
+  </p>
 
-<p align="center">
-  <a href="./docs/03-sync-usage-and-effects.md"><strong>🔄 自动同步使用与效果说明</strong></a>
-  ·
-  <a href="#-自动同步能力">自动同步能力</a>
-  ·
-  <a href="#-快速开始">快速开始</a>
-</p>
+  <p align="center">
+    <a href="./docs/03-sync-usage-and-effects.md"><strong>🔄 自动同步使用与效果说明</strong></a>
+    ·
+    <a href="./docs/15-desktop-client-guide.md"><strong>🖥️ 桌面端使用说明</strong></a>
+    ·
+    <a href="#-自动同步能力">自动同步能力</a>
+    ·
+    <a href="#-快速开始">快速开始</a>
+  </p>
 
 ---
 
@@ -80,9 +82,9 @@
 - **双重接入校验**：同步客户端需要先通过房间密码或全局密码，再由网页端批准设备后才进入已连接状态。
 - **网页端同步管理**：设备页支持同步设备列表、pending / trusted 状态、批准设备、状态摘要和同步诊断自动刷新。
 - **三端文本同步**：网页端、Windows 桌面端、Android 同步客户端支持纯文本剪贴板自动同步，并带去重和防回环处理。
-- **桌面端 Go 客户端**：`desktop-client-go/` 已替代早期 AHK 方案，支持托盘、无托盘面板版、控制面板、热键、右键菜单、Tip 提示、文件通知发送、最新文本/文件拉取、下载缓存清理。
+- **桌面端 Go 客户端**：`desktop-client-go/` 已替代早期 AHK 方案，支持托盘、无托盘面板版、控制面板、热键、右键菜单、Tip 提示、文件通知发送、最新文本/文件拉取、下载缓存清理、右下角热角唤出和提示窗自动关闭配置，详细用法见 [桌面端使用说明](./docs/15-desktop-client-guide.md)。
 - **桌面端体验收口**：控制面板概览页提供下一步建议、连接诊断、缓存目录、最近缓存清理、平台能力、最近远端文本同步、最近远端文件通知和状态最近刷新摘要；自动重连达到上限后会暂停并提示手动检查。
-- **Android 同步客户端**：`android-sync-client/` 支持文本同步、悬浮确认接收图片/文件、确认后下载到私有缓存、接收页预览/打开/分享/另存为/标记已处理。
+- **Android 同步客户端**：`android-sync-client/` 支持文本同步、悬浮确认接收图片/文件、确认后下载到私有缓存、接收页预览/打开/分享/另存为/标记已处理。GitHub Release 也会附带这个同步客户端 APK，便于直接安装。
 - **Android 高版本引导**：运行页提供后台复制就绪度、后台复制诊断和动态排查按钮，可直达通知、无障碍、电池优化和厂商后台保活设置。
 - **缓存生命周期**：Android 接收缓存默认保留 24 小时，桌面端下载缓存支持保留时长配置和手动清理。
 
@@ -109,7 +111,7 @@
 
 - 网页端：打开服务端页面后，在“设备 / 同步设备管理”中启用和批准同步设备。
 - 桌面端：使用 [`desktop-client-go/`](./desktop-client-go)，支持托盘、无托盘面板版、控制面板、热键、右键菜单、Tip 提示和文件通知发送。
-- Android 同步客户端：使用 [`android-sync-client/`](./android-sync-client)，支持文本同步、悬浮确认接收图片/文件、后台复制诊断和权限引导。
+- Android 同步客户端：使用 [`android-sync-client/`](./android-sync-client)，支持文本同步、悬浮确认接收图片/文件、后台复制诊断和权限引导。GitHub Release 会同步发布对应 APK。
 
 ### Android 同步客户端说明
 
@@ -414,6 +416,8 @@ ROOM_AUTH_JSON='{"finance":"new-pass","ops":"ops-pass"}' docker compose up -d
 - Windows 托盘、无托盘面板版、全局热键、右键菜单、文件通知发送、拉取最新文本/文件、下载缓存清理
 - 支持右下角 Tip / 系统通知 / 日志 / 关闭通知等提示模式，Tip 支持主题、尺寸和位置记忆
 - 支持失败自动重连上限，超过次数后暂停重连并提示手动检查
+- 提示窗支持右下角热角唤出、自动关闭时长配置、拖拽上传和位置记忆
+- 如果要看完整桌面端用法、配置和常见问题，直接看 [桌面端使用说明](./docs/15-desktop-client-guide.md)
 
 ### 💻 UI 辅助工具
 
@@ -519,4 +523,3 @@ MIT License - 详见 [LICENSE](LICENSE)
 ---
 
 **最后更新**: 2026年6月6日 | 📖 [English Version](README.en.md)
-

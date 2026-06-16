@@ -75,6 +75,7 @@ func (a *App) Run(ctx context.Context) error {
 	} else {
 		a.hotkeys = hotkey.Start(ctx, a.logger, a.currentConfig(), a)
 		clipwatch.Start(ctx, a.logger, a)
+		go a.runTipHotCornerMonitor(ctx, a.logger)
 		if exePath, err := os.Executable(); err == nil {
 			a.shellMenu = shellmenu.Start(ctx, a.logger, a.currentConfig(), exePath, a.configPath)
 		}

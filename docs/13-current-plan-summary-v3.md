@@ -2,21 +2,22 @@
 
 ## 本轮目标
 
-围绕 Android 端当前真实阻塞，先完成两项直接影响可用性的收口，并补上设备批准后的即时状态回灌：
+围绕桌面端联调反馈继续收口，优先处理三个直接影响可用性的点：
 
-1. 悬浮发送助手与悬浮接收确认增加“主按钮自动确认”能力
-2. 修正主界面运行页 / 权限页 / 接收页的滚动与可达性问题
-3. 让 Android 端收到设备批准事件后立即解除 `trusted=false`，不再只靠轮询等待
+1. 桌面端右下角热角触发过慢、要反复晃动才弹提示
+2. Windows 提示窗拖拽上传在真机上报 `GetResponse` / 连接关闭异常
+3. Windows 控制面板窗口和提示窗排版偏高、偏挤，滚动条和空白感都不理想
 
 ## 当前背景
 
 - 当前分支：`develop-codex`
-- 当前重点仓库：`android-sync-client`
+- 当前重点仓库：`desktop-client-go`
 - 已确认问题：
-  - 悬浮窗模式只有手动点按钮，没有“显示即自动点主按钮”的配置
-  - 页面部分 Tab 通过强制高度撑满视口，导致内容区滚动行为异常
-  - 提示文本较长时，容易出现“外框在滚、内容不好看也不好点”的问题
+- 悬浮窗模式只有手动点按钮，没有“显示即自动点主按钮”的配置
+- 页面部分 Tab 通过强制高度撑满视口，导致内容区滚动行为异常
+- 提示文本较长时，容易出现“外框在滚、内容不好看也不好点”的问题
 - 设备批准后，Android 端仍有一小段 `trusted=false` 的轮询空窗，需要补成事件驱动即时回灌
+- 桌面端右下角 Tip 现有拖拽能力只支持“提示窗已弹出后在卡片内拖文件直接发送”，还没有“拖到右下角自动唤出提示窗”的热角触发
 
 ## 本轮执行范围
 
@@ -73,31 +74,70 @@
 涉及文件：
 - `android-sync-client/app/src/main/java/com/transparentlc/cloudclipboardsync/sync/ClipboardSyncClient.kt`
 
+### 4. 桌面端右下角热角唤出提示
+
+目标：
+- 在 Windows 桌面端保留“拖到右下角就自动弹提示窗”的快速入口
+- 仅在 `tip` 模式下启用，避免影响系统通知和日志模式
+- 提升热角响应，减少“来回晃动才弹出”的体感延迟
+- 保留现有提示窗内的拖放上传能力，不改服务端协议
+
+实现口径：
+- 将热角轮询从较慢间隔调到更敏感的频率
+- 放宽热区边缘判定并增加短暂停留判定，降低抖动漏触发
+- 提示窗出现后仍然沿用既有拖放上传链路，文件松手即可直接发送
+- 提供独立开关，默认开启，方便用户关闭热角触发
+
+涉及文件：
+- `desktop-client-go/internal/app/app.go`
+- `desktop-client-go/internal/app/hotcorner_windows.go`
+- `desktop-client-go/internal/config/config.go`
+- `desktop-client-go/internal/config/config_test.go`
+- `desktop-client-go/internal/panel/server.go`
+- `desktop-client-go/internal/panel/server_test.go`
+- `desktop-client-go/internal/panel/static/index.html`
+- `desktop-client-go/internal/app/app_test.go`
+
+### 5. Windows 提示窗上传链路加固
+
+目标：
+- 修复拖拽文件到提示窗后上传时报连接关闭的问题
+- 保留多文件拖拽上传
+- 避免继续依赖脆弱的 `HttpWebRequest.GetResponse` 旧写法
+
+实现口径：
+- 改用 `System.Net.Http.HttpClient + MultipartFormDataContent`
+- 每个文件都按 `files` 字段上传，和服务端解析保持一致
+- 对非 2xx 返回读取响应体，便于真机直接看到失败原因
+- 右下角提示窗自动关闭时长改为可配置项，默认 8 秒，允许用户按自己的拖拽习惯调整
+
+涉及文件：
+- `desktop-client-go/internal/app/windows_tip_windows.go`
+- `desktop-client-go/internal/app/app_test.go`
+
 ## 本轮验证
 
 ### 自动验证
 
-- Android Debug 构建通过
-- 设置项保存 / 读取闭环通过
-- 悬浮发送开关开 / 关逻辑检查
-- 悬浮接收开关开 / 关逻辑检查
-- 运行页 / 权限页 / 接收页在长内容条件下可滚到底
-- 接收侧增加 debug-only 悬浮接收调试入口，用于自动化验证“弹卡片 -> 自动确认 -> 下载链路”
+- Windows 桌面端 `go test` 通过
+- Windows 桌面端 `go build .\\cmd\\cloud-clipboard-desktop` 通过
+- Windows 桌面端 `go build .\\cmd\\cloud-clipboard-panel` 通过
+- 热角监测和上传脚本相关单测已补充并通过
+- 提示窗上传脚本已切换为 `HttpClient` 实现
+- 控制面板默认窗口尺寸已压缩为更适合桌面联调的宽扁比例
+- 桌面面板页面整体布局已压缩，减少滚动条出现概率
 
 ### 真机联调
 
-- 悬浮发送开启自动确认后，已验证可进入手动发送链路；当服务端未信任或未连接时会停在待发送状态
-- 悬浮接收开启自动确认后，已验证可自动点击主按钮并进入 `confirmPayloadDownload`
-- 自动确认关闭后仍保持手动操作
-- 运行页 / 权限页 / 接收页在瘦长全面屏设备上按钮可达
-- 当前真机使用的新 `deviceId` 已被服务端重新批准，说明阻塞点确实是设备状态而不是 Shizuku 授权本身
-- Android 客户端已补上 `deviceState` 的 trusted 回灌逻辑，待重新构建后复测即时生效
+- Windows 侧拖到右下角后能弹出提示窗，但触发节奏仍需要继续在真实鼠标拖拽上观察
+- 文件拖入提示窗后仍有一次上传失败报错，已定位为旧脚本的连接关闭问题并开始修复
+- 面板窗口和提示窗视觉密度已调紧，后续继续看瘦长屏幕上是否还会显得头重脚轻
 
 ## 本轮之后再处理
 
-- 悬浮窗模式“通过无障碍自动点系统确认框”这类更深一层的系统交互自动化
-- Shizuku 当前模式提示与诊断口径进一步收口
-- Windows 端后续联调与托盘补测
+- 继续观察 Windows 热角触发在真机拖拽中的误触率和灵敏度
+- 再做一次真实文件拖拽上传验收，确认 `HttpClient` 版脚本稳定
+- 继续检查桌面面板在不同缩放和分辨率下是否仍有不必要滚动
 - 使用真实服务端 payload 再做一次 Android 接收“下载 / 打开 / 分享 / 另存为”完整链路验收
 
 ## 文档约束

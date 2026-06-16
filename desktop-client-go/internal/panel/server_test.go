@@ -126,3 +126,21 @@ func TestHandleSendFileAcceptsMultipartFiles(t *testing.T) {
 		}
 	}
 }
+
+func TestToConfigViewIncludesTipHotCornerEnabled(t *testing.T) {
+	cfg := config.Default()
+	cfg.TipHotCornerEnabled = false
+	view := toConfigView(cfg)
+	if view.TipHotCornerEnabled {
+		t.Fatal("toConfigView should preserve tip hot corner disabled state")
+	}
+}
+
+func TestToConfigViewIncludesTipAutoCloseSec(t *testing.T) {
+	cfg := config.Default()
+	cfg.TipAutoCloseSec = 12
+	view := toConfigView(cfg)
+	if view.TipAutoCloseSec != 12 {
+		t.Fatalf("toConfigView() tip auto close sec = %d, want 12", view.TipAutoCloseSec)
+	}
+}

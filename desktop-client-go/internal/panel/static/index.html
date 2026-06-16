@@ -25,21 +25,21 @@
       color: var(--text);
     }
     .wrap {
-      max-width: 920px;
+      max-width: 1080px;
       margin: 0 auto;
-      padding: 28px 20px 40px;
+      padding: 22px 18px 32px;
     }
     .hero {
-      margin-bottom: 18px;
-      padding: 24px;
-      border-radius: 20px;
+      margin-bottom: 14px;
+      padding: 20px 22px;
+      border-radius: 18px;
       background: linear-gradient(135deg, #183a70 0%, #2d6cdf 60%, #80b3ff 100%);
       color: #fff;
       box-shadow: 0 16px 40px rgba(20, 55, 110, 0.22);
     }
     .hero h1 {
       margin: 0 0 6px;
-      font-size: 28px;
+      font-size: 26px;
     }
     .hero p {
       margin: 0;
@@ -51,18 +51,18 @@
       z-index: 5;
       display: grid;
       grid-template-columns: repeat(4, minmax(0, 1fr));
-      gap: 10px;
-      margin-bottom: 16px;
-      padding: 10px;
-      border-radius: 18px;
+      gap: 8px;
+      margin-bottom: 12px;
+      padding: 8px;
+      border-radius: 16px;
       background: rgba(255, 255, 255, 0.92);
       box-shadow: 0 10px 24px rgba(42, 66, 112, 0.08);
       backdrop-filter: blur(14px);
     }
     .tab-button {
       border: 1px solid transparent;
-      border-radius: 14px;
-      padding: 12px 10px;
+      border-radius: 12px;
+      padding: 10px 10px;
       background: transparent;
       color: var(--muted);
       font-weight: 600;
@@ -81,11 +81,11 @@
     .card, .form-card {
       background: var(--panel);
       border: 1px solid rgba(216, 225, 236, 0.9);
-      border-radius: 18px;
+      border-radius: 16px;
       box-shadow: 0 10px 24px rgba(42, 66, 112, 0.08);
     }
     .card {
-      padding: 18px;
+      padding: 14px 16px;
     }
     .label {
       display: block;
@@ -102,19 +102,19 @@
     .status-pending { color: var(--warn); }
     .status-error { color: var(--bad); }
     .form-card {
-      padding: 22px;
+      padding: 18px 20px;
     }
     .form-title {
-      margin: 0 0 16px;
-      font-size: 20px;
+      margin: 0 0 12px;
+      font-size: 19px;
     }
     .section-subtitle {
-      margin: 0 0 14px;
-      font-size: 16px;
+      margin: 0 0 12px;
+      font-size: 15px;
     }
     .form-grid {
       display: grid;
-      gap: 14px 16px;
+      gap: 12px 14px;
       grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
     }
     .field {
@@ -131,13 +131,13 @@
     input, select, textarea {
       width: 100%;
       border: 1px solid var(--line);
-      border-radius: 12px;
-      padding: 10px 12px;
+      border-radius: 11px;
+      padding: 9px 12px;
       background: #fbfdff;
       color: var(--text);
     }
     textarea {
-      min-height: 108px;
+      min-height: 96px;
       resize: vertical;
       line-height: 1.6;
     }
@@ -145,12 +145,12 @@
       display: flex;
       flex-wrap: wrap;
       gap: 10px;
-      margin-top: 18px;
+      margin-top: 14px;
     }
     button {
       border: 0;
-      border-radius: 12px;
-      padding: 11px 16px;
+      border-radius: 11px;
+      padding: 10px 14px;
       cursor: pointer;
       transition: transform 0.15s ease, opacity 0.15s ease;
     }
@@ -291,11 +291,11 @@
       display: flex;
     }
     .modal-card {
-      width: min(100%, 420px);
-      border-radius: 20px;
+      width: min(100%, 400px);
+      border-radius: 18px;
       background: #fff;
       box-shadow: 0 20px 50px rgba(18, 36, 68, 0.24);
-      padding: 22px;
+      padding: 18px 20px;
     }
     .modal-card h3 {
       margin: 0 0 10px;
@@ -315,7 +315,7 @@
     }
     @media (max-width: 720px) {
       .wrap {
-        padding: 20px 14px 96px;
+        padding: 16px 12px 86px;
       }
       .tabbar {
         position: fixed;
@@ -327,7 +327,7 @@
         border-radius: 20px 20px 0 0;
       }
       .tab-button {
-        padding: 10px 6px;
+        padding: 9px 4px;
         font-size: 13px;
       }
       .input-with-button {
@@ -490,7 +490,7 @@
           <button class="primary" id="saveButton" type="button">保存并重连</button>
           <button class="secondary" id="connectionReconnectButton" type="button">仅重连</button>
         </div>
-        <div class="card" style="padding:14px 16px; margin-top:14px;">
+        <div class="card" style="padding:12px 14px; margin-top:12px;">
           <span class="label">连接前检查</span>
           <div id="connectionHintText" class="value" style="font-size:15px; font-weight:600;">-</div>
         </div>
@@ -619,6 +619,19 @@
               <input id="tipTop" type="number" min="-1" placeholder="-1 表示自动靠右下">
             </label>
             <label class="field">
+              <span class="label">右下角提示自动关闭（秒）</span>
+              <input id="tipAutoCloseSec" type="number" min="3" max="60">
+              <span class="helper">默认 8 秒。你可以改短一些快速收回，或者改长一点方便查看。</span>
+            </label>
+            <label class="field">
+              <span class="label">拖到右下角自动唤出提示</span>
+              <select id="tipHotCornerEnabled">
+                <option value="true">开启</option>
+                <option value="false">关闭</option>
+              </select>
+              <span class="helper">开启后，把文件拖到屏幕右下角附近时，会先弹出可发送的右下角提示窗。</span>
+            </label>
+            <label class="field">
               <span class="label">成功提示</span>
               <select id="successNoticeEnabled">
                 <option value="true">开启</option>
@@ -702,6 +715,8 @@
       tipTheme: document.getElementById('tipTheme'),
       tipLeft: document.getElementById('tipLeft'),
       tipTop: document.getElementById('tipTop'),
+      tipAutoCloseSec: document.getElementById('tipAutoCloseSec'),
+      tipHotCornerEnabled: document.getElementById('tipHotCornerEnabled'),
       successNoticeEnabled: document.getElementById('successNoticeEnabled'),
     };
     const manualText = document.getElementById('manualText');
@@ -912,6 +927,8 @@
       if (cfg.clipboardFileConfirmEnabled) items.push(`文件确认：${cfg.clipboardFileConfirmWindowSec || 0} 秒`);
       if (cfg.noticeMode === 'tip') items.push(`右下角提示：${cfg.tipWidth || 0}x${cfg.tipHeight || 0} / ${cfg.tipTheme === 'light' ? '浅色' : '深色'}`);
       if (cfg.noticeMode === 'tip' && Number(cfg.tipLeft) >= 0 && Number(cfg.tipTop) >= 0) items.push(`提示位置：${cfg.tipLeft},${cfg.tipTop}`);
+      if (cfg.noticeMode === 'tip') items.push(`提示自动关闭：${cfg.tipAutoCloseSec || 0} 秒`);
+      if (cfg.noticeMode === 'tip' && cfg.tipHotCornerEnabled) items.push('拖到右下角：自动唤出提示');
       if (cfg.successNoticeEnabled) items.push('成功提示：已开启');
       if (conflicts.length) items.push(`快捷键冲突：${conflicts.length} 组`);
       return items.length ? items.join(' / ') : '未配置';
@@ -1312,6 +1329,8 @@
         tipTheme: fields.tipTheme.value,
         tipLeft: Number(fields.tipLeft.value || 0),
         tipTop: Number(fields.tipTop.value || 0),
+        tipAutoCloseSec: Number(fields.tipAutoCloseSec.value || 0),
+        tipHotCornerEnabled: fields.tipHotCornerEnabled.value === 'true',
         successNoticeEnabled: fields.successNoticeEnabled.value === 'true',
       };
       try {

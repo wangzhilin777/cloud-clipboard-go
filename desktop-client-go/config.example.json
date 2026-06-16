@@ -25,5 +25,6 @@
   "tipTheme": "dark",
   "tipLeft": -1,
   "tipTop": -1,
+  "tipAutoCloseSec": 8,
   "successNoticeEnabled": true
 }

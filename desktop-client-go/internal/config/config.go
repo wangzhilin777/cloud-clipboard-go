@@ -39,6 +39,8 @@ type Config struct {
 	TipTheme                    string        `json:"tipTheme"`
 	TipLeft                     int           `json:"tipLeft"`
 	TipTop                      int           `json:"tipTop"`
+	TipAutoCloseSec             int           `json:"tipAutoCloseSec"`
+	TipHotCornerEnabled         bool          `json:"tipHotCornerEnabled"`
 	SuccessNoticeEnabled        bool          `json:"successNoticeEnabled"`
 }
 
@@ -73,6 +75,8 @@ func Default() Config {
 		TipTheme:                    "dark",
 		TipLeft:                     -1,
 		TipTop:                      -1,
+		TipAutoCloseSec:             8,
+		TipHotCornerEnabled:         true,
 		SuccessNoticeEnabled:        true,
 	}
 }
@@ -155,6 +159,8 @@ type diskConfig struct {
 	TipTheme                      string `json:"tipTheme"`
 	TipLeft                       int    `json:"tipLeft"`
 	TipTop                        int    `json:"tipTop"`
+	TipAutoCloseSec               int    `json:"tipAutoCloseSec"`
+	TipHotCornerEnabled           bool   `json:"tipHotCornerEnabled"`
 	SuccessNoticeEnabled          bool   `json:"successNoticeEnabled"`
 }
 
@@ -206,6 +212,8 @@ func marshalDiskConfig(cfg Config) ([]byte, error) {
 		TipTheme:                      cfg.TipTheme,
 		TipLeft:                       cfg.TipLeft,
 		TipTop:                        cfg.TipTop,
+		TipAutoCloseSec:               cfg.TipAutoCloseSec,
+		TipHotCornerEnabled:           cfg.TipHotCornerEnabled,
 		SuccessNoticeEnabled:          cfg.SuccessNoticeEnabled,
 	}, "", "  ")
 }
@@ -306,6 +314,18 @@ func (c *Config) normalize() {
 	}
 	if c.TipTop < -1 {
 		c.TipTop = -1
+	}
+	if c.TipAutoCloseSec <= 0 {
+		c.TipAutoCloseSec = def.TipAutoCloseSec
+	}
+	if c.TipAutoCloseSec < 3 {
+		c.TipAutoCloseSec = 3
+	}
+	if c.TipAutoCloseSec > 60 {
+		c.TipAutoCloseSec = 60
+	}
+	if !c.TipHotCornerEnabled {
+		c.TipHotCornerEnabled = false
 	}
 }
 

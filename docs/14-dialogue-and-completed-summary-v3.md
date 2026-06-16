@@ -55,10 +55,71 @@
 - 设备从 pending 被批准后，不再完全依赖 8 秒轮询才恢复推送
 
 本轮联调观察：
-- 当前真机 `device_id=421a220e-4448-4ef7-876a-a899f4d6d18f` 最初在服务端是 pending
+- 当前真机设备最初在服务端是 pending
 - 服务端重新批准后，客户端日志开始出现 `trusted=true`
 - 这说明此前的“Shizuku 可用但不推送”主要是设备状态未获批，不是 Shizuku 授权失效
 - 设备批准后的 trusted 回灌已经写入 v3 结论，后续不再只依赖 8 秒轮询等待状态翻转
+
+### 5. Windows 桌面端右下角热角唤出提示已补上
+
+已完成：
+- 新增“拖到右下角自动唤出提示窗”开关，默认开启
+- 仅在 Windows 桌面端 `tip` 右下角提示模式下生效
+- 监测到左键拖动进入系统虚拟屏幕右下角热区时，会自动弹出现有提示窗
+- 提示窗仍沿用原有拖放上传能力，文件松手后可直接发送，不改服务端协议
+- 面板摘要已补上对应状态文案，方便用户知道这个开关控制的是“热角唤出”
+- 本轮进一步把热角轮询调得更敏感，并加入短暂停留判定，减少“要反复晃动才弹出”的体感延迟
+- 右下角提示窗自动关闭时长也已收口为可配置项，默认 8 秒，用户可以按自己的拖拽习惯调长或调短
+
+实现说明：
+- 采用轻量轮询检测鼠标左键拖动和光标位置，尽量不碰现有发送链路
+- 只在 `tip` 模式下启动监测，避免影响系统通知与日志模式
+- 配置、面板、状态摘要和单测已同步收口
+- 当前实现还需要继续观察“真正拖拽到右下角后才弹出”的时机，用户反馈过一次提示显示过早的问题，后续会再收敛触发条件
+
+涉及文件：
+- `desktop-client-go/internal/app/app.go`
+- `desktop-client-go/internal/app/hotcorner_windows.go`
+- `desktop-client-go/internal/config/config.go`
+- `desktop-client-go/internal/config/config_test.go`
+- `desktop-client-go/internal/panel/server.go`
+- `desktop-client-go/internal/panel/server_test.go`
+- `desktop-client-go/internal/panel/static/index.html`
+- `desktop-client-go/internal/app/app_test.go`
+
+### 6. Windows 提示窗拖拽上传链路已加固
+
+已完成：
+- 提示窗里的拖拽上传从旧的 `HttpWebRequest.GetResponse` 写法，切换成了 `HttpClient` + `MultipartFormDataContent`
+- 保留多文件上传，继续使用 `files` 字段，与服务端解析保持一致
+- 对非 2xx 返回读取响应体，便于用户直接看到失败原因
+- 这次修复了用户截图里看到的“基础连接已经关闭: 接收时发生错误”类异常风险
+
+影响说明：
+- 旧脚本在拖拽上传时更容易触发连接关闭异常，尤其在 Windows 真机环境里
+- 新实现尽量减少 PowerShell 手写 multipart 的脆弱性，上传路径更接近标准 .NET 客户端行为
+
+涉及文件：
+- `desktop-client-go/internal/app/windows_tip_windows.go`
+- `desktop-client-go/internal/app/app_test.go`
+
+### 7. Windows 控制面板与提示窗布局压缩
+
+已完成：
+- 控制面板默认窗口尺寸改为更适合桌面联调的宽扁比例
+- 桌面控制面板页面整体压缩了 hero、tab、卡片、按钮和表单间距
+- 调整了移动端底部 tab 与内容边距，减少“上面没铺满、下面又太空”的感觉
+- 提示窗本身也压缩了圆角、边距、按钮高度和正文占位
+- 这轮主要是为了让 Windows 端信息排列更紧凑，降低滚动条出现概率，也减少视觉空白
+
+影响说明：
+- 更适合瘦长屏幕和大部分常见桌面分辨率
+- 保留现有信息层级，没有把功能区打散重做
+
+涉及文件：
+- `desktop-client-go/internal/app/panel_window_windows.go`
+- `desktop-client-go/internal/app/windows_tip_windows.go`
+- `desktop-client-go/internal/panel/static/index.html`
 
 ## 本轮验证结果
 
@@ -66,6 +127,9 @@
 
 - `android-sync-client\\gradlew.bat assembleDebug` 已通过
 - Debug APK 已通过 `adb install -r` 安装到真机
+- `desktop-client-go` 下 `go test ./internal/config ./internal/app ./internal/panel ./internal/tray ./internal/hotkey ./internal/transfer ./internal/desktopcmd` 已通过
+- `desktop-client-go` 下 `go build .\\cmd\\cloud-clipboard-desktop` 与 `go build .\\cmd\\cloud-clipboard-panel` 已通过
+- 本轮新增的 `windows_tip_windows.go` 上传脚本断言也已补上并通过
 
 ### 真机联调验证
 
@@ -80,13 +144,18 @@
 
 - 尚未处理“悬浮窗模式通过无障碍自动点系统确认弹窗”的更深层自动化
 - 尚未使用真实服务端 payload 完整验收 Android 接收侧“下载 / 打开 / 分享 / 另存为”后续动作
+- 桌面端热角功能还需要在真机 Windows 环境里继续观察误触率、多屏坐标和右下角灵敏度
+- 仍需要再做一次真实文件拖拽上传，确认 `HttpClient` 版脚本在真机上稳定可用
 
 ### 清理结果
 
 - 已删除本轮 UI dump 临时文件
 - 已清理手机端仅包含 `debug-*` 的调试 payload 缓存
 - 已停止本轮测试拉起的 Android 应用进程
+- 已清理桌面端编译输出的临时 EXE
 - 未删除手机端非测试文件或用户数据
+- 本轮 Computer Use 失败后，没有继续保留额外 Windows 侧临时进程
+- 本轮新增测试后未遗留额外临时构建产物
 
 ## 本轮新增文档
 

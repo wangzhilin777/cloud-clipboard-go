@@ -42,7 +42,7 @@ func startPanelWindow(panelURL string) error {
 	}
 	args := []string{
 		"--app=" + panelURL,
-		"--window-size=1120,860",
+		"--window-size=1220,780",
 		"--no-first-run",
 		"--no-default-browser-check",
 		"--disable-features=msEdgeSidebarV2",

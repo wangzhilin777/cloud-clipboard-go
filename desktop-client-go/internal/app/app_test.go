@@ -36,6 +36,8 @@ func TestBuildWindowsTipScriptIncludesDropUploadHook(t *testing.T) {
 	)
 	checks := []string{
 		"Invoke-DropUpload",
+		"System.Net.Http.HttpClient",
+		"MultipartFormDataContent",
 		"DataFormats]::FileDrop",
 		"请拖入文件，暂不支持目录直接发送。",
 		"也可以把文件拖到这里直接发送",
@@ -45,5 +47,16 @@ func TestBuildWindowsTipScriptIncludesDropUploadHook(t *testing.T) {
 		if !strings.Contains(script, check) {
 			t.Fatalf("buildWindowsTipScript() missing %q", check)
 		}
+	}
+}
+
+func TestShowHotCornerTipRequiresDropURL(t *testing.T) {
+	app := &App{}
+	shown, err := app.showHotCornerTip()
+	if err != nil {
+		t.Fatalf("showHotCornerTip() error = %v", err)
+	}
+	if shown {
+		t.Fatal("showHotCornerTip() = true, want false without drop URL")
 	}
 }

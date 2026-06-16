@@ -70,6 +70,7 @@ func buildWindowsTipScript(title string, body string, primaryLabel string, prima
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 Add-Type -AssemblyName System.Web.Extensions
+Add-Type -AssemblyName System.Net.Http
 Add-Type @"
 using System;
 using System.Runtime.InteropServices;
@@ -91,24 +92,42 @@ function Invoke-Action($target) {
 function Invoke-DropUpload($target, $paths) {
   if ([string]::IsNullOrWhiteSpace($target)) { throw '未配置拖拽上传地址' }
   if ($null -eq $paths -or $paths.Count -eq 0) { throw '未检测到可发送的文件' }
-  $payload = @{ paths = @($paths) }
-  $json = [System.Web.Script.Serialization.JavaScriptSerializer]::new().Serialize($payload)
-  $bytes = [System.Text.Encoding]::UTF8.GetBytes($json)
-  $request = [System.Net.HttpWebRequest]::Create($target)
-  $request.Method = 'POST'
-  $request.ContentType = 'application/json; charset=utf-8'
-  $request.ContentLength = $bytes.Length
-  $stream = $request.GetRequestStream()
+  $client = New-Object System.Net.Http.HttpClient
   try {
-    $stream.Write($bytes, 0, $bytes.Length)
+    $client.Timeout = [TimeSpan]::FromSeconds(120)
+    $content = New-Object System.Net.Http.MultipartFormDataContent
+    foreach ($path in $paths) {
+      if ([string]::IsNullOrWhiteSpace($path) -or -not (Test-Path -LiteralPath $path -PathType Leaf)) { continue }
+      $fileName = [System.IO.Path]::GetFileName($path)
+      $fileStream = [System.IO.File]::OpenRead($path)
+      try {
+        $fileContent = New-Object System.Net.Http.StreamContent($fileStream)
+        $fileContent.Headers.ContentType = [System.Net.Http.Headers.MediaTypeHeaderValue]::Parse('application/octet-stream')
+        $content.Add($fileContent, 'files', $fileName)
+        $fileStream = $null
+      } finally {
+        if ($null -ne $fileStream) {
+          $fileStream.Dispose()
+        }
+      }
+    }
+    $response = $client.PostAsync($target, $content).GetAwaiter().GetResult()
+    try {
+      $rawStatus = [int]$response.StatusCode
+      if (-not $response.IsSuccessStatusCode) {
+        $detail = $response.Content.ReadAsStringAsync().GetAwaiter().GetResult()
+        if ([string]::IsNullOrWhiteSpace($detail)) {
+          $detail = $response.ReasonPhrase
+        }
+        throw ('上传失败: {0} {1}' -f $rawStatus, $detail)
+      }
+      return $rawStatus
+    } finally {
+      $response.Dispose()
+    }
   } finally {
-    $stream.Dispose()
-  }
-  $response = $request.GetResponse()
-  try {
-    return $response.StatusCode
-  } finally {
-    $response.Dispose()
+    $content.Dispose()
+    $client.Dispose()
   }
 }
 
@@ -169,7 +188,7 @@ $markerPath = %s
 
 if ($theme -eq 'light') {
   $outerBg = '#d7deea'
-  $surfaceBg = '#f8fbff'
+  $surfaceBg = '#f7fbff'
   $accentBg = '#2f6df6'
   $metaFg = '#53719b'
   $titleFg = '#16263d'
@@ -205,7 +224,7 @@ $form.AutoScaleMode = [System.Windows.Forms.AutoScaleMode]::Dpi
 $form.BackColor = [System.Drawing.ColorTranslator]::FromHtml($outerBg)
 $form.ForeColor = [System.Drawing.Color]::White
 $form.ClientSize = New-Object System.Drawing.Size($tipWidth, $tipHeight)
-$regionHandle = [DpiHelper]::CreateRoundRectRgn(0, 0, $tipWidth + 1, $tipHeight + 1, 26, 26)
+$regionHandle = [DpiHelper]::CreateRoundRectRgn(0, 0, $tipWidth + 1, $tipHeight + 1, 22, 22)
 $form.Region = [System.Drawing.Region]::FromHrgn($regionHandle)
 
 $working = [System.Windows.Forms.Screen]::PrimaryScreen.WorkingArea
@@ -223,12 +242,12 @@ if ($savedLeft -ge 0 -and $savedTop -ge 0) {
 }
 $form.Location = New-Object System.Drawing.Point($initialLeft, $initialTop)
 
-$contentWidth = $tipWidth - 32
+$contentWidth = $tipWidth - 28
 $closeLeft = $tipWidth - 46
-$buttonWidth = [Math]::Floor(($contentWidth - 16) / 2)
-$buttonTop = $tipHeight - 44
-$secondaryLeft = 16 + $buttonWidth + 16
-$bodyHeight = [Math]::Max(40, $buttonTop - 64)
+$buttonWidth = [Math]::Floor(($contentWidth - 12) / 2)
+$buttonTop = $tipHeight - 40
+$secondaryLeft = 14 + $buttonWidth + 12
+$bodyHeight = [Math]::Max(36, $buttonTop - 58)
 
 $surface = New-Object System.Windows.Forms.Panel
 $surface.Location = New-Object System.Drawing.Point(1, 1)
@@ -242,7 +261,7 @@ $accent.BackColor = [System.Drawing.ColorTranslator]::FromHtml($accentBg)
 
 $meta = New-Object System.Windows.Forms.Label
 $meta.Text = '云剪同步'
-$meta.Location = New-Object System.Drawing.Point(16, 12)
+$meta.Location = New-Object System.Drawing.Point(14, 10)
 $meta.Size = New-Object System.Drawing.Size(140, 18)
 $meta.UseCompatibleTextRendering = $false
 $meta.Font = New-Object System.Drawing.Font('Segoe UI', 8.25, [System.Drawing.FontStyle]::Bold)
@@ -250,8 +269,8 @@ $meta.ForeColor = [System.Drawing.ColorTranslator]::FromHtml($metaFg)
 
 $title = New-Object System.Windows.Forms.Label
 $title.Text = $titleText
-$title.Location = New-Object System.Drawing.Point(16, 34)
-$title.Size = New-Object System.Drawing.Size(($contentWidth - 40), 26)
+$title.Location = New-Object System.Drawing.Point(14, 32)
+$title.Size = New-Object System.Drawing.Size(($contentWidth - 36), 24)
 $title.UseCompatibleTextRendering = $false
 $title.AutoEllipsis = $true
 $title.Font = New-Object System.Drawing.Font('Segoe UI Semibold', 10.5, [System.Drawing.FontStyle]::Bold)
@@ -259,7 +278,7 @@ $title.ForeColor = [System.Drawing.ColorTranslator]::FromHtml($titleFg)
 
 $close = New-Object System.Windows.Forms.Button
 $close.Text = '×'
-$close.Location = New-Object System.Drawing.Point($closeLeft, 10)
+$close.Location = New-Object System.Drawing.Point($closeLeft, 8)
 $close.Size = New-Object System.Drawing.Size(30, 28)
 $close.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
 $close.FlatAppearance.BorderSize = 0
@@ -270,7 +289,7 @@ $close.Add_Click({ $form.Close() })
 
 $body = New-Object System.Windows.Forms.Label
 $body.Text = $bodyText
-$body.Location = New-Object System.Drawing.Point(16, 64)
+$body.Location = New-Object System.Drawing.Point(14, 58)
 $body.Size = New-Object System.Drawing.Size($contentWidth, $bodyHeight)
 $body.UseCompatibleTextRendering = $false
 $body.AutoEllipsis = $true
@@ -279,7 +298,7 @@ $body.ForeColor = [System.Drawing.ColorTranslator]::FromHtml($bodyFg)
 
 $dropHint = New-Object System.Windows.Forms.Label
 $dropHint.Text = '也可以把文件拖到这里直接发送'
-$dropHint.Location = New-Object System.Drawing.Point(16, ($buttonTop - 20))
+$dropHint.Location = New-Object System.Drawing.Point(14, ($buttonTop - 18))
 $dropHint.Size = New-Object System.Drawing.Size($contentWidth, 16)
 $dropHint.UseCompatibleTextRendering = $false
 $dropHint.Font = New-Object System.Drawing.Font('Segoe UI', 8.25, [System.Drawing.FontStyle]::Regular)
@@ -296,8 +315,8 @@ $surface.Controls.Add($dropHint)
 if (-not [string]::IsNullOrWhiteSpace($primaryLabel)) {
   $primary = New-Object System.Windows.Forms.Button
   $primary.Text = $primaryLabel
-  $primary.Location = New-Object System.Drawing.Point(16, $buttonTop)
-  $primary.Size = New-Object System.Drawing.Size($buttonWidth, 30)
+  $primary.Location = New-Object System.Drawing.Point(14, $buttonTop)
+  $primary.Size = New-Object System.Drawing.Size($buttonWidth, 28)
   $primary.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
   $primary.FlatAppearance.BorderSize = 0
   $primary.BackColor = [System.Drawing.ColorTranslator]::FromHtml($primaryBg)
@@ -314,7 +333,7 @@ if (-not [string]::IsNullOrWhiteSpace($secondaryLabel)) {
   $secondary = New-Object System.Windows.Forms.Button
   $secondary.Text = $secondaryLabel
   $secondary.Location = New-Object System.Drawing.Point($secondaryLeft, $buttonTop)
-  $secondary.Size = New-Object System.Drawing.Size($buttonWidth, 30)
+  $secondary.Size = New-Object System.Drawing.Size($buttonWidth, 28)
   $secondary.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
   $secondary.FlatAppearance.BorderSize = 0
   $secondary.BackColor = [System.Drawing.ColorTranslator]::FromHtml($secondaryBg)
@@ -383,6 +402,10 @@ if (-not [string]::IsNullOrWhiteSpace($dropURL)) {
       } else {
         $_.Effect = [System.Windows.Forms.DragDropEffects]::None
       }
+    })
+    $dropTarget.Add_DragLeave({
+      $timer.Stop()
+      $timer.Start()
     })
     $dropTarget.Add_DragDrop({
       try {
