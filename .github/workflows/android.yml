@@ -129,22 +129,34 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
 
-      - name: Decode Signing Key
-        run: echo "${{ secrets.SIGNING_KEY_STORE_BASE64 }}" | base64 --decode > $GITHUB_WORKSPACE/android/app/my-release-key.keystore
-
-      - name: Make gradlew executable
-        run: chmod +x ./android/gradlew
-
-      - name: Build Android Release APK
+      - name: Build Android APK
+        env:
+          SIGNING_KEY_STORE_BASE64: ${{ secrets.SIGNING_KEY_STORE_BASE64 }}
+          SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
+          SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
+          SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_KEY_STORE_PASSWORD }}
         run: |
+          chmod +x ./android/gradlew
           cd android
-          ./gradlew assembleRelease \
-            -PabiFilters=${{ matrix.arch }} \
-            -Psigning.key.alias=${{ secrets.SIGNING_KEY_ALIAS }} \
-            -Psigning.key.password=${{ secrets.SIGNING_KEY_PASSWORD }} \
-            -Psigning.store.file=$GITHUB_WORKSPACE/android/app/my-release-key.keystore \
-            -Psigning.store.password=${{ secrets.SIGNING_KEY_STORE_PASSWORD }} \
-            --stacktrace
+          if [ -n "${SIGNING_KEY_STORE_BASE64}" ] && [ -n "${SIGNING_KEY_ALIAS}" ] && [ -n "${SIGNING_KEY_PASSWORD}" ] && [ -n "${SIGNING_STORE_PASSWORD}" ]; then
+            echo "${SIGNING_KEY_STORE_BASE64}" | base64 --decode > $GITHUB_WORKSPACE/android/app/my-release-key.keystore
+            ./gradlew assembleRelease \
+              -PabiFilters=${{ matrix.arch }} \
+              -Psigning.key.alias=${SIGNING_KEY_ALIAS} \
+              -Psigning.key.password=${SIGNING_KEY_PASSWORD} \
+              -Psigning.store.file=$GITHUB_WORKSPACE/android/app/my-release-key.keystore \
+              -Psigning.store.password=${SIGNING_STORE_PASSWORD} \
+              --stacktrace
+            echo "APK_GLOB=app-${{ matrix.arch }}-release.apk" >> "$GITHUB_ENV"
+            echo "APK_TARGET_SUFFIX=.apk" >> "$GITHUB_ENV"
+          else
+            echo "Signing secrets are unavailable, falling back to debug APK."
+            ./gradlew assembleDebug \
+              -PabiFilters=${{ matrix.arch }} \
+              --stacktrace
+            echo "APK_GLOB=app-${{ matrix.arch }}-debug.apk" >> "$GITHUB_ENV"
+            echo "APK_TARGET_SUFFIX=-debug.apk" >> "$GITHUB_ENV"
+          fi
 
       - name: List build outputs for debugging
         run: |
@@ -153,16 +165,16 @@ jobs:
 
       - name: Find and Rename APK
         run: |
-          APK_PATH=$(find android/app/build/outputs/apk -type f -name "app-${{ matrix.arch }}-release.apk")
+          APK_PATH=$(find android/app/build/outputs/apk -type f -name "${APK_GLOB}")
           if [ -z "$APK_PATH" ]; then echo "::error::Per-arch APK file not found!" && exit 1; fi
           echo "Found APK at: $APK_PATH"
-          mv "$APK_PATH" "cloud-clipboard-go-${{ needs.determine-tag.outputs.tag }}-${{ matrix.arch }}.apk"
+          mv "$APK_PATH" "cloud-clipboard-go-${{ needs.determine-tag.outputs.tag }}-${{ matrix.arch }}${APK_TARGET_SUFFIX}"
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: apk-per-arch-artifacts-${{ matrix.arch }}
-          path: cloud-clipboard-go-${{ needs.determine-tag.outputs.tag }}-${{ matrix.arch }}.apk
+          path: cloud-clipboard-go-${{ needs.determine-tag.outputs.tag }}-${{ matrix.arch }}*.apk
 
   build-universal-apk:
     name: Build Universal Android APK
@@ -217,35 +229,47 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
 
-      - name: Decode Signing Key
-        run: echo "${{ secrets.SIGNING_KEY_STORE_BASE64 }}" | base64 --decode > $GITHUB_WORKSPACE/android/app/my-release-key.keystore
-
-      - name: Make gradlew executable
-        run: chmod +x ./android/gradlew
-
-      - name: Build Universal Android Release APK
+      - name: Build Universal Android APK
+        env:
+          SIGNING_KEY_STORE_BASE64: ${{ secrets.SIGNING_KEY_STORE_BASE64 }}
+          SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
+          SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
+          SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_KEY_STORE_PASSWORD }}
         run: |
+          chmod +x ./android/gradlew
           cd android
-          ./gradlew assembleRelease \
-            -PbuildUniversal \
-            -Psigning.key.alias=${{ secrets.SIGNING_KEY_ALIAS }} \
-            -Psigning.key.password=${{ secrets.SIGNING_KEY_PASSWORD }} \
-            -Psigning.store.file=$GITHUB_WORKSPACE/android/app/my-release-key.keystore \
-            -Psigning.store.password=${{ secrets.SIGNING_KEY_STORE_PASSWORD }} \
-            --stacktrace
+          if [ -n "${SIGNING_KEY_STORE_BASE64}" ] && [ -n "${SIGNING_KEY_ALIAS}" ] && [ -n "${SIGNING_KEY_PASSWORD}" ] && [ -n "${SIGNING_STORE_PASSWORD}" ]; then
+            echo "${SIGNING_KEY_STORE_BASE64}" | base64 --decode > $GITHUB_WORKSPACE/android/app/my-release-key.keystore
+            ./gradlew assembleRelease \
+              -PbuildUniversal \
+              -Psigning.key.alias=${SIGNING_KEY_ALIAS} \
+              -Psigning.key.password=${SIGNING_KEY_PASSWORD} \
+              -Psigning.store.file=$GITHUB_WORKSPACE/android/app/my-release-key.keystore \
+              -Psigning.store.password=${SIGNING_STORE_PASSWORD} \
+              --stacktrace
+            echo "APK_GLOB=app-universal-release.apk" >> "$GITHUB_ENV"
+            echo "APK_TARGET_SUFFIX=.apk" >> "$GITHUB_ENV"
+          else
+            echo "Signing secrets are unavailable, falling back to universal debug APK."
+            ./gradlew assembleDebug \
+              -PbuildUniversal \
+              --stacktrace
+            echo "APK_GLOB=app-universal-debug.apk" >> "$GITHUB_ENV"
+            echo "APK_TARGET_SUFFIX=-debug.apk" >> "$GITHUB_ENV"
+          fi
 
       - name: Find and Rename Universal APK
         run: |
-          APK_PATH=$(find android/app/build/outputs/apk -type f -name "app-universal-release.apk")
+          APK_PATH=$(find android/app/build/outputs/apk -type f -name "${APK_GLOB}")
           if [ -z "$APK_PATH" ]; then echo "::error::Universal APK file not found!" && exit 1; fi
           echo "Found Universal APK at: $APK_PATH"
-          mv "$APK_PATH" "cloud-clipboard-go-${{ needs.determine-tag.outputs.tag }}-universal.apk"
+          mv "$APK_PATH" "cloud-clipboard-go-${{ needs.determine-tag.outputs.tag }}-universal${APK_TARGET_SUFFIX}"
 
       - name: Upload Universal APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: apk-universal-artifact
-          path: cloud-clipboard-go-${{ needs.determine-tag.outputs.tag }}-universal.apk
+          path: cloud-clipboard-go-${{ needs.determine-tag.outputs.tag }}-universal*.apk
 
   build-android-sync-client:
     name: Build Android Sync Client APK

@@ -134,18 +134,34 @@ jobs:
           gomobile bind -v -tags embed -androidapi 24 -o cloudclipservice.aar -target=$TARGET_ARCH -ldflags="-s -w" github.com/jonnyan404/cloud-clipboard-go/cloud-clip/mobile
           mkdir -p ../../android/app/libs
           cp cloudclipservice.aar ../../android/app/libs/
-      - name: Decode Signing Key and Build APK
+      - name: Build Android APK
+        env:
+          SIGNING_KEY_STORE_BASE64: ${{ secrets.SIGNING_KEY_STORE_BASE64 }}
+          SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
+          SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
+          SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_KEY_STORE_PASSWORD }}
         run: |
-          echo "${{ secrets.SIGNING_KEY_STORE_BASE64 }}" | base64 --decode > $GITHUB_WORKSPACE/android/app/my-release-key.keystore
           chmod +x ./android/gradlew
           cd android
-          ./gradlew assembleRelease \
-            -PabiFilters=${{ matrix.arch }} \
-            -Psigning.key.alias=${{ secrets.SIGNING_KEY_ALIAS }} \
-            -Psigning.key.password=${{ secrets.SIGNING_KEY_PASSWORD }} \
-            -Psigning.store.file=$GITHUB_WORKSPACE/android/app/my-release-key.keystore \
-            -Psigning.store.password=${{ secrets.SIGNING_KEY_STORE_PASSWORD }} \
-            --stacktrace
+          if [ -n "${SIGNING_KEY_STORE_BASE64}" ] && [ -n "${SIGNING_KEY_ALIAS}" ] && [ -n "${SIGNING_KEY_PASSWORD}" ] && [ -n "${SIGNING_STORE_PASSWORD}" ]; then
+            echo "${SIGNING_KEY_STORE_BASE64}" | base64 --decode > $GITHUB_WORKSPACE/android/app/my-release-key.keystore
+            ./gradlew assembleRelease \
+              -PabiFilters=${{ matrix.arch }} \
+              -Psigning.key.alias=${SIGNING_KEY_ALIAS} \
+              -Psigning.key.password=${SIGNING_KEY_PASSWORD} \
+              -Psigning.store.file=$GITHUB_WORKSPACE/android/app/my-release-key.keystore \
+              -Psigning.store.password=${SIGNING_STORE_PASSWORD} \
+              --stacktrace
+            echo "APK_GLOB=app-${{ matrix.arch }}-release.apk" >> "$GITHUB_ENV"
+            echo "APK_TARGET_SUFFIX=.apk" >> "$GITHUB_ENV"
+          else
+            echo "Signing secrets are unavailable, falling back to debug APK."
+            ./gradlew assembleDebug \
+              -PabiFilters=${{ matrix.arch }} \
+              --stacktrace
+            echo "APK_GLOB=app-${{ matrix.arch }}-debug.apk" >> "$GITHUB_ENV"
+            echo "APK_TARGET_SUFFIX=-debug.apk" >> "$GITHUB_ENV"
+          fi
 
       - name: List build outputs for debugging
         run: |
@@ -154,18 +170,18 @@ jobs:
 
       - name: Find and Rename APK
         run: |
-          APK_PATH=$(find android/app/build/outputs/apk -type f -name "app-${{ matrix.arch }}-release.apk")
+          APK_PATH=$(find android/app/build/outputs/apk -type f -name "${APK_GLOB}")
           if [ -z "$APK_PATH" ]; then echo "::error::Per-arch APK file not found!" && exit 1; fi
           echo "Found APK at: $APK_PATH"
           # 重命名 APK 到根目录，避免嵌套目录
-          mv "$APK_PATH" "cloud-clipboard-go-${{ github.ref_name }}-${{ matrix.arch }}.apk"
+          mv "$APK_PATH" "cloud-clipboard-go-${{ github.ref_name }}-${{ matrix.arch }}${APK_TARGET_SUFFIX}"
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           # 使用矩阵变量使 artifact 名称唯一，避免冲突
           name: apk-per-arch-artifacts-${{ matrix.arch }}
           # 直接上传重命名后的 APK 文件
-          path: cloud-clipboard-go-${{ github.ref_name }}-${{ matrix.arch }}.apk
+          path: cloud-clipboard-go-${{ github.ref_name }}-${{ matrix.arch }}*.apk
 
   # ====================================================================
   # Job 4: Build Universal Android APK (新添加的 Job)
@@ -204,30 +220,46 @@ jobs:
             -ldflags="-s -w" github.com/jonnyan404/cloud-clipboard-go/cloud-clip/mobile
           mkdir -p ../../android/app/libs
           cp cloudclipservice.aar ../../android/app/libs/
-      - name: Decode Signing Key and Build Universal APK
+      - name: Build Universal Android APK
+        env:
+          SIGNING_KEY_STORE_BASE64: ${{ secrets.SIGNING_KEY_STORE_BASE64 }}
+          SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
+          SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
+          SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_KEY_STORE_PASSWORD }}
         run: |
-          echo "${{ secrets.SIGNING_KEY_STORE_BASE64 }}" | base64 --decode > $GITHUB_WORKSPACE/android/app/my-release-key.keystore
           chmod +x ./android/gradlew
           cd android
           # 添加 -PbuildUniversal 参数来触发 Universal APK 的构建
-          ./gradlew assembleRelease \
-            -PbuildUniversal \
-            -Psigning.key.alias=${{ secrets.SIGNING_KEY_ALIAS }} \
-            -Psigning.key.password=${{ secrets.SIGNING_KEY_PASSWORD }} \
-            -Psigning.store.file=$GITHUB_WORKSPACE/android/app/my-release-key.keystore \
-            -Psigning.store.password=${{ secrets.SIGNING_KEY_STORE_PASSWORD }} \
-            --stacktrace
+          if [ -n "${SIGNING_KEY_STORE_BASE64}" ] && [ -n "${SIGNING_KEY_ALIAS}" ] && [ -n "${SIGNING_KEY_PASSWORD}" ] && [ -n "${SIGNING_STORE_PASSWORD}" ]; then
+            echo "${SIGNING_KEY_STORE_BASE64}" | base64 --decode > $GITHUB_WORKSPACE/android/app/my-release-key.keystore
+            ./gradlew assembleRelease \
+              -PbuildUniversal \
+              -Psigning.key.alias=${SIGNING_KEY_ALIAS} \
+              -Psigning.key.password=${SIGNING_KEY_PASSWORD} \
+              -Psigning.store.file=$GITHUB_WORKSPACE/android/app/my-release-key.keystore \
+              -Psigning.store.password=${SIGNING_STORE_PASSWORD} \
+              --stacktrace
+            echo "APK_GLOB=app-universal-release.apk" >> "$GITHUB_ENV"
+            echo "APK_TARGET_SUFFIX=.apk" >> "$GITHUB_ENV"
+          else
+            echo "Signing secrets are unavailable, falling back to universal debug APK."
+            ./gradlew assembleDebug \
+              -PbuildUniversal \
+              --stacktrace
+            echo "APK_GLOB=app-universal-debug.apk" >> "$GITHUB_ENV"
+            echo "APK_TARGET_SUFFIX=-debug.apk" >> "$GITHUB_ENV"
+          fi
       - name: Find and Rename Universal APK
         run: |
-          APK_PATH=$(find android/app/build/outputs/apk -type f -name "app-universal-release.apk")
+          APK_PATH=$(find android/app/build/outputs/apk -type f -name "${APK_GLOB}")
           if [ -z "$APK_PATH" ]; then echo "::error::Universal APK file not found!" && exit 1; fi
           echo "Found Universal APK at: $APK_PATH"
-          mv "$APK_PATH" "cloud-clipboard-go-${{ github.ref_name }}-universal.apk"
+          mv "$APK_PATH" "cloud-clipboard-go-${{ github.ref_name }}-universal${APK_TARGET_SUFFIX}"
       - name: Upload Universal APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: apk-universal-artifact
-          path: cloud-clipboard-go-${{ github.ref_name }}-universal.apk
+          path: cloud-clipboard-go-${{ github.ref_name }}-universal*.apk
 
   # ====================================================================
   # Job 4: Build Android Sync Client APK
