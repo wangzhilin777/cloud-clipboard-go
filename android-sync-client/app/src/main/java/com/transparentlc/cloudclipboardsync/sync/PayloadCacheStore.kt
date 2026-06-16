@@ -48,6 +48,7 @@ object PayloadCacheStore {
             expiresAt = existing?.expiresAt ?: (notice.createdAt + retentionMs),
             processedAt = existing?.processedAt,
             snoozedUntil = existing?.snoozedUntil,
+            lastNotifiedAt = existing?.lastNotifiedAt,
         )
         if (index >= 0) {
             entries[index] = updated
@@ -91,6 +92,16 @@ object PayloadCacheStore {
         val index = entries.indexOfFirst { it.payloadId == payloadId }
         if (index == -1) return null
         val updated = entries[index].copy(snoozedUntil = until)
+        entries[index] = updated
+        saveEntries(context, entries)
+        return updated
+    }
+
+    fun markNotified(context: Context, payloadId: String, notifiedAt: Long = System.currentTimeMillis()): PayloadEntry? {
+        val entries = loadEntries(context).toMutableList()
+        val index = entries.indexOfFirst { it.payloadId == payloadId }
+        if (index == -1) return null
+        val updated = entries[index].copy(lastNotifiedAt = notifiedAt)
         entries[index] = updated
         saveEntries(context, entries)
         return updated

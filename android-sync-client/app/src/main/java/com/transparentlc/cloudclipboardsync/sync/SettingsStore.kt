@@ -28,6 +28,10 @@ object SettingsStore {
     private const val KEY_FLOATING_COMPACT_ENABLED = "floating_compact_enabled"
     private const val KEY_FLOATING_AUTO_SEND_CONFIRM_ENABLED = "floating_auto_send_confirm_enabled"
     private const val KEY_FLOATING_AUTO_RECEIVE_CONFIRM_ENABLED = "floating_auto_receive_confirm_enabled"
+    private const val KEY_SHIZUKU_ASSIST_ENABLED = "shizuku_assist_enabled"
+    private const val KEY_SHIZUKU_AUTO_UPLOAD_ENABLED = "shizuku_auto_upload_enabled"
+    private const val KEY_SHIZUKU_LIGHT_PROMPT_ENABLED = "shizuku_light_prompt_enabled"
+    private const val KEY_SHIZUKU_FALLBACK_FLOATING_ENABLED = "shizuku_fallback_floating_enabled"
     private const val KEY_CACHE_RETENTION_HOURS = "cache_retention_hours"
     private const val KEY_LAST_DESIRED_RUNNING_STATE = "last_desired_running_state"
     private const val KEY_CLIPBOARD_MODE = "clipboard_mode"
@@ -68,6 +72,10 @@ object SettingsStore {
         val floatingCompactEnabled: Boolean,
         val floatingAutoSendConfirmEnabled: Boolean,
         val floatingAutoReceiveConfirmEnabled: Boolean,
+        val shizukuAssistEnabled: Boolean,
+        val shizukuAutoUploadEnabled: Boolean,
+        val shizukuLightPromptEnabled: Boolean,
+        val shizukuFallbackFloatingEnabled: Boolean,
         val cacheRetentionHours: Int,
         val clipboardMode: String,
         val lastDesiredRunningState: String,
@@ -92,7 +100,6 @@ object SettingsStore {
         val rawClipboardMode = prefs.getString(KEY_CLIPBOARD_MODE, CLIPBOARD_MODE_FOREGROUND)
         val normalizedClipboardMode = normalizeClipboardMode(rawClipboardMode)
         val migrated = rawClipboardMode == CLIPBOARD_MODE_ACCESSIBILITY ||
-            rawClipboardMode == CLIPBOARD_MODE_SHIZUKU ||
             rawClipboardMode == CLIPBOARD_MODE_IME
         if (migrated) {
             prefs.edit().putString(KEY_CLIPBOARD_MODE, normalizedClipboardMode).apply()
@@ -118,6 +125,10 @@ object SettingsStore {
             floatingCompactEnabled = prefs.getBoolean(KEY_FLOATING_COMPACT_ENABLED, true),
             floatingAutoSendConfirmEnabled = prefs.getBoolean(KEY_FLOATING_AUTO_SEND_CONFIRM_ENABLED, false),
             floatingAutoReceiveConfirmEnabled = prefs.getBoolean(KEY_FLOATING_AUTO_RECEIVE_CONFIRM_ENABLED, false),
+            shizukuAssistEnabled = prefs.getBoolean(KEY_SHIZUKU_ASSIST_ENABLED, true),
+            shizukuAutoUploadEnabled = prefs.getBoolean(KEY_SHIZUKU_AUTO_UPLOAD_ENABLED, true),
+            shizukuLightPromptEnabled = prefs.getBoolean(KEY_SHIZUKU_LIGHT_PROMPT_ENABLED, true),
+            shizukuFallbackFloatingEnabled = prefs.getBoolean(KEY_SHIZUKU_FALLBACK_FLOATING_ENABLED, true),
             cacheRetentionHours = prefs.getInt(KEY_CACHE_RETENTION_HOURS, 24),
             clipboardMode = normalizedClipboardMode,
             lastDesiredRunningState = prefs.getString(KEY_LAST_DESIRED_RUNNING_STATE, RUNNING_STATE_STOPPED)
@@ -151,6 +162,10 @@ object SettingsStore {
             .putBoolean(KEY_FLOATING_COMPACT_ENABLED, config.floatingCompactEnabled)
             .putBoolean(KEY_FLOATING_AUTO_SEND_CONFIRM_ENABLED, config.floatingAutoSendConfirmEnabled)
             .putBoolean(KEY_FLOATING_AUTO_RECEIVE_CONFIRM_ENABLED, config.floatingAutoReceiveConfirmEnabled)
+            .putBoolean(KEY_SHIZUKU_ASSIST_ENABLED, config.shizukuAssistEnabled)
+            .putBoolean(KEY_SHIZUKU_AUTO_UPLOAD_ENABLED, config.shizukuAutoUploadEnabled)
+            .putBoolean(KEY_SHIZUKU_LIGHT_PROMPT_ENABLED, config.shizukuLightPromptEnabled)
+            .putBoolean(KEY_SHIZUKU_FALLBACK_FLOATING_ENABLED, config.shizukuFallbackFloatingEnabled)
             .putInt(KEY_CACHE_RETENTION_HOURS, config.cacheRetentionHours)
             .putString(KEY_CLIPBOARD_MODE, config.clipboardMode)
             .putString(KEY_LAST_DESIRED_RUNNING_STATE, config.lastDesiredRunningState)

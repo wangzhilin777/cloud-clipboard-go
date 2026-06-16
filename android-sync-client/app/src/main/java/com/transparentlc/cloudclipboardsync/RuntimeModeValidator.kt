@@ -20,7 +20,7 @@ enum class RuntimeModeAction {
 object RuntimeModeValidator {
     fun validate(context: Context, config: SettingsStore.Config): RuntimeModeValidation {
         val status = PermissionStatusHelper.read(context)
-        val support = ClipboardModeSupportHelper.describe(context, config.clipboardMode, status)
+        val support = ClipboardModeSupportHelper.describe(context, config, status)
         if (support.canStart) {
             return RuntimeModeValidation(true, support.readyMessage)
         }

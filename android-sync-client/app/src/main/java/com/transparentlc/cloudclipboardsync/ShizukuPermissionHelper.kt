@@ -84,14 +84,20 @@ object ShizukuPermissionHelper {
     }
 
     private fun isPackageInstalled(context: Context, packageName: String): Boolean = try {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            context.packageManager.getPackageInfo(packageName, PackageManager.PackageInfoFlags.of(0))
+        android.util.Log.w("ShizukuPermissionHelper", "开始检查包名: $packageName")
+        val packageInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            context.packageManager.getPackageInfo(
+                packageName,
+                PackageManager.PackageInfoFlags.of(PackageManager.MATCH_UNINSTALLED_PACKAGES.toLong())
+            )
         } else {
             @Suppress("DEPRECATION")
-            context.packageManager.getPackageInfo(packageName, 0)
+            context.packageManager.getPackageInfo(packageName, PackageManager.GET_META_DATA)
         }
+        android.util.Log.w("ShizukuPermissionHelper", "包名检查通过: $packageName, versionCode=${packageInfo.versionCode}")
         true
-    } catch (_: Exception) {
+    } catch (e: Exception) {
+        android.util.Log.w("ShizukuPermissionHelper", "包名检查失败: $packageName, 异常: ${e.message}", e)
         false
     }
 }

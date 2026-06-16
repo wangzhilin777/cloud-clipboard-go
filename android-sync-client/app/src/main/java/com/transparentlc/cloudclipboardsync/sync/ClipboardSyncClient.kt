@@ -102,6 +102,15 @@ class ClipboardSyncClient(
                     "payloadNotice" -> {
                         callbacks.onPayloadNotice(PayloadNotice.fromJson(event.getJSONObject("data")))
                     }
+                    "deviceState" -> {
+                        val data = event.getJSONObject("data")
+                        if (data.optString("deviceId").trim() == config.deviceId) {
+                            val trustedState = data.optBoolean("trusted", trusted)
+                            trusted = trustedState
+                            callbacks.onTrustedChanged(trustedState)
+                            callbacks.onLog(if (trustedState) "设备已获批准" else "设备已取消批准")
+                        }
+                    }
                     "clipboardAck" -> {
                         callbacks.onLog("文本同步状态：${event.getJSONObject("data").optString("status")}")
                     }

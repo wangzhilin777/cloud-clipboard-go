@@ -2,10 +2,11 @@
 
 ## 本轮目标
 
-围绕 Android 端当前真实阻塞，先完成两项直接影响可用性的收口：
+围绕 Android 端当前真实阻塞，先完成两项直接影响可用性的收口，并补上设备批准后的即时状态回灌：
 
 1. 悬浮发送助手与悬浮接收确认增加“主按钮自动确认”能力
 2. 修正主界面运行页 / 权限页 / 接收页的滚动与可达性问题
+3. 让 Android 端收到设备批准事件后立即解除 `trusted=false`，不再只靠轮询等待
 
 ## 当前背景
 
@@ -15,6 +16,7 @@
   - 悬浮窗模式只有手动点按钮，没有“显示即自动点主按钮”的配置
   - 页面部分 Tab 通过强制高度撑满视口，导致内容区滚动行为异常
   - 提示文本较长时，容易出现“外框在滚、内容不好看也不好点”的问题
+- 设备批准后，Android 端仍有一小段 `trusted=false` 的轮询空窗，需要补成事件驱动即时回灌
 
 ## 本轮执行范围
 
@@ -57,6 +59,20 @@
 - `android-sync-client/app/src/main/java/com/transparentlc/cloudclipboardsync/MainActivity.kt`
 - `android-sync-client/app/src/main/res/layout/activity_main.xml`
 
+### 3. 设备批准即时生效
+
+目标：
+- Android 客户端收到服务端 `deviceState` 事件后，立即同步当前设备的 trusted 状态
+- 避免设备在网页端已经批准后，客户端仍然要等下一轮轮询才解除 `trusted=false`
+
+实现口径：
+- 仅处理和本机 `deviceId` 匹配的 `deviceState`
+- `trusted=true` 时立刻刷新本地状态并恢复发布
+- `trusted=false` 时同步收回本地发布能力
+
+涉及文件：
+- `android-sync-client/app/src/main/java/com/transparentlc/cloudclipboardsync/sync/ClipboardSyncClient.kt`
+
 ## 本轮验证
 
 ### 自动验证
@@ -74,6 +90,8 @@
 - 悬浮接收开启自动确认后，已验证可自动点击主按钮并进入 `confirmPayloadDownload`
 - 自动确认关闭后仍保持手动操作
 - 运行页 / 权限页 / 接收页在瘦长全面屏设备上按钮可达
+- 当前真机使用的新 `deviceId` 已被服务端重新批准，说明阻塞点确实是设备状态而不是 Shizuku 授权本身
+- Android 客户端已补上 `deviceState` 的 trusted 回灌逻辑，待重新构建后复测即时生效
 
 ## 本轮之后再处理
 

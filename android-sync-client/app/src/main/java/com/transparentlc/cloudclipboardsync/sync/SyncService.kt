@@ -55,6 +55,8 @@ class SyncService : Service() {
     private var lastClipboardDetail = "等待开始"
     private var pendingDebugPublishText = ""
     private var pendingManualPublishText = ""
+    private var lastShizukuFallbackShownAt = 0L
+    private var lastShizukuFallbackSignature = ""
 
     private val clipboardListener = ClipboardManager.OnPrimaryClipChangedListener {
         publishLocalClipboardIfNeeded("listener")
@@ -69,11 +71,9 @@ class SyncService : Service() {
 
     private val clipboardPollRunnable = object : Runnable {
         override fun run() {
-            android.util.Log.d("SyncService", "clipboardPollRunnable triggered, mode=${config.clipboardMode}")
             if (config.clipboardMode == SettingsStore.CLIPBOARD_MODE_FOREGROUND ||
                 config.clipboardMode == SettingsStore.CLIPBOARD_MODE_IME_BACKGROUND ||
-                config.clipboardMode == SettingsStore.CLIPBOARD_MODE_SHIZUKU) {
-                android.util.Log.d("SyncService", "calling publishLocalClipboardIfNeeded from poll")
+                (config.clipboardMode == SettingsStore.CLIPBOARD_MODE_SHIZUKU && config.shizukuAssistEnabled && config.shizukuAutoUploadEnabled)) {
                 publishLocalClipboardIfNeeded("poll")
             }
             handler.postDelayed(this, clipboardPollIntervalMs)
@@ -112,6 +112,7 @@ class SyncService : Service() {
             ACTION_CONFIRM_PAYLOAD -> intent.getStringExtra(EXTRA_PAYLOAD_ID)?.let(::confirmPayloadDownload)
             ACTION_ACCESSIBILITY_PULSE -> handleAccessibilityPulse(intent)
             ACTION_DEBUG_PUBLISH_TEXT -> queueDebugPublish(intent)
+            ACTION_DEBUG_SHIZUKU_SMOKE -> publishClipboardThroughShizukuAssist("debug-smoke")
             ACTION_SEND_MANUAL_TEXT -> queueManualPublish(intent)
             ACTION_IME_CLIPBOARD_CHANGED -> publishLocalClipboardIfNeeded("ime-listener")
         }
@@ -200,7 +201,13 @@ class SyncService : Service() {
             override fun onPayloadNotice(notice: PayloadNotice) {
                 val existing = PayloadCacheStore.get(this@SyncService, notice.payloadId)
                 val entry = PayloadCacheStore.upsertNotice(this@SyncService, notice)
-                if (existing?.isDownloaded != true && !PayloadCacheStore.isSnoozed(entry)) {
+                val shouldPresent = shouldAutoPresentPayload(existing, entry)
+                Log.d(
+                    "SyncService",
+                    "onPayloadNotice payloadId=${entry.payloadId} shouldPresent=$shouldPresent downloaded=${existing?.isDownloaded == true} notifiedAt=${existing?.lastNotifiedAt} snoozed=${PayloadCacheStore.isSnoozed(entry)}",
+                )
+                if (shouldPresent) {
+                    PayloadCacheStore.markNotified(this@SyncService, entry.payloadId)
                     if (shouldUseFloatingConfirm()) {
                         FloatingConfirmService.show(this@SyncService, entry.payloadId)
                     } else {
@@ -326,9 +333,10 @@ class SyncService : Service() {
     }
 
     private fun publishLocalClipboardIfNeeded(source: String): Boolean {
-        android.util.Log.d("SyncService", "publishLocalClipboardIfNeeded called from source=$source")
         refreshConfig()
-        android.util.Log.d("SyncService", "applyingRemoteText=$applyingRemoteText trusted=$trusted")
+        if (config.clipboardMode == SettingsStore.CLIPBOARD_MODE_SHIZUKU) {
+            return publishClipboardThroughShizukuAssist(source)
+        }
         if (applyingRemoteText) {
             updateClipboardDiagnostic("skip-$source", "刚完成远端文本写回，已跳过本次本地回传，避免自激同步")
             return false
@@ -337,29 +345,8 @@ class SyncService : Service() {
             updateClipboardDiagnostic("skip-$source", "设备尚未获批准，已跳过本次本地剪贴板处理")
             return false
         }
-
-        // Shizuku 模式：使用 ShizukuClipboardReader 读取剪贴板
-        if (config.clipboardMode == SettingsStore.CLIPBOARD_MODE_SHIZUKU) {
-            android.util.Log.d("SyncService", "using ShizukuClipboardReader to read clipboard")
-            val result = ShizukuClipboardReader.readText(this)
-            if (!result.success) {
-                android.util.Log.d("SyncService", "ShizukuClipboardReader failed: ${result.detail}")
-                updateClipboardDiagnostic(source, "Shizuku 读取失败：${result.detail}")
-                return false
-            }
-            val text = result.text.trim()
-            android.util.Log.d("SyncService", "ShizukuClipboardReader success: text length=${text.length}")
-            if (text.isBlank()) {
-                updateClipboardDiagnostic(source, "Shizuku 读取到空文本，已跳过")
-                return false
-            }
-            return handleClipboardText(text, source)
-        }
-
         // 标准模式：使用 ClipboardManager 读取剪贴板
-        android.util.Log.d("SyncService", "attempting to read primaryClip")
         val clip = runCatching { clipboardManager.primaryClip }.getOrNull()
-        android.util.Log.d("SyncService", "primaryClip result: clip=$clip itemCount=${clip?.itemCount}")
         if (clip == null) {
             updateClipboardDiagnostic(source, "系统当前没有可读取的剪贴板内容")
             if (shouldUseAccessibilitySnapshotFallback(source)) {
@@ -416,6 +403,111 @@ class SyncService : Service() {
             return false
         }
         return publishTextToServer(text, now, "已推送本地文本到服务端", source)
+    }
+
+    private fun publishClipboardThroughShizukuAssist(source: String): Boolean {
+        if (!config.shizukuAssistEnabled) {
+            val message = "Shizuku 辅助复制已关闭，当前仅保留手动发送和其它模式兜底"
+            if (lastClipboardRoute == "shizuku-disabled" && lastClipboardDetail == message) {
+                return false
+            }
+            updateClipboardDiagnostic("shizuku-disabled", message)
+            if (config.shizukuLightPromptEnabled) {
+                broadcastStatus(currentStatus(), message)
+            }
+            return false
+        }
+        if (!trusted) {
+            updateClipboardDiagnostic("skip-$source", "设备尚未获批准，已跳过本次 Shizuku 辅助读取")
+            return false
+        }
+        val shizukuReadResult = if (config.shizukuAutoUploadEnabled) {
+            runCatching { ShizukuClipboardReader.readText(this, source) }.getOrElse { error ->
+                ShizukuClipboardReadResult(
+                    success = false,
+                    text = "",
+                    detail = "Shizuku 辅助读取发生异常：${error.message ?: error.javaClass.simpleName}",
+                )
+            }
+        } else {
+            ShizukuClipboardReadResult(
+                success = false,
+                text = "",
+                detail = "Shizuku 辅助自动上传已关闭，已跳过自动读取",
+            )
+        }
+
+        if (shizukuReadResult.success) {
+            val text = shizukuReadResult.text.trim()
+            if (text.isNotBlank()) {
+                lastObservedLocalText = text
+                updateClipboardDiagnostic("shizuku-assist", shizukuReadResult.detail)
+                return handleClipboardText(text, source)
+            }
+        }
+
+        val fallbackMessage = buildString {
+            append("Shizuku 辅助读取未命中")
+            if (shizukuReadResult.detail.isNotBlank()) {
+                append("：")
+                append(shizukuReadResult.detail)
+            }
+        }
+        if (publishAccessibilitySnapshotFallback(source, "shizuku-assist")) {
+            return true
+        }
+        val now = System.currentTimeMillis()
+        val fallbackSignature = buildShizukuFallbackSignature(shizukuReadResult)
+        if (fallbackSignature == lastShizukuFallbackSignature && now - lastShizukuFallbackShownAt < 60_000L) {
+            if (config.shizukuLightPromptEnabled) {
+                broadcastStatus(currentStatus(), fallbackMessage)
+            }
+            return false
+        }
+        updateClipboardDiagnostic("shizuku-assist-fallback", fallbackMessage)
+        if (config.shizukuLightPromptEnabled) {
+            broadcastStatus(currentStatus(), fallbackMessage)
+        }
+        if (config.shizukuFallbackFloatingEnabled) {
+            if (!FloatingClipboardOverlayService.isShowing() && PermissionStatusHelper.read(this).overlayEnabled) {
+                Log.d("SyncService", "Shizuku fallback opening floating overlay: $fallbackMessage")
+                FloatingClipboardOverlayService.show(this)
+                updateClipboardDiagnostic("shizuku-assist-fallback", "$fallbackMessage；已打开悬浮发送助手")
+                broadcastStatus(currentStatus(), "$fallbackMessage；已打开悬浮发送助手")
+            } else {
+                Log.d("SyncService", "Shizuku fallback kept as light prompt: $fallbackMessage")
+                updateClipboardDiagnostic("shizuku-assist-fallback", "$fallbackMessage；已启用悬浮兜底，但缺少悬浮窗权限")
+                broadcastStatus(currentStatus(), "$fallbackMessage；已启用悬浮兜底，但缺少悬浮窗权限")
+            }
+        } else {
+            Log.d("SyncService", "Shizuku fallback overlay disabled by config: $fallbackMessage")
+            updateClipboardDiagnostic("shizuku-assist-fallback", "$fallbackMessage；按配置仅保留轻量提示")
+        }
+        lastShizukuFallbackSignature = fallbackSignature
+        lastShizukuFallbackShownAt = now
+        return false
+    }
+
+    private fun buildShizukuFallbackSignature(result: ShizukuClipboardReadResult): String {
+        return "category=${classifyShizukuFallback(result.detail)}"
+    }
+
+    private fun classifyShizukuFallback(detail: String): String {
+        val normalized = detail.lowercase()
+        return when {
+            normalized.contains("未安装") -> "missing-install"
+            normalized.contains("未运行") -> "service-stopped"
+            normalized.contains("未授权") -> "permission-denied"
+            normalized.contains("暂时退避") -> "backoff"
+            normalized.contains("正在处理上一轮请求") -> "in-flight"
+            normalized.contains("无法获取系统剪贴板服务") -> "clipboard-service"
+            normalized.contains("无法创建剪贴板服务代理") -> "proxy-create"
+            normalized.contains("未找到可用") -> "no-method"
+            normalized.contains("binder 事务兜底失败") -> "binder-transaction"
+            normalized.contains("远程进程兜底") -> "remote-process"
+            normalized.contains("未读到可发送的剪贴板文本") -> "no-text"
+            else -> "unknown"
+        }
     }
 
     private fun shouldUseAccessibilitySnapshotFallback(source: String): Boolean {
@@ -671,6 +763,12 @@ class SyncService : Service() {
         return config.floatingEnabled && PermissionStatusHelper.read(this).overlayEnabled
     }
 
+    private fun shouldAutoPresentPayload(existing: PayloadEntry?, entry: PayloadEntry): Boolean {
+        if (existing?.isDownloaded == true) return false
+        if (PayloadCacheStore.isSnoozed(entry)) return false
+        return existing?.lastNotifiedAt == null
+    }
+
     private fun showReconnectFailureAlert(message: String) {
         if (shouldUseFloatingConfirm()) {
             FloatingConfirmService.showSyncAlert(
@@ -863,6 +961,7 @@ class SyncService : Service() {
         const val ACTION_STATUS = "com.transparentlc.cloudclipboardsync.STATUS"
         const val ACTION_PAYLOAD_UPDATED = "com.transparentlc.cloudclipboardsync.PAYLOAD_UPDATED"
         const val ACTION_DEBUG_PUBLISH_TEXT = "com.transparentlc.cloudclipboardsync.action.DEBUG_PUBLISH_TEXT"
+        const val ACTION_DEBUG_SHIZUKU_SMOKE = "com.transparentlc.cloudclipboardsync.action.DEBUG_SHIZUKU_SMOKE"
         const val ACTION_SEND_MANUAL_TEXT = "com.transparentlc.cloudclipboardsync.action.SEND_MANUAL_TEXT"
         const val ACTION_IME_CLIPBOARD_CHANGED = "com.transparentlc.cloudclipboardsync.action.IME_CLIPBOARD_CHANGED"
         const val EXTRA_STATUS = "extra_status"

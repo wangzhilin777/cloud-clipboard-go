@@ -11,7 +11,7 @@ data class ClipboardModeSupport(
 )
 
 object ClipboardModeSupportHelper {
-    fun describe(context: Context, mode: String, status: PermissionStatus): ClipboardModeSupport = when (mode) {
+    fun describe(context: Context, config: SettingsStore.Config, status: PermissionStatus): ClipboardModeSupport = when (config.clipboardMode) {
         SettingsStore.CLIPBOARD_MODE_ACCESSIBILITY -> {
             if (status.accessibilityEnabled) {
                 ClipboardModeSupport(
@@ -35,7 +35,7 @@ object ClipboardModeSupportHelper {
                     canStart = false,
                     readyMessage = "",
                     blockedMessage = context.getString(R.string.runtime_mode_shizuku_blocked),
-                    implementationSummary = "当前设备还没有可用的 Shizuku 环境，请先安装 Shizuku 并启动服务。",
+                    implementationSummary = "当前设备还没有可用的 Shizuku 环境，请先安装并启动 Shizuku，再继续使用辅助复制。",
                 )
 
                 !status.shizukuRunning -> ClipboardModeSupport(
@@ -55,7 +55,24 @@ object ClipboardModeSupportHelper {
                 else -> ClipboardModeSupport(
                     canStart = true,
                     readyMessage = context.getString(R.string.runtime_mode_shizuku_ready),
-                    implementationSummary = "Shizuku 后台模式利用 Shizuku 特权服务获取系统级剪贴板访问能力，可真正实现后台自动同步。启用 Shizuku 服务并授权后即可在后台自动监听剪贴板变化并同步，无需切换输入法或保持前台。",
+                    implementationSummary = buildString {
+                        append("Shizuku 辅助模式会优先尝试辅助读取剪贴板并自动上传；")
+                        if (config.shizukuAssistEnabled) {
+                            append("自动复制后上传已开启")
+                            if (!config.shizukuAutoUploadEnabled) {
+                                append("，但当前关闭了自动上传")
+                            }
+                            append("。")
+                        } else {
+                            append("当前已关闭辅助复制，仍可保留手动发送和其它模式兜底。")
+                        }
+                        if (config.shizukuLightPromptEnabled) {
+                            append("失败时会显示轻量提示。")
+                        }
+                        if (config.shizukuFallbackFloatingEnabled) {
+                            append("失败时会自动打开悬浮发送助手。")
+                        }
+                    },
                 )
             }
         }

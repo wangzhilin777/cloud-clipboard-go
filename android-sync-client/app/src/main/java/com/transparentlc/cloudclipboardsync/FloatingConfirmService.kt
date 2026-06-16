@@ -1,8 +1,12 @@
 package com.transparentlc.cloudclipboardsync
 
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ServiceInfo
 import android.graphics.PixelFormat
 import android.os.Build
 import android.os.Handler
@@ -17,6 +21,9 @@ import android.view.View
 import android.view.WindowManager
 import android.widget.Button
 import android.widget.TextView
+import androidx.core.app.NotificationCompat
+import androidx.core.app.ServiceCompat
+import androidx.core.content.ContextCompat
 import com.transparentlc.cloudclipboardsync.sync.PayloadCacheStore
 import com.transparentlc.cloudclipboardsync.sync.PayloadEntry
 import com.transparentlc.cloudclipboardsync.sync.SettingsStore
@@ -36,39 +43,58 @@ class FloatingConfirmService : Service() {
     private var countdownTargetAt = 0L
     private var alertMode = false
     private var autoConfirmRunnable: Runnable? = null
+    private var foregroundStarted = false
 
     override fun onCreate() {
         super.onCreate()
         windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
+        createNotificationChannel()
+        Log.d(TAG, "onCreate")
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (intent?.action == ACTION_DISMISS) {
-            dismissCurrent(showNext = false)
-            return START_NOT_STICKY
+        Log.d(TAG, "onStartCommand action=${intent?.action} startId=$startId")
+        return try {
+            if (intent?.action == ACTION_DISMISS) {
+                dismissCurrent(showNext = false)
+                START_NOT_STICKY
+            } else {
+                if (!canDrawOverlays()) {
+                    stopSelf()
+                    START_NOT_STICKY
+                } else {
+                    ensureForeground()
+                    when (intent?.action) {
+                        ACTION_SHOW_ALERT -> showAlertOverlay(
+                            intent.getStringExtra(EXTRA_ALERT_TITLE).orEmpty(),
+                            intent.getStringExtra(EXTRA_ALERT_MESSAGE).orEmpty(),
+                        )
+                        ACTION_SHOW_PREVIEW -> showPreviewOverlay()
+                        else -> {
+                            val payloadId = intent?.getStringExtra(EXTRA_PAYLOAD_ID)
+                            if (!payloadId.isNullOrBlank()) {
+                                enqueuePayload(payloadId)
+                            } else {
+                                stopSelf()
+                            }
+                        }
+                    }
+                    START_NOT_STICKY
+                }
+            }
+        } finally {
+            if (intent?.action == ACTION_DISMISS) {
+                // no-op
+            }
         }
-        if (intent?.action == ACTION_SHOW_ALERT) {
-            showAlertOverlay(
-                intent.getStringExtra(EXTRA_ALERT_TITLE).orEmpty(),
-                intent.getStringExtra(EXTRA_ALERT_MESSAGE).orEmpty(),
-            )
-            return START_NOT_STICKY
-        }
-        if (intent?.action == ACTION_SHOW_PREVIEW) {
-            showPreviewOverlay()
-            return START_NOT_STICKY
-        }
-        val payloadId = intent?.getStringExtra(EXTRA_PAYLOAD_ID)
-        if (!payloadId.isNullOrBlank()) {
-            enqueuePayload(payloadId)
-        }
-        return START_NOT_STICKY
     }
 
     override fun onDestroy() {
         handler.removeCallbacksAndMessages(null)
         overlayView?.let { windowManager?.removeViewImmediate(it) }
         overlayView = null
+        stopForegroundSafe()
+        Log.d(TAG, "onDestroy")
         super.onDestroy()
     }
 
@@ -83,6 +109,7 @@ class FloatingConfirmService : Service() {
         if (PayloadCacheStore.isSnoozed(entry)) return
         if (payloadId == currentPayloadId || pendingPayloadIds.contains(payloadId)) return
         pendingPayloadIds.addLast(payloadId)
+        Log.d(TAG, "enqueuePayload payloadId=$payloadId queueSize=${pendingPayloadIds.size}")
         if (currentPayloadId == null) {
             showNext()
         }
@@ -94,18 +121,22 @@ class FloatingConfirmService : Service() {
             val nextId = pendingPayloadIds.removeFirst()
             val entry = PayloadCacheStore.get(this, nextId) ?: continue
             currentPayloadId = nextId
+            Log.d(TAG, "showNext payloadId=$nextId")
             showOverlay(entry)
             return
         }
+        Log.d(TAG, "showNext empty -> stopSelf")
         stopSelf()
     }
 
     private fun showOverlay(entry: PayloadEntry) {
         if (!canDrawOverlays()) {
+            Log.w(TAG, "showOverlay blocked: no overlay permission")
             stopSelf()
             return
         }
         FloatingClipboardOverlayService.dismiss(this)
+        Log.d(TAG, "showOverlay entryId=${entry.payloadId} title=${entry.title}")
         handler.removeCallbacks(hideRunnable)
         countdownRunnable?.let(handler::removeCallbacks)
         autoConfirmRunnable?.let(handler::removeCallbacks)
@@ -213,6 +244,7 @@ class FloatingConfirmService : Service() {
         layoutParams = params
         overlayView = root
         if (!attachOverlayView(root, params)) {
+            Log.w(TAG, "showOverlay attach failed")
             return
         }
         applyClampedPosition(root, params, save = false)
@@ -222,6 +254,7 @@ class FloatingConfirmService : Service() {
 
     private fun showAlertOverlay(title: String, message: String) {
         if (!canDrawOverlays()) {
+            Log.w(TAG, "showAlertOverlay blocked: no overlay permission")
             stopSelf()
             return
         }
@@ -273,6 +306,7 @@ class FloatingConfirmService : Service() {
 
     private fun showPreviewOverlay() {
         if (!canDrawOverlays()) {
+            Log.w(TAG, "showPreviewOverlay blocked: no overlay permission")
             stopSelf()
             return
         }
@@ -368,9 +402,11 @@ class FloatingConfirmService : Service() {
 
     private fun attachOverlayView(view: View, params: WindowManager.LayoutParams): Boolean = try {
         windowManager?.addView(view, params)
+        Log.d(TAG, "attachOverlayView success x=${params.x} y=${params.y} width=${params.width}")
         true
     } catch (_: Exception) {
         overlayView = null
+        Log.w(TAG, "attachOverlayView failed")
         stopSelf()
         false
     }
@@ -481,6 +517,58 @@ class FloatingConfirmService : Service() {
         return Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.canDrawOverlays(this)
     }
 
+    private fun ensureForeground() {
+        if (foregroundStarted) {
+            return
+        }
+        val notification = buildForegroundNotification()
+        ServiceCompat.startForeground(
+            this,
+            FOREGROUND_NOTIFICATION_ID,
+            notification,
+            ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC,
+        )
+        foregroundStarted = true
+    }
+
+    private fun stopForegroundSafe() {
+        if (!foregroundStarted) {
+            return
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            stopForeground(STOP_FOREGROUND_REMOVE)
+        } else {
+            @Suppress("DEPRECATION")
+            stopForeground(true)
+        }
+        foregroundStarted = false
+    }
+
+    private fun buildForegroundNotification(): Notification {
+        return NotificationCompat.Builder(this, CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_sync_notification)
+            .setContentTitle(getString(R.string.floating_confirm_service_title))
+            .setContentText(getString(R.string.floating_service_running))
+            .setOngoing(true)
+            .setSilent(true)
+            .setCategory(NotificationCompat.CATEGORY_SERVICE)
+            .build()
+    }
+
+    private fun createNotificationChannel() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
+        val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        manager.createNotificationChannel(
+            NotificationChannel(
+                CHANNEL_ID,
+                getString(R.string.notification_channel_floating),
+                NotificationManager.IMPORTANCE_LOW,
+            ).apply {
+                description = getString(R.string.notification_channel_floating_desc)
+            },
+        )
+    }
+
     private fun openReceivedPage(payloadId: String) {
         startActivity(
             Intent(this, ReceivedPayloadActivity::class.java)
@@ -502,6 +590,7 @@ class FloatingConfirmService : Service() {
             showNext()
         } else {
             alertMode = false
+            stopForegroundSafe()
             stopSelf()
         }
     }
@@ -535,10 +624,13 @@ class FloatingConfirmService : Service() {
         private const val EXTRA_PAYLOAD_ID = "payload_id"
         private const val EXTRA_ALERT_TITLE = "alert_title"
         private const val EXTRA_ALERT_MESSAGE = "alert_message"
+        private const val CHANNEL_ID = "cloud_clipboard_floating_confirm"
+        private const val FOREGROUND_NOTIFICATION_ID = 1004
 
         fun show(context: Context, payloadId: String) {
             val intent = Intent(context, FloatingConfirmService::class.java).putExtra(EXTRA_PAYLOAD_ID, payloadId)
-            context.startService(intent)
+            Log.d(TAG, "show payloadId=$payloadId")
+            ContextCompat.startForegroundService(context, intent)
         }
 
         fun showSyncAlert(context: Context, title: String, message: String) {
@@ -546,13 +638,15 @@ class FloatingConfirmService : Service() {
                 .setAction(ACTION_SHOW_ALERT)
                 .putExtra(EXTRA_ALERT_TITLE, title)
                 .putExtra(EXTRA_ALERT_MESSAGE, message)
-            context.startService(intent)
+            Log.d(TAG, "showSyncAlert title=$title")
+            ContextCompat.startForegroundService(context, intent)
         }
 
         fun showPreview(context: Context) {
             val intent = Intent(context, FloatingConfirmService::class.java)
                 .setAction(ACTION_SHOW_PREVIEW)
-            context.startService(intent)
+            Log.d(TAG, "showPreview")
+            ContextCompat.startForegroundService(context, intent)
         }
 
         fun dismiss(context: Context) {

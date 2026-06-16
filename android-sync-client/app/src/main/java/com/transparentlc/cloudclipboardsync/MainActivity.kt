@@ -77,6 +77,12 @@ class MainActivity : AppCompatActivity() {
     private lateinit var clipboardModeFloating: RadioButton
     private lateinit var clipboardModeImeBackground: RadioButton
     private lateinit var clipboardModeShizuku: RadioButton
+    private lateinit var shizukuAssistSettingsGroup: View
+    private lateinit var shizukuAssistEnabledSwitch: CheckBox
+    private lateinit var shizukuAutoUploadSwitch: CheckBox
+    private lateinit var shizukuLightPromptSwitch: CheckBox
+    private lateinit var shizukuFallbackFloatingSwitch: CheckBox
+    private lateinit var shizukuAssistSummaryText: TextView
     private lateinit var autoConnectSwitch: CheckBox
     private lateinit var startOnBootSwitch: CheckBox
     private lateinit var closeAfterStartSwitch: CheckBox
@@ -208,6 +214,12 @@ class MainActivity : AppCompatActivity() {
         clipboardModeFloating = findViewById(R.id.clipboardModeFloating)
         clipboardModeImeBackground = findViewById(R.id.clipboardModeImeBackground)
         clipboardModeShizuku = findViewById(R.id.clipboardModeShizuku)
+        shizukuAssistSettingsGroup = findViewById(R.id.shizukuAssistSettingsGroup)
+        shizukuAssistEnabledSwitch = findViewById(R.id.shizukuAssistEnabledSwitch)
+        shizukuAutoUploadSwitch = findViewById(R.id.shizukuAutoUploadSwitch)
+        shizukuLightPromptSwitch = findViewById(R.id.shizukuLightPromptSwitch)
+        shizukuFallbackFloatingSwitch = findViewById(R.id.shizukuFallbackFloatingSwitch)
+        shizukuAssistSummaryText = findViewById(R.id.shizukuAssistSummaryText)
         autoConnectSwitch = findViewById(R.id.autoConnectSwitch)
         startOnBootSwitch = findViewById(R.id.startOnBootSwitch)
         closeAfterStartSwitch = findViewById(R.id.closeAfterStartSwitch)
@@ -413,6 +425,22 @@ class MainActivity : AppCompatActivity() {
         floatingAutoReceiveConfirmSwitch.setOnCheckedChangeListener { _, _ ->
             if (!suppressAutoSave) saveReceiveSettings()
         }
+        shizukuAssistEnabledSwitch.setOnCheckedChangeListener { _, _ ->
+            if (!suppressAutoSave) saveConfig()
+            refreshRuntimeHints()
+        }
+        shizukuAutoUploadSwitch.setOnCheckedChangeListener { _, _ ->
+            if (!suppressAutoSave) saveConfig()
+            refreshRuntimeHints()
+        }
+        shizukuLightPromptSwitch.setOnCheckedChangeListener { _, _ ->
+            if (!suppressAutoSave) saveConfig()
+            refreshRuntimeHints()
+        }
+        shizukuFallbackFloatingSwitch.setOnCheckedChangeListener { _, _ ->
+            if (!suppressAutoSave) saveConfig()
+            refreshRuntimeHints()
+        }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
@@ -520,6 +548,10 @@ class MainActivity : AppCompatActivity() {
         floatingCompactSwitch.isChecked = config.floatingCompactEnabled
         floatingAutoSendConfirmSwitch.isChecked = config.floatingAutoSendConfirmEnabled
         floatingAutoReceiveConfirmSwitch.isChecked = config.floatingAutoReceiveConfirmEnabled
+        shizukuAssistEnabledSwitch.isChecked = config.shizukuAssistEnabled
+        shizukuAutoUploadSwitch.isChecked = config.shizukuAutoUploadEnabled
+        shizukuLightPromptSwitch.isChecked = config.shizukuLightPromptEnabled
+        shizukuFallbackFloatingSwitch.isChecked = config.shizukuFallbackFloatingEnabled
         floatingWidthInput.setText(config.floatingWidthDp.toString())
         floatingHeightInput.setText(config.floatingHeightDp.toString())
         floatingShowSecondsInput.setText(config.floatingShowSeconds.toString())
@@ -531,6 +563,7 @@ class MainActivity : AppCompatActivity() {
         refreshPermissionSummary()
         refreshRuntimeHints()
         refreshFloatingDraftSummary()
+        syncShizukuAssistSectionVisibility()
         updateHomeHeaderSummary()
         if (migration.modeMigrated) {
             val message = getString(
@@ -621,6 +654,10 @@ class MainActivity : AppCompatActivity() {
             floatingCompactEnabled = floatingCompactSwitch.isChecked,
             floatingAutoSendConfirmEnabled = floatingAutoSendConfirmSwitch.isChecked,
             floatingAutoReceiveConfirmEnabled = floatingAutoReceiveConfirmSwitch.isChecked,
+            shizukuAssistEnabled = shizukuAssistEnabledSwitch.isChecked,
+            shizukuAutoUploadEnabled = shizukuAutoUploadSwitch.isChecked,
+            shizukuLightPromptEnabled = shizukuLightPromptSwitch.isChecked,
+            shizukuFallbackFloatingEnabled = shizukuFallbackFloatingSwitch.isChecked,
             floatingWidthDp = floatingWidthInput.text.toString().toIntOrNull()?.coerceIn(240, 420) ?: previous.floatingWidthDp,
             floatingHeightDp = floatingHeightInput.text.toString().toIntOrNull()?.coerceIn(100, 240) ?: previous.floatingHeightDp,
             floatingPosX = previous.floatingPosX,
@@ -760,7 +797,8 @@ class MainActivity : AppCompatActivity() {
         val config = SettingsStore.load(this)
         val status = PermissionStatusHelper.read(this)
         val validation = RuntimeModeValidator.validate(this, config)
-        val support = ClipboardModeSupportHelper.describe(this, config.clipboardMode, status)
+        val support = ClipboardModeSupportHelper.describe(this, config, status)
+        syncShizukuAssistSectionVisibility()
         bindStatusBadge(
             runtimeModeBadgeText,
             ready = validation.ready,
@@ -826,6 +864,7 @@ class MainActivity : AppCompatActivity() {
         }
         receiveCacheSummaryText.text = buildReceiveCacheSummary()
         refreshFloatingDraftSummary()
+        refreshShizukuAssistSummary(config, status, validation)
         updateHomeHeaderSummary()
     }
 
@@ -857,6 +896,34 @@ class MainActivity : AppCompatActivity() {
             showSeconds,
             snoozeMinutes,
         ) + "\n" + compactLabel + "\n" + autoConfirmSummary
+    }
+
+    private fun syncShizukuAssistSectionVisibility() {
+        val visible = SettingsStore.load(this).clipboardMode == SettingsStore.CLIPBOARD_MODE_SHIZUKU
+        shizukuAssistSettingsGroup.visibility = if (visible) View.VISIBLE else View.GONE
+    }
+
+    private fun refreshShizukuAssistSummary(
+        config: SettingsStore.Config,
+        status: PermissionStatus,
+        validation: RuntimeModeValidation,
+    ) {
+        shizukuAssistSummaryText.text = getString(
+            R.string.shizuku_assist_summary_format,
+            if (config.shizukuAssistEnabled) "已启用" else "已关闭",
+            if (config.shizukuAutoUploadEnabled) "开启" else "关闭",
+            if (config.shizukuLightPromptEnabled) "开启" else "关闭",
+            when {
+                config.shizukuFallbackFloatingEnabled && status.overlayEnabled -> "悬浮发送助手"
+                config.shizukuFallbackFloatingEnabled -> "悬浮发送助手（缺少悬浮窗权限）"
+                else -> "仅提示，不自动回退"
+            },
+        ) + "\n" + when {
+            !validation.ready -> validation.message
+            config.clipboardMode != SettingsStore.CLIPBOARD_MODE_SHIZUKU -> "当前不在 Shizuku 辅助模式，切换后才会启用这组配置。"
+            config.shizukuAssistEnabled -> "Shizuku 辅助模式会先尝试自动读取，再按你的回退策略处理。"
+            else -> "已关闭 Shizuku 辅助读取；当前仅保留手动发送和其它模式兜底。"
+        }
     }
 
     private fun syncReceiveSectionToggles() {
@@ -908,6 +975,17 @@ class MainActivity : AppCompatActivity() {
         val config = SettingsStore.load(this)
         val status = PermissionStatusHelper.read(this)
         when (config.clipboardMode) {
+            SettingsStore.CLIPBOARD_MODE_SHIZUKU -> {
+                when {
+                    !status.shizukuInstalled -> openShizuku(false)
+                    !status.shizukuRunning -> openShizuku(true)
+                    !status.shizukuPermissionGranted -> requestShizukuPermission()
+                    !status.notificationsEnabled -> openNotificationSettings()
+                    config.shizukuFallbackFloatingEnabled && !status.overlayEnabled -> openOverlaySettings()
+                    else -> Toast.makeText(this, R.string.runtime_mode_action_shizuku_ready_toast, Toast.LENGTH_LONG).show()
+                }
+            }
+
             SettingsStore.CLIPBOARD_MODE_FLOATING -> {
                 when {
                     !status.overlayEnabled -> openOverlaySettings()
@@ -1151,6 +1229,8 @@ class MainActivity : AppCompatActivity() {
                 R.string.runtime_mode_action_shizuku
             } else if (!status.shizukuPermissionGranted) {
                 R.string.runtime_mode_action_shizuku_authorize
+            } else if (config.shizukuFallbackFloatingEnabled && !status.overlayEnabled) {
+                R.string.runtime_mode_action_floating
             } else if (!status.notificationsEnabled) {
                 R.string.open_notification_settings_button
             } else {
@@ -1194,7 +1274,7 @@ class MainActivity : AppCompatActivity() {
             SettingsStore.CLIPBOARD_MODE_SHIZUKU -> {
                 when {
                     !status.shizukuInstalled -> {
-                    pendingItems += "需要先安装或拉起 Shizuku"
+                        pendingItems += "需要先安装或拉起 Shizuku"
                     }
                     !status.shizukuRunning -> {
                         readyItems += "已安装 Shizuku"
@@ -1206,8 +1286,16 @@ class MainActivity : AppCompatActivity() {
                     }
                     else -> {
                         readyItems += "Shizuku 已授权${status.shizukuUid?.let { "（UID $it）" }.orEmpty()}"
-                        readyItems += "已纳入系统授权与剪贴板 AppOps 诊断"
-                        pendingItems += "建议改用前台服务、原键盘发送或悬浮窗模式"
+                        readyItems += "辅助复制与 AppOps 诊断已纳入当前模式"
+                        if (config.shizukuAssistEnabled && config.shizukuAutoUploadEnabled) {
+                            readyItems += "复制后会优先尝试自动上传"
+                        }
+                        if (config.shizukuLightPromptEnabled) {
+                            readyItems += "失败会显示轻量提示"
+                        }
+                        if (config.shizukuFallbackFloatingEnabled) {
+                            readyItems += "失败会自动打开悬浮发送助手"
+                        }
                     }
                 }
             }
@@ -1299,6 +1387,21 @@ class MainActivity : AppCompatActivity() {
         else -> "已授权${status.shizukuUid?.let { "（UID $it）" }.orEmpty()}"
     }
 
+    private fun shizukuAssistSummary(
+        config: SettingsStore.Config,
+        status: PermissionStatus,
+    ): String {
+        val assist = if (config.shizukuAssistEnabled) "已启用" else "已关闭"
+        val upload = if (config.shizukuAutoUploadEnabled) "开启" else "关闭"
+        val prompt = if (config.shizukuLightPromptEnabled) "开启" else "关闭"
+        val fallback = if (config.shizukuFallbackFloatingEnabled) {
+            if (status.overlayEnabled) "悬浮发送助手" else "悬浮发送助手（缺少悬浮窗权限）"
+        } else {
+            "仅提示，不自动回退"
+        }
+        return "辅助复制：$assist · 自动上传：$upload · 轻量提示：$prompt · 失败回退：$fallback"
+    }
+
     private fun bindStatusBadge(
         view: TextView,
         ready: Boolean,
@@ -1335,10 +1438,26 @@ class MainActivity : AppCompatActivity() {
 
         SettingsStore.CLIPBOARD_MODE_SHIZUKU -> {
             when {
-                !status.shizukuInstalled -> "当前诊断状态：Shizuku\n启动状态：需要处理\n原因：${validation.message}\n系统限制：${clipboardRestrictionSummary()}\n说明：先安装 Shizuku，再用 root 或 adb 启动服务。"
-                !status.shizukuRunning -> "当前诊断状态：Shizuku\n启动状态：需要处理\n原因：${validation.message}\n系统限制：${clipboardRestrictionSummary()}\n说明：当前已安装 Shizuku，但服务还没运行；root 启动后回到这里刷新状态。"
-                !status.shizukuPermissionGranted -> "当前诊断状态：Shizuku\n启动状态：需要处理\n原因：${validation.message}\n系统限制：${clipboardRestrictionSummary()}\n说明：Shizuku 服务已运行，点快捷处理按钮授权云剪同步。"
-                else -> "当前诊断状态：Shizuku 辅助诊断\n启动状态：可直接启动同步\n系统限制：${clipboardRestrictionSummary()}\nAppOps：读取 ${PermissionStatusHelper.clipboardAppOpLabel(status.clipboardReadAppOp)} / 写入 ${PermissionStatusHelper.clipboardAppOpLabel(status.clipboardWriteAppOp)}\n说明：Shizuku 已授权${status.shizukuUid?.let { "（UID $it）" }.orEmpty()}；${PermissionStatusHelper.clipboardReadRestrictionLabel(status.clipboardReadAppOp)}当前只作为系统授权和剪贴板 AppOps 诊断辅助，不再额外轮询系统剪贴板，也不承诺绕过后台剪贴板限制。正式推荐模式请改用前台服务、原键盘发送或悬浮窗。"
+                !status.shizukuInstalled -> "当前模式：Shizuku 辅助模式\n启动状态：需要处理\n原因：${validation.message}\n系统限制：${clipboardRestrictionSummary()}\n说明：先安装 Shizuku，再用 root 或 adb 启动服务。"
+                !status.shizukuRunning -> "当前模式：Shizuku 辅助模式\n启动状态：需要处理\n原因：${validation.message}\n系统限制：${clipboardRestrictionSummary()}\n说明：当前已安装 Shizuku，但服务还没运行；root 启动后回到这里刷新状态。"
+                !status.shizukuPermissionGranted -> "当前模式：Shizuku 辅助模式\n启动状态：需要处理\n原因：${validation.message}\n系统限制：${clipboardRestrictionSummary()}\n说明：Shizuku 服务已运行，点快捷处理按钮授权云剪同步。"
+                else -> buildString {
+                    append("当前模式：Shizuku 辅助模式\n")
+                    append("启动状态：可直接启动同步\n")
+                    append("系统限制：")
+                    append(clipboardRestrictionSummary())
+                    append("\nAppOps：读取 ")
+                    append(PermissionStatusHelper.clipboardAppOpLabel(status.clipboardReadAppOp))
+                    append(" / 写入 ")
+                    append(PermissionStatusHelper.clipboardAppOpLabel(status.clipboardWriteAppOp))
+                    append("\n辅助设置：")
+                    append(shizukuAssistSummary(config, status))
+                    append("\n说明：Shizuku 已授权")
+                    append(status.shizukuUid?.let { "（UID $it）" }.orEmpty())
+                    append("；")
+                    append(PermissionStatusHelper.clipboardReadRestrictionLabel(status.clipboardReadAppOp))
+                    append("当前会尽量自动读取并上传，失败后按配置回退到轻量提示或悬浮发送助手，不再把它讲成纯诊断模式。")
+                }
             }
         }
 
@@ -1399,7 +1518,7 @@ class MainActivity : AppCompatActivity() {
         validation: RuntimeModeValidation,
     ): String {
         val readiness = when {
-            config.clipboardMode == SettingsStore.CLIPBOARD_MODE_SHIZUKU && status.shizukuPermissionGranted -> "后台复制就绪度：已授权，当前为辅助诊断模式"
+            config.clipboardMode == SettingsStore.CLIPBOARD_MODE_SHIZUKU && status.shizukuPermissionGranted -> "后台复制就绪度：Shizuku 辅助模式已就绪"
             config.clipboardMode == SettingsStore.CLIPBOARD_MODE_SHIZUKU -> "后台复制就绪度：等待 Shizuku 授权"
             config.clipboardMode == SettingsStore.CLIPBOARD_MODE_FLOATING && status.overlayEnabled -> "后台复制就绪度：助手入口已就绪"
             config.clipboardMode == SettingsStore.CLIPBOARD_MODE_FLOATING -> "后台复制就绪度：等待悬浮窗权限"
@@ -1412,7 +1531,7 @@ class MainActivity : AppCompatActivity() {
 
         val reason = when {
             config.clipboardMode == SettingsStore.CLIPBOARD_MODE_SHIZUKU ->
-                "原因：${status.shizukuDetail}；剪贴板 AppOps 为读取 ${PermissionStatusHelper.clipboardAppOpLabel(status.clipboardReadAppOp)} / 写入 ${PermissionStatusHelper.clipboardAppOpLabel(status.clipboardWriteAppOp)}。${PermissionStatusHelper.clipboardReadRestrictionLabel(status.clipboardReadAppOp)}当前 Shizuku 只作为系统授权与诊断辅助链路，不承诺绕过后台剪贴板限制。"
+                "原因：${status.shizukuDetail}；剪贴板 AppOps 为读取 ${PermissionStatusHelper.clipboardAppOpLabel(status.clipboardReadAppOp)} / 写入 ${PermissionStatusHelper.clipboardAppOpLabel(status.clipboardWriteAppOp)}。${PermissionStatusHelper.clipboardReadRestrictionLabel(status.clipboardReadAppOp)}当前辅助设置：${shizukuAssistSummary(config, status)}"
             config.clipboardMode == SettingsStore.CLIPBOARD_MODE_FLOATING ->
                 "原因：悬浮窗模式当前先提供复制后快速发送助手入口，依赖悬浮窗权限，不承诺绕过后台系统剪贴板限制。"
             !validation.ready -> "原因：${validation.message}"
@@ -1435,7 +1554,7 @@ class MainActivity : AppCompatActivity() {
 
         val nextStep = when {
             config.clipboardMode == SettingsStore.CLIPBOARD_MODE_SHIZUKU && status.shizukuPermissionGranted ->
-                "下一步：可以启动同步并做一次前台/后台复制对照；如果后台复制仍没回传，这是系统限制下的预期现象，正式使用请优先改用前台服务、原键盘发送或悬浮窗模式。"
+                "下一步：可以启动同步并做一次前台/后台复制对照；如果当前 ROM 仍会拦截后台读取，辅助模式会按配置回退到轻量提示或悬浮发送助手。"
             config.clipboardMode == SettingsStore.CLIPBOARD_MODE_SHIZUKU ->
                 "下一步：先启动 Shizuku 服务并完成授权；如果要继续日常同步，正式推荐仍是前台服务、原键盘发送或悬浮窗模式。"
             config.clipboardMode == SettingsStore.CLIPBOARD_MODE_FLOATING && status.overlayEnabled ->
@@ -1483,7 +1602,7 @@ class MainActivity : AppCompatActivity() {
             }
 
             SettingsStore.CLIPBOARD_MODE_SHIZUKU ->
-                "当前监听策略：${status.shizukuDetail}；剪贴板 AppOps 为读取 ${PermissionStatusHelper.clipboardAppOpLabel(status.clipboardReadAppOp)} / 写入 ${PermissionStatusHelper.clipboardAppOpLabel(status.clipboardWriteAppOp)}。${PermissionStatusHelper.clipboardReadRestrictionLabel(status.clipboardReadAppOp)}当前仅保留系统剪贴板回调，并把 Shizuku 状态作为诊断辅助信息展示，不再额外轮询系统剪贴板。"
+                "当前监听策略：${status.shizukuDetail}；剪贴板 AppOps 为读取 ${PermissionStatusHelper.clipboardAppOpLabel(status.clipboardReadAppOp)} / 写入 ${PermissionStatusHelper.clipboardAppOpLabel(status.clipboardWriteAppOp)}。${PermissionStatusHelper.clipboardReadRestrictionLabel(status.clipboardReadAppOp)}当前会优先尝试 Shizuku 辅助读取，再按配置回退到轻量提示或悬浮发送助手。"
 
             SettingsStore.CLIPBOARD_MODE_FLOATING ->
                 "当前监听策略：当前主要依赖悬浮窗权限和后续快速发送助手入口，暂时不把它描述成自动后台读取方案。"
@@ -1498,7 +1617,7 @@ class MainActivity : AppCompatActivity() {
 
         val nextStepLine = when {
             config.clipboardMode == SettingsStore.CLIPBOARD_MODE_SHIZUKU && status.shizukuPermissionGranted ->
-                "下一步建议：Shizuku 授权已经通过，可以启动同步并观察最近结果；如果后台复制仍没回传，正式使用请优先改用前台服务、原键盘发送或悬浮窗模式。"
+                "下一步建议：Shizuku 授权已经通过，可以启动同步并观察最近结果；如果当前 ROM 仍会拦截后台读取，辅助模式会按配置回退。"
             config.clipboardMode == SettingsStore.CLIPBOARD_MODE_SHIZUKU ->
                 "下一步建议：先启动 Shizuku 服务并完成授权；日常同步正式推荐仍是前台服务、原键盘发送或悬浮窗模式。"
             config.clipboardMode == SettingsStore.CLIPBOARD_MODE_FLOATING && !status.overlayEnabled ->
@@ -1535,6 +1654,7 @@ class MainActivity : AppCompatActivity() {
             status.clipboardReadAppOp,
             status.clipboardWriteAppOp,
         )
+        val shizukuAssistLine = "Shizuku 辅助：${shizukuAssistSummary(SettingsStore.load(this), status)}"
         val blockers = if (checklist.blockers.isEmpty()) {
             getString(R.string.permission_blockers_none)
         } else {
@@ -1545,7 +1665,7 @@ class MainActivity : AppCompatActivity() {
         } else {
             checklist.suggestions.joinToString("；")
         }
-        return "系统版本：${androidVersionSummary()}\n$baseStatus\n\n当前阻塞项：$blockers\n建议优化项：$suggestions"
+        return "系统版本：${androidVersionSummary()}\n$baseStatus\n$shizukuAssistLine\n\n当前阻塞项：$blockers\n建议优化项：$suggestions"
     }
 
     private fun buildPermissionGuide(checklist: StatusChecklist): String {
@@ -1590,10 +1710,10 @@ class MainActivity : AppCompatActivity() {
 
             SettingsStore.CLIPBOARD_MODE_SHIZUKU -> {
                 when {
-                    !status.shizukuInstalled -> blockers += "当前仍落在 Shizuku 辅助诊断链路，但设备还没有安装 Shizuku。"
-                    !status.shizukuRunning -> blockers += "当前仍落在 Shizuku 辅助诊断链路，但 Shizuku 服务还没运行。"
-                    !status.shizukuPermissionGranted -> blockers += "当前仍落在 Shizuku 辅助诊断链路，但云剪同步还没有获得 Shizuku 授权。"
-                    else -> suggestions += "Shizuku 已授权；当前只作为系统授权与剪贴板 AppOps 诊断辅助保留，正式推荐模式请改用前台服务、原键盘发送或悬浮窗。"
+                    !status.shizukuInstalled -> blockers += "当前仍落在 Shizuku 辅助链路，但设备还没有安装 Shizuku。"
+                    !status.shizukuRunning -> blockers += "当前仍落在 Shizuku 辅助链路，但 Shizuku 服务还没运行。"
+                    !status.shizukuPermissionGranted -> blockers += "当前仍落在 Shizuku 辅助链路，但云剪同步还没有获得 Shizuku 授权。"
+                    else -> suggestions += "Shizuku 已授权；当前会先尝试辅助复制，再按配置回退到轻量提示或悬浮发送助手。"
                 }
             }
 
@@ -1628,6 +1748,8 @@ class MainActivity : AppCompatActivity() {
             suggestions += "已安装 Shizuku；如需查看诊断信息，请先用 root 或 adb 启动 Shizuku 服务。"
         } else if (!status.shizukuPermissionGranted) {
             suggestions += "Shizuku 服务已运行；如需查看诊断信息，请在运行页处理授权。"
+        } else if (config.clipboardMode == SettingsStore.CLIPBOARD_MODE_SHIZUKU) {
+            suggestions += "Shizuku 辅助模式已具备自动尝试条件，可结合运行页里的辅助设置做一次前后台复制对照。"
         }
 
         return StatusChecklist(blockers = blockers, suggestions = suggestions)

@@ -1,5 +1,8 @@
 package com.transparentlc.cloudclipboardsync
 
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.app.Service
 import android.content.Context
 import android.content.Intent
@@ -8,6 +11,7 @@ import android.os.Build
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
+import android.content.pm.ServiceInfo
 import android.provider.Settings
 import android.text.TextUtils
 import android.view.Gravity
@@ -17,6 +21,9 @@ import android.view.View
 import android.view.WindowManager
 import android.widget.Button
 import android.widget.TextView
+import androidx.core.app.NotificationCompat
+import androidx.core.app.ServiceCompat
+import androidx.core.content.ContextCompat
 import com.transparentlc.cloudclipboardsync.sync.SettingsStore
 import kotlin.math.roundToInt
 
@@ -29,36 +36,57 @@ class FloatingClipboardOverlayService : Service() {
     private var countdownRunnable: Runnable? = null
     private var countdownTargetAt = 0L
     private var autoConfirmRunnable: Runnable? = null
+    private var foregroundStarted = false
 
     override fun onCreate() {
         super.onCreate()
         windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
+        createNotificationChannel()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (intent?.action == ACTION_DISMISS) {
-            dismiss()
-            return START_NOT_STICKY
+        return try {
+            if (intent?.action == ACTION_DISMISS) {
+                dismiss()
+                START_NOT_STICKY
+            } else {
+                if (!canDrawOverlays()) {
+                    stopSelf()
+                    START_NOT_STICKY
+                } else {
+                    ensureForeground()
+                    FloatingConfirmService.dismiss(this)
+                    showOverlay()
+                    START_NOT_STICKY
+                }
+            }
+        } finally {
+            // no-op
         }
-        if (!canDrawOverlays()) {
-            stopSelf()
-            return START_NOT_STICKY
-        }
-        FloatingConfirmService.dismiss(this)
-        showOverlay()
-        return START_NOT_STICKY
     }
 
     override fun onDestroy() {
         handler.removeCallbacksAndMessages(null)
         overlayView?.let { windowManager?.removeViewImmediate(it) }
         overlayView = null
+        stopForegroundSafe()
+        synchronized(this) {
+            showing = false
+            launchInFlight = false
+        }
         super.onDestroy()
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
 
     private fun showOverlay() {
+        synchronized(this) {
+            if (showing) {
+                return
+            }
+            showing = true
+        }
+        android.util.Log.d("FloatingClipboardOverlayService", "showOverlay requested")
         handler.removeCallbacks(dismissRunnable)
         countdownRunnable?.let(handler::removeCallbacks)
         autoConfirmRunnable?.let(handler::removeCallbacks)
@@ -238,6 +266,7 @@ class FloatingClipboardOverlayService : Service() {
     }
 
     private fun dismiss() {
+        android.util.Log.d("FloatingClipboardOverlayService", "dismiss requested")
         handler.removeCallbacks(dismissRunnable)
         countdownRunnable?.let(handler::removeCallbacks)
         countdownRunnable = null
@@ -245,6 +274,11 @@ class FloatingClipboardOverlayService : Service() {
         autoConfirmRunnable = null
         overlayView?.let { windowManager?.removeViewImmediate(it) }
         overlayView = null
+        synchronized(this) {
+            showing = false
+            launchInFlight = false
+        }
+        stopForegroundSafe()
         stopSelf()
     }
 
@@ -252,13 +286,90 @@ class FloatingClipboardOverlayService : Service() {
         return Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.canDrawOverlays(this)
     }
 
+    private fun ensureForeground() {
+        if (foregroundStarted) {
+            return
+        }
+        val notification = buildForegroundNotification()
+        ServiceCompat.startForeground(
+            this,
+            FOREGROUND_NOTIFICATION_ID,
+            notification,
+            ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC,
+        )
+        foregroundStarted = true
+    }
+
+    private fun stopForegroundSafe() {
+        if (!foregroundStarted) {
+            return
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            stopForeground(STOP_FOREGROUND_REMOVE)
+        } else {
+            @Suppress("DEPRECATION")
+            stopForeground(true)
+        }
+        foregroundStarted = false
+    }
+
+    private fun buildForegroundNotification(): Notification {
+        return NotificationCompat.Builder(this, CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_sync_notification)
+            .setContentTitle(getString(R.string.floating_clipboard_title))
+            .setContentText(getString(R.string.floating_service_running))
+            .setOngoing(true)
+            .setSilent(true)
+            .setCategory(NotificationCompat.CATEGORY_SERVICE)
+            .build()
+    }
+
+    private fun createNotificationChannel() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
+        val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        manager.createNotificationChannel(
+            NotificationChannel(
+                CHANNEL_ID,
+                getString(R.string.notification_channel_floating),
+                NotificationManager.IMPORTANCE_LOW,
+            ).apply {
+                description = getString(R.string.notification_channel_floating_desc)
+            },
+        )
+    }
+
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density).roundToInt()
 
     companion object {
         private const val ACTION_DISMISS = "com.transparentlc.cloudclipboardsync.action.DISMISS_FLOATING_CLIPBOARD"
+        private const val CHANNEL_ID = "cloud_clipboard_floating_overlay"
+        private const val FOREGROUND_NOTIFICATION_ID = 1003
+        @Volatile
+        private var showing = false
+        @Volatile
+        private var launchInFlight = false
+
+        fun isShowing(): Boolean = showing
 
         fun show(context: Context) {
-            context.startService(Intent(context, FloatingClipboardOverlayService::class.java))
+            if (isShowing() || launchInFlight) {
+                return
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(context)) {
+                android.util.Log.w("FloatingClipboardOverlayService", "悬浮窗权限不足，跳过打开悬浮发送助手")
+                return
+            }
+            launchInFlight = true
+            try {
+                ContextCompat.startForegroundService(context, Intent(context, FloatingClipboardOverlayService::class.java))
+            } catch (error: Throwable) {
+                launchInFlight = false
+                android.util.Log.w(
+                    "FloatingClipboardOverlayService",
+                    "启动悬浮发送助手失败：${error.message ?: error.javaClass.simpleName}",
+                    error,
+                )
+            }
         }
 
         fun dismiss(context: Context) {

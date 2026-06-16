@@ -25,12 +25,37 @@ data class ShizukuClipboardReadResult(
 
 object ShizukuClipboardReader {
     private const val TAG = "ShizukuClipboardReader"
+    private const val FAILURE_BACKOFF_MS = 30_000L
     private const val CLIPBOARD_SERVICE_NAME = "clipboard"
     private const val STUB_CLASS_NAME = "android.content.IClipboard\$Stub"
     private const val INTERFACE_CLASS_NAME = "android.content.IClipboard"
     private const val TRANSACTION_GET_PRIMARY_CLIP = 4
+    private val METHOD_NAME_PRIORITY = linkedMapOf(
+        "getUserPrimaryClip" to 0,
+        "getPrimaryClip" to 1,
+        "getPrimaryClipAsPackage" to 2,
+        "getStashPrimaryClip" to 3,
+    )
+    @Volatile
+    private var lastFailureAtMs = 0L
+    @Volatile
+    private var lastFailureDetail = ""
+    @Volatile
+    private var probeInFlight = false
 
-    fun readText(context: Context): ShizukuClipboardReadResult {
+    fun readText(context: Context, source: String = "poll"): ShizukuClipboardReadResult {
+        val now = System.currentTimeMillis()
+        val verboseProbe = source != "poll"
+        val allowDeepProbe = source == "manual"
+        val failureAt = lastFailureAtMs
+        if (failureAt > 0L && now - failureAt < FAILURE_BACKOFF_MS) {
+            val cachedDetail = "Shizuku 辅助读取暂时退避中，避免重复探针刷屏"
+            lastFailureDetail = cachedDetail
+            return failed(cachedDetail, log = false, recordFailureTime = false)
+        }
+        if (probeInFlight) {
+            return failed("Shizuku 辅助读取正在处理上一轮请求，已跳过本次探针", log = false, recordFailureTime = false)
+        }
         if (!runCatching { Shizuku.pingBinder() }.getOrDefault(false)) {
             return failed("Shizuku 服务未运行")
         }
@@ -41,64 +66,112 @@ object ShizukuClipboardReader {
             return failed("Shizuku 未授权")
         }
 
-        val binder = SystemServiceHelper.getSystemService(CLIPBOARD_SERVICE_NAME)
-            ?: return failed("Shizuku 无法获取系统剪贴板服务")
-        logBinderShape(binder)
-        val service = createClipboardServiceProxy(binder)
-            ?: return failed("Shizuku 无法创建剪贴板服务代理")
-        logServiceShape(service)
-        val method = findGetPrimaryClipMethod(service)
-        if (method == null) {
+        probeInFlight = true
+        try {
+            val binder = SystemServiceHelper.getSystemService(CLIPBOARD_SERVICE_NAME)
+                ?: return failed("Shizuku 无法获取系统剪贴板服务")
+            if (verboseProbe) {
+                logBinderShape(binder)
+            }
+            val service = createClipboardServiceProxy(binder)
+                ?: return failed("Shizuku 无法创建剪贴板服务代理")
+            if (verboseProbe) {
+                logServiceShape(service)
+            }
+            val methodAttempts = findGetPrimaryClipMethods(service)
+            if (verboseProbe) {
+                Log.w(
+                    TAG,
+                    "getPrimaryClip candidates=${methodAttempts.asSequence().map(::buildMethodSignature).distinct().take(40).joinToString(" | ").ifBlank { "无" }}",
+                )
+            }
+            if (methodAttempts.isEmpty()) {
+                if (!allowDeepProbe) {
+                    return failed("Shizuku 直接读取未命中，已进入静默退避")
+                }
+                val fallback = readTextViaBinderTransaction(binder, context)
+                if (fallback.success && fallback.text.isNotBlank()) {
+                    return fallback
+                }
+                val remoteProcessFallback = readTextViaRemoteProcess(context)
+                if (remoteProcessFallback.success) {
+                    return remoteProcessFallback
+                }
+                return failed(
+                    "Shizuku 未找到可用的 getPrimaryClip 接口：${listAvailableGetPrimaryClipSignatures(service)}；事务兜底：${fallback.detail}；远程进程兜底：${remoteProcessFallback.detail}",
+                )
+            }
+
+            val methodFailures = mutableListOf<String>()
+            for (method in methodAttempts) {
+                val args = buildMethodArgs(method, context)
+                val result = try {
+                    method.isAccessible = true
+                    method.invoke(service, *args)
+                } catch (error: Throwable) {
+                    val detail = error.message?.takeIf { it.isNotBlank() } ?: error.javaClass.simpleName
+                    methodFailures += "${buildMethodSignature(method)} args=${describeArgs(args)} error=$detail"
+                    null
+                } as? ClipData
+
+                if (result == null || result.itemCount <= 0) {
+                    methodFailures += "${buildMethodSignature(method)} args=${describeArgs(args)} empty"
+                    continue
+                }
+
+                val text = result.getItemAt(0).coerceToText(context)?.toString().orEmpty().trim()
+                if (text.isBlank()) {
+                    methodFailures += "${buildMethodSignature(method)} args=${describeArgs(args)} blank-text"
+                    continue
+                }
+                return success(
+                    text,
+                    "Shizuku 已读取到系统剪贴板文本：${buildMethodSignature(method)} args=${describeArgs(args)}",
+                )
+            }
+
+            if (!allowDeepProbe) {
+                return failed("Shizuku 直接读取未命中，已进入静默退避")
+            }
+
             val fallback = readTextViaBinderTransaction(binder, context)
             if (fallback.success && fallback.text.isNotBlank()) {
                 return fallback
             }
             val remoteProcessFallback = readTextViaRemoteProcess(context)
-            if (remoteProcessFallback.success) {
+            if (remoteProcessFallback.success && remoteProcessFallback.text.isNotBlank()) {
                 return remoteProcessFallback
             }
             return failed(
-                "Shizuku 未找到可用的 getPrimaryClip 接口：${listAvailableGetPrimaryClipSignatures(service)}；事务兜底：${fallback.detail}；远程进程兜底：${remoteProcessFallback.detail}",
+                buildString {
+                    append("Shizuku 未读到可发送的剪贴板文本；方法尝试：")
+                    append(if (methodFailures.isEmpty()) "无" else methodFailures.joinToString(" ; "))
+                    append("；事务兜底：")
+                    append(fallback.detail)
+                    append("；远程进程兜底：")
+                    append(remoteProcessFallback.detail)
+                },
             )
+        } finally {
+            probeInFlight = false
         }
-
-        val args = buildMethodArgs(method, context)
-        val clip = runCatching {
-            method.isAccessible = true
-            method.invoke(service, *args)
-        }.getOrElse { error ->
-            val detail = error.message?.takeIf { it.isNotBlank() } ?: error.javaClass.simpleName
-            return failed(
-                "Shizuku 读取系统剪贴板失败：${buildMethodSignature(method)} args=${describeArgs(args)} error=$detail",
-            )
-        } as? ClipData
-
-        if (clip == null || clip.itemCount <= 0) {
-            return success(
-                "",
-                "Shizuku 当前没有可读取的剪贴板内容：${buildMethodSignature(method)} args=${describeArgs(args)}",
-            )
-        }
-        val text = clip.getItemAt(0).coerceToText(context)?.toString().orEmpty().trim()
-        if (text.isBlank()) {
-            return success(
-                "",
-                "Shizuku 读取到的剪贴板不是可发送的纯文本：${buildMethodSignature(method)}",
-            )
-        }
-        return success(
-            text,
-            "Shizuku 已读取到系统剪贴板文本：${buildMethodSignature(method)} args=${describeArgs(args)}",
-        )
     }
 
-    private fun failed(detail: String): ShizukuClipboardReadResult {
-        Log.w(TAG, detail)
+    private fun failed(detail: String, log: Boolean = true, recordFailureTime: Boolean = true): ShizukuClipboardReadResult {
+        if (log) {
+            Log.w(TAG, detail)
+        }
+        if (recordFailureTime) {
+            lastFailureAtMs = System.currentTimeMillis()
+        }
+        lastFailureDetail = detail
         return ShizukuClipboardReadResult(false, "", detail)
     }
 
     private fun success(text: String, detail: String): ShizukuClipboardReadResult {
         Log.d(TAG, detail + if (text.isNotBlank()) " textLength=${text.length}" else "")
+        lastFailureAtMs = 0L
+        lastFailureDetail = ""
         return ShizukuClipboardReadResult(true, text, detail)
     }
 
@@ -182,7 +255,7 @@ object ShizukuClipboardReader {
         )
     }
 
-    private fun findGetPrimaryClipMethod(service: Any): Method? {
+    private fun findGetPrimaryClipMethods(service: Any): List<Method> {
         val interfaceClass = runCatching { Class.forName(INTERFACE_CLASS_NAME) }.getOrNull()
         val candidates = buildList {
             addAll(service.javaClass.methods.toList())
@@ -196,15 +269,13 @@ object ShizukuClipboardReader {
                 addAll(iface.declaredMethods.toList())
             }
         }
-        Log.w(
-            TAG,
-            "getPrimaryClip candidates=${candidates.asSequence().map(::buildMethodSignature).distinct().take(40).joinToString(" | ").ifBlank { "无" }}",
-        )
         return candidates
             .asSequence()
             .filter {
                 it.name == "getPrimaryClip" ||
                     it.name == "getPrimaryClipAsPackage" ||
+                    it.name == "getUserPrimaryClip" ||
+                    it.name == "getStashPrimaryClip" ||
                     it.name.contains("PrimaryClip", ignoreCase = true)
             }
             .filter { ClipData::class.java.isAssignableFrom(it.returnType) }
@@ -212,15 +283,10 @@ object ShizukuClipboardReader {
                 compareBy<Method> { methodNamePriority(it.name) }
                     .thenBy { methodPenaltyScore(it) },
             )
-            .firstOrNull()
+            .toList()
     }
 
-    private fun methodNamePriority(name: String): Int = when (name) {
-        "getUserPrimaryClip" -> 0  // Android 13+ 后台读取的正确方法
-        "getPrimaryClip" -> 1
-        "getPrimaryClipAsPackage" -> 2
-        else -> 3
-    }
+    private fun methodNamePriority(name: String): Int = METHOD_NAME_PRIORITY[name] ?: 10
 
     private fun methodPenaltyScore(method: Method): Int {
         return method.parameterTypes.fold(0) { total, type ->

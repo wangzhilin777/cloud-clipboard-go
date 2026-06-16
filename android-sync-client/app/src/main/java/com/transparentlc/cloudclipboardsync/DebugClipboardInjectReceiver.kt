@@ -10,6 +10,7 @@ import android.util.Log
 import androidx.core.content.ContextCompat
 import com.transparentlc.cloudclipboardsync.sync.PayloadCacheStore
 import com.transparentlc.cloudclipboardsync.sync.PayloadNotice
+import com.transparentlc.cloudclipboardsync.sync.SyncService
 import java.util.UUID
 
 class DebugClipboardInjectReceiver : BroadcastReceiver() {
@@ -19,6 +20,26 @@ class DebugClipboardInjectReceiver : BroadcastReceiver() {
             return
         }
         when (intent.action) {
+            ACTION_DEBUG_SET_CLIPBOARD_ONLY -> {
+                val text = intent.getStringExtra(EXTRA_TEXT)?.trim().orEmpty()
+                if (text.isBlank()) {
+                    Log.w(TAG, "忽略空白调试剪贴板写入")
+                    return
+                }
+                writeClipboard(context, text)
+                Log.i(TAG, "已写入调试剪贴板但未触发同步，length=${text.length}")
+            }
+
+            ACTION_DEBUG_SHIZUKU_SMOKE -> {
+                ContextCompat.startForegroundService(
+                    context,
+                    Intent()
+                        .setClassName(context, SYNC_SERVICE_CLASS_NAME)
+                        .setAction(SyncService.ACTION_DEBUG_SHIZUKU_SMOKE),
+                )
+                Log.i(TAG, "已请求 Shizuku 辅助模式 smoke")
+            }
+
             ACTION_DEBUG_INJECT_CLIPBOARD -> {
                 val text = intent.getStringExtra(EXTRA_TEXT)?.trim().orEmpty()
                 if (text.isBlank()) {
@@ -72,10 +93,7 @@ class DebugClipboardInjectReceiver : BroadcastReceiver() {
                 if (overrideText.isNotBlank()) {
                     writeClipboard(context, overrideText)
                 }
-                context.startService(
-                    Intent()
-                        .setClassName(context, FLOATING_OVERLAY_SERVICE_CLASS_NAME),
-                )
+                FloatingClipboardOverlayService.show(context)
                 Log.i(TAG, "已请求弹出调试悬浮发送助手")
             }
 
@@ -124,8 +142,9 @@ class DebugClipboardInjectReceiver : BroadcastReceiver() {
     companion object {
         private const val TAG = "DebugClipboardInject"
         private const val SYNC_SERVICE_CLASS_NAME = "com.transparentlc.cloudclipboardsync.sync.SyncService"
-        private const val FLOATING_OVERLAY_SERVICE_CLASS_NAME = "com.transparentlc.cloudclipboardsync.FloatingClipboardOverlayService"
         const val ACTION_DEBUG_INJECT_CLIPBOARD = "com.transparentlc.cloudclipboardsync.action.DEBUG_INJECT_CLIPBOARD"
+        const val ACTION_DEBUG_SET_CLIPBOARD_ONLY = "com.transparentlc.cloudclipboardsync.action.DEBUG_SET_CLIPBOARD_ONLY"
+        const val ACTION_DEBUG_SHIZUKU_SMOKE = "com.transparentlc.cloudclipboardsync.action.DEBUG_SHIZUKU_SMOKE"
         const val ACTION_DEBUG_SEND_CLIPBOARD = "com.transparentlc.cloudclipboardsync.action.DEBUG_SEND_CLIPBOARD"
         const val ACTION_DEBUG_SHOW_FLOATING_CLIPBOARD = "com.transparentlc.cloudclipboardsync.action.DEBUG_SHOW_FLOATING_CLIPBOARD"
         const val ACTION_DEBUG_SHOW_FLOATING_RECEIVE = "com.transparentlc.cloudclipboardsync.action.DEBUG_SHOW_FLOATING_RECEIVE"
