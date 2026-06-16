@@ -26,4 +26,16 @@ clipboard-monitor/src-tauri/target/
 /desktop-client-go/*.exe~
 /tmp-*.png
 /tmp-*.ico
+/QQ_*.png
+/codex-clipboard-*.png
+/android-screen.png
+/current_screen*.png
+/debug_marked.png
+/middle_tap_*.png
+/screen_*.png
+/screenshot_*.png
+/tap_*.png
+/wechat.png
+/windows-*.png
+/android-sync-client/screen_*.png
 /cloud_clipboard_sync.xml
