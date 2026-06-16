@@ -38,4 +38,6 @@ clipboard-monitor/src-tauri/target/
 /wechat.png
 /windows-*.png
 /android-sync-client/screen_*.png
+/AGENTS.md
+/.claude/
 /cloud_clipboard_sync.xml
