@@ -85,16 +85,16 @@ if (config.clipboardMode == SettingsStore.CLIPBOARD_MODE_SHIZUKU) {
 
 ## 📊 测试截图
 
-已生成以下截图文件（保存在项目根目录）:
+已生成一组调试截图，用于覆盖以下场景:
 
-1. `screenshot_main.png` - 应用主界面
-2. `screenshot_after_tap.png` - 点击后界面
-3. `screenshot_shizuku_mode.png` - Shizuku 模式界面
-4. `screenshot_ui.png` - 当前 UI 状态
-5. `screenshot_runtime.png` - 运行页面
-6. `screenshot_scrolled.png` - 滚动后界面
+1. 应用主界面
+2. 点击后的状态变化
+3. Shizuku 模式页面
+4. 当前 UI 状态
+5. 运行页面
+6. 滚动后的页面
 
-这些截图可用于手动测试参考。
+这些截图仅用于当时的手动测试参考，相关临时图片文件已从仓库中清理。
 
 ---
 

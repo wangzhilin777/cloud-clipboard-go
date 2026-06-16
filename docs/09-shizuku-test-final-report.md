@@ -117,9 +117,11 @@ FileNotFoundException: /data/system/theme_config/theme_compatibility.xml
 - ⚠️ 多点扫描 - 效率低
 
 **生成的截图**:
-- `screenshot_main.png` - 主界面
-- `screen_tab_270.png` 到 `screen_tab_1620.png` - 不同标签页
-- `current_screen.png` - 当前状态
+- 主界面状态
+- 不同标签页状态
+- 当前状态
+
+这些调试截图仅用于测试过程记录，对应的临时图片文件已清理出仓库。
 
 **建议**:
 需要用户手动在 UI 上切换模式，或者修复配置重置问题
