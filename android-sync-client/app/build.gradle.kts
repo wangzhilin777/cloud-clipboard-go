@@ -7,6 +7,22 @@ android {
     namespace = "com.transparentlc.cloudclipboardsync"
     compileSdk = 34
 
+    signingConfigs {
+        create("release") {
+            val storeFileProp = project.findProperty("signing.store.file")?.let { file(it) }
+            val storePasswordProp = project.findProperty("signing.store.password") as String?
+            val keyAliasProp = project.findProperty("signing.key.alias") as String?
+            val keyPasswordProp = project.findProperty("signing.key.password") as String?
+
+            if (storeFileProp != null && storeFileProp.exists() && storePasswordProp != null && keyAliasProp != null && keyPasswordProp != null) {
+                storeFile = storeFileProp
+                storePassword = storePasswordProp
+                keyAlias = keyAliasProp
+                keyPassword = keyPasswordProp
+            }
+        }
+    }
+
     defaultConfig {
         applicationId = "com.transparentlc.cloudclipboardsync"
         minSdk = 26
@@ -18,6 +34,7 @@ android {
     buildTypes {
         release {
             isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("release")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",

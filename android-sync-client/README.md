@@ -21,7 +21,7 @@
 app/build/outputs/apk/debug/app-debug.apk
 ```
 
-GitHub Release 也会附带这个同步客户端 APK，便于直接下载安装到手机上。当前 workflow 先以 Debug APK 形式发布，后续如果补上正式签名，也可以再切到 release APK。
+GitHub Release 也会附带这个同步客户端 APK，便于直接下载安装到手机上。当前 workflow 在提供签名材料时会发布 release APK；如果未配置签名信息，则仍会回退为 debug APK。
 
 ## 图标资源
 

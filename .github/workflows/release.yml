@@ -277,21 +277,41 @@ jobs:
           distribution: 'temurin'
       - name: Make gradlew executable
         run: chmod +x ./android-sync-client/gradlew
-      - name: Build Android Sync Client Debug APK
+      - name: Build Android Sync Client APK
+        env:
+          SIGNING_KEY_STORE_BASE64: ${{ secrets.SIGNING_KEY_STORE_BASE64 }}
+          SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
+          SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
+          SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_KEY_STORE_PASSWORD }}
         run: |
           cd android-sync-client
-          ./gradlew assembleDebug --stacktrace
+          if [ -n "${SIGNING_KEY_STORE_BASE64}" ] && [ -n "${SIGNING_KEY_ALIAS}" ] && [ -n "${SIGNING_KEY_PASSWORD}" ] && [ -n "${SIGNING_STORE_PASSWORD}" ]; then
+            echo "${SIGNING_KEY_STORE_BASE64}" | base64 --decode > $GITHUB_WORKSPACE/android-sync-client/app/my-release-key.keystore
+            ./gradlew assembleRelease \
+              -Psigning.key.alias=${SIGNING_KEY_ALIAS} \
+              -Psigning.key.password=${SIGNING_KEY_PASSWORD} \
+              -Psigning.store.file=$GITHUB_WORKSPACE/android-sync-client/app/my-release-key.keystore \
+              -Psigning.store.password=${SIGNING_STORE_PASSWORD} \
+              --stacktrace
+            echo "APK_GLOB=app-release.apk" >> "$GITHUB_ENV"
+            echo "APK_TARGET_SUFFIX=.apk" >> "$GITHUB_ENV"
+          else
+            echo "Signing secrets are unavailable, falling back to debug APK."
+            ./gradlew assembleDebug --stacktrace
+            echo "APK_GLOB=app-debug.apk" >> "$GITHUB_ENV"
+            echo "APK_TARGET_SUFFIX=-debug.apk" >> "$GITHUB_ENV"
+          fi
       - name: Find and Rename Sync Client APK
         run: |
-          APK_PATH=$(find android-sync-client/app/build/outputs/apk -type f -name "app-debug.apk")
+          APK_PATH=$(find android-sync-client/app/build/outputs/apk -type f -name "${APK_GLOB}")
           if [ -z "$APK_PATH" ]; then echo "::error::Android sync client APK file not found!" && exit 1; fi
           echo "Found Android sync client APK at: $APK_PATH"
-          mv "$APK_PATH" "cloud-clipboard-go-${{ github.ref_name }}-android-sync-client-debug.apk"
+          mv "$APK_PATH" "cloud-clipboard-go-${{ github.ref_name }}-android-sync-client${APK_TARGET_SUFFIX}"
       - name: Upload Android Sync Client APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: android-sync-client-debug-artifact
-          path: cloud-clipboard-go-${{ github.ref_name }}-android-sync-client-debug.apk
+          path: cloud-clipboard-go-${{ github.ref_name }}-android-sync-client*.apk
 
   # ====================================================================
   # Job 5: Create Release and Upload All Assets
